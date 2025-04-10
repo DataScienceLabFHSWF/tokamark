@@ -36,35 +36,71 @@ def plot_1d_profiles(profiles: xr.Dataset):
             plot_1d_profile(profiles[name], ax=axes[i])
 
         plt.tight_layout()
-        plt.show()
+        plt.savefig(f"{xr.Dataset}.png") 
+        plt.close()
 
     except Exception as e:
         print(f"Error: {e}")
 
 
-def MAST_shot_data(shot_id =30421):
-    try:
+def MAST_make_store(shot_id =30421, API=True):
+    if API:
+        try:
+            endpoint_url = 'https://s3.echo.stfc.ac.uk'
+            url = f's3://mast/test/level2/shots/{shot_id}.zarr'
 
-        endpoint_url = 'https://s3.echo.stfc.ac.uk'
-        url = f's3://mast/test/level2/shots/{shot_id}.zarr'
+            fs = fsspec.filesystem(
+            **dict(
+                protocol='simplecache',
+                target_protocol="s3",
+                target_options=dict(anon=True, endpoint_url=endpoint_url)
+            )
+            )
+            store = zarr.storage.FSStore(fs=fs, url=url)
 
-        fs = fsspec.filesystem(
-        **dict(
-            protocol='simplecache',
-            target_protocol="s3",
-            target_options=dict(anon=True, endpoint_url=endpoint_url)
-        )
-        )
-        store = zarr.storage.FSStore(fs=fs, url=url)
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
+    else:
+        local_url = f"/srv/{shot_id}.zarr"
+        store = zarr.storage.FSStore(url=local_url)
 
     return store
 
 
-def plot_current(store):
+def print_store(store):
+
+    print("Print all items (keys) in the store")
+    for item in store:
+        print(item)
+
+    print(f"Attributes and methods of store: {dir(store)}")
+
+
+def is_item_in_store(store, item:str):
+    """
+    Tells if an item is available in the store. 
+    """
+    availability = False
+
+    store_keys = list(store.keys())
+
+    for key in store_keys:
+        if item in key:
+            print(f"We found the following item: {key}")
+            availability = True
+        
+    return availability
+
+
+def show_items_in_group(store, group):
+    """
+    Shows all items in the group. 
+    """
+    [print(key) for key in store.keys() if key.startswith(group)]
+
+
+def plot_plasma_current(store):
     try:
         profiles = xr.open_zarr(store, group='summary')
         plot_1d_profile(profiles['plasma_current'])
@@ -98,7 +134,7 @@ def plot_magnetic_field(store):
             ax.grid('on', alpha=0.5)
        
         plt.tight_layout()
-        plt.show()
+        plt.savefig("Magnetics.png")
        
         profiles
     
@@ -157,6 +193,15 @@ def plot_Cameras(store, time_frame):
 
     except Exception as e:
         print(f"Error: {e}")
+
+
+def plot_item_in_store(group, item, store):
+    try:
+        profiles = xr.open_zarr(store, group=group)
+        plot_1d_profiles(profiles[item])
+    except Exception as e:
+        print(f"Error: {e}")
+
 
 def movie(store):
     # Define video writer parameters
@@ -222,25 +267,57 @@ def plot_Thomson(store):
     except Exception as e:
         print(f"Error: {e}")
 
-        
+
+def plot_magnetics(store):
+    profiles = xr.open_zarr(store, group='magnetics')
+
+    fig, axes = plt.subplots(3, 2)
+    axes = axes.flatten()
+
+    # Flux loops
+    profiles['flux_loop_flux'].plot.line(ax=axes[0], x='time', add_legend=False)
+    axes[0].set_title('Flux Loops', fontsize='small')
+
+
+    # Saddle coils
+    profiles['b_field_tor_probe_saddle_voltage'].plot.line(ax=axes[1], x='time_saddle', add_legend=False)
+    axes[1].set_title('Saddle Coils', fontsize='small')
+
+
+    # Pickup coils - centre column poloidal
+    profiles['b_field_pol_probe_ccbv_field'].plot.line(ax=axes[2], x='time', add_legend=False)
+    axes[2].set_title('Pick Up Coils - Centre Column', fontsize='small')
+
+    # Pickup coils - outboard
+    profiles['b_field_pol_probe_obr_field'].plot.line(ax=axes[3], x='time', add_legend=False)
+    axes[3].set_title('Pick Up Coils - Outboard', fontsize='small')
+
+    profiles['b_field_pol_probe_obv_field'].plot.line(ax=axes[4], x='time', add_legend=False)
+    axes[4].set_title('Pick Up Coils - Outboard', fontsize='small')
+
+    plt.tight_layout()  
+    plt.savefig("magnetics.png")
+
 def main():
-        try:
-            shot_id =30421
-            store = MAST_shot_data(shot_id)
-            print("Created store variable")
-            # plot_current(store)
-            # plot_NBI(store)
-            # plot_magnetic_field(store)
-            # plot_Dalpha(store)
-            # plot_Dalpha(store)
-            # plot_CXRS(store)
-            # plot_Thomson(store)
-            # plot_mirnov_coils(store)
-            movie(store)
+    try:
+        shot_id =30421
+        store = MAST_make_store(shot_id)
+        print("Created store variable")
+        # plot_plasma_current(store)
+        # plot_NBI(store)
+        # plot_magnetic_field(store)
+        # plot_Dalpha(store)
+        # plot_Dalpha(store)
+        # plot_CXRS(store)
+        # plot_Thomson(store)
+        # plot_mirnov_coils(store)
+        # movie(store)
+        plot_magnetics(store)
+   
 
 
-        except Exception as e:
-            print(f"Error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
