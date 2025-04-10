@@ -4,17 +4,50 @@ For usage on CSD3.
 
 ## Setup
 
-1. Install [Miniforge](https://github.com/conda-forge/miniforge):
-   ```bash
-   wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-   bash Miniforge3-$(uname)-$(uname -m).sh
+1. Install or source a version of Python on the system that is compatible with the project (see `pyproject.toml` for Python versions). [Miniforge](https://github.com/conda-forge/miniforge) is recommended and confirmed to work (see below for Miniforge setup instructions).
+2. Set up poetry following the instructions [here](https://python-poetry.org/docs/#installing-with-the-official-installer). More information in the section below.
+3. Install the project dependencies:
+   ```python
+   poetry install
    ```
 
-2. Set up conda env:
+### Miniforge setup
+
+Follow the instructions [here](https://github.com/conda-forge/miniforge). In brief:
+
+1. Find the latest [release](https://github.com/conda-forge/miniforge/releases/).
+2. Download the installer. For example:
+   ```bash
+   cd ~
+   wget https://github.com/conda-forge/miniforge/releases/download/24.11.3-2/Miniforge3-24.11.3-2-Linux-x86_64.sh
+   ```
+3. Run the installer. For example:
+   ```bash
+   chmod +x Miniforge3-24.11.3-2-Linux-x86_64.sh
+   ./Miniforge3-24.11.3-2-Linux-x86_64.sh
+   ```
+4. Source the base environment:
    ```bash
    source ~/miniforge3/bin/activate
-   conda env create -f environment.yml
-   conda activate fairmast-data-preprocessing
+   ```
+
+### Poetry setup
+
+Follow the instructions [here](https://python-poetry.org/docs/#installing-with-the-official-installer). In brief:
+
+1. Download and run the installer:
+   ```bash
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+2. Modify shell environment by adding the following line to both `~/.bashrc` and `~/.bash_profile`:
+   ```bash
+   export PATH="/home/<user-name>/.local/bin:$PATH"
+   ```
+3. Restart the shell.
+4. (Optional) Add some useful Poetry configurations:
+   ```bash
+   poetry self add poetry-plugin-shell
+   poetry config virtualenvs.in-project true
    ```
 
 ## CSD3 instructions
