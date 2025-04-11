@@ -60,6 +60,39 @@ To get a terminal shell running on 4 cores of worker node for 1 hour:
 sintr -A ukaea-ap002-cpu -p ukaea-icl -N1 -n4 -t 1:00:00
 ```
 
+Start interactive job with 1 gpu, 2 hours:
+```bash
+sintr --gres=gpu:4 -A ukaea-ap002-gpu -p ukaea-amp -N1 -n1 -t 2:0:0
+```
+
+Check accounts and partitions that I am allowed to use, (example for my acount ir-lore2):
+```bash
+sacctmgr show associations user=$USER format=Cluster,User,Account,Partition
+```
+
+ Cluster       User    Account  Partition 
+---------- ---------- ---------- ---------- 
+      csd3   ir-lore2 ukaea-ap0+    desktop 
+      csd3   ir-lore2 ukaea-ap0+ ukaea-icl+ 
+      csd3   ir-lore2 ukaea-ap0+  ukaea-icl 
+      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
+      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
+      csd3   ir-lore2 ukaea-ap0+  ukaea-spr 
+      csd3   ir-lore2 ukaea-ap0+    desktop 
+      csd3   ir-lore2 ukaea-ap0+ ukaea-icl+ 
+      csd3   ir-lore2 ukaea-ap0+  ukaea-icl 
+      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
+      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
+      csd3   ir-lore2 ukaea-ap0+  ukaea-spr 
+      csd3   ir-lore2 ukaea-ap0+  ukaea-amp 
+
+
+Show partitions, example for ukaea-icl:
+```bash
+scontrol show partition ukaea-icl
+```
+    
+
 To run a Jupyter notebook on a worker node using VSCode:
 
 1. On the local machine, add an entry to `~/.ssh/config`:
