@@ -6,52 +6,37 @@ Initialised as part of HNCDI project Fusion Plasma Modelling HT07632.
 
 For usage on [CSD3](https://docs.hpc.cam.ac.uk/hpc/index.html).
 
-## Setup
+## Initial setup
 
-1. Install or source a version of Python on the system that is compatible with the project (see `pyproject.toml` for Python versions). [Miniforge](https://github.com/conda-forge/miniforge) is recommended and confirmed to work (see below for Miniforge setup instructions).
-2. Set up poetry following the instructions [here](https://python-poetry.org/docs/#installing-with-the-official-installer). More information in the section below.
-3. Install the project dependencies:
-   ```python
-   poetry install
-   ```
-
-### Miniforge setup
-
-Follow the instructions [here](https://github.com/conda-forge/miniforge). In brief:
-
-1. Find the latest [release](https://github.com/conda-forge/miniforge/releases/).
-2. Download the installer. For example:
+1. Connect to CSD3 following the instructions in the [user guide](https://docs.hpc.cam.ac.uk/hpc/user-guide/quickstart.html).
+2. Install Miniforge by following the instructions [here](https://github.com/conda-forge/miniforge). In brief:  
+   1. Find the latest [release](https://github.com/conda-forge/miniforge/releases/).
+   2. Download the installer. For example:
+      ```bash
+      cd ~
+      wget https://github.com/conda-forge/miniforge/releases/download/24.11.3-2/Miniforge3-24.11.3-2-Linux-x86_64.sh
+      ```
+   3. Run the installer. For example:
+      ```bash
+      chmod +x Miniforge3-24.11.3-2-Linux-x86_64.sh
+      ./Miniforge3-24.11.3-2-Linux-x86_64.sh
+      ```
+   4. Source the base environment:
+      ```bash
+      source ~/miniforge3/bin/activate
+      ```
+3. Set up the project virtual environment:
+   1. Move to the directory containing this repository. For example:
+      ```bash
+      cd ~/hncdi-fusion-plasma/fairmast-data-preprocessing
+      ```
+   2. Use conda to set up the virtual environment and install the dependencies:
+      ```bash
+      conda env create -f environment.yml
+      ```
+4. Activate the project conda environment:
    ```bash
-   cd ~
-   wget https://github.com/conda-forge/miniforge/releases/download/24.11.3-2/Miniforge3-24.11.3-2-Linux-x86_64.sh
-   ```
-3. Run the installer. For example:
-   ```bash
-   chmod +x Miniforge3-24.11.3-2-Linux-x86_64.sh
-   ./Miniforge3-24.11.3-2-Linux-x86_64.sh
-   ```
-4. Source the base environment:
-   ```bash
-   source ~/miniforge3/bin/activate
-   ```
-
-### Poetry setup
-
-Follow the instructions [here](https://python-poetry.org/docs/#installing-with-the-official-installer). In brief:
-
-1. Download and run the installer:
-   ```bash
-   curl -sSL https://install.python-poetry.org | python3 -
-   ```
-2. Modify shell environment by adding the following line to both `~/.bashrc` and `~/.bash_profile`:
-   ```bash
-   export PATH="/home/<user-name>/.local/bin:$PATH"
-   ```
-3. Restart the shell.
-4. (Optional) Add some useful Poetry configurations:
-   ```bash
-   poetry self add poetry-plugin-shell
-   poetry config virtualenvs.in-project true
+   conda activate fairmast-data-preprocessing
    ```
 
 ## CSD3 instructions
@@ -72,6 +57,7 @@ To run a Jupyter notebook on a worker node using VSCode:
      User <user-name>
      HostName login-cpu.hpc.cam.ac.uk
      IdentityFile </path/to/id_rsa>
+   ```
 2. In VSCode, install the "Remote Development" extension pack (if not already installed).
 3. In VSCode, run the command "Remote-SSH: Connect to Host" and select "csd3" from the dropdown menu. VSCode will now connect to a VSCode server running on a CSD3 login node.
 4. In the VSCode terminal, start an interactive session using the command above. Note down the node address, which appears as part of the terminal prompt prefix with the format `[<user-name>@<node-address>]` and will be something like `cpu-q-123`.
