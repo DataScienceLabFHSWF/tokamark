@@ -1,0 +1,11 @@
+name: fairmast-data-preprocessing
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - zarr<3
+  - xarray
+  - s3fs
+  - matplotlib
+  - notebook
+  - opencv
