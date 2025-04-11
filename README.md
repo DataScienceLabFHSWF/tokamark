@@ -1,6 +1,10 @@
 # FAIR-MAST Data Preprocessing
 
-For usage on CSD3.
+Data preprocessing of the FAIR-MAST data for foundation modelling.
+
+Initialised as part of HNCDI project Fusion Plasma Modelling HT07632.
+
+For usage on [CSD3](https://docs.hpc.cam.ac.uk/hpc/index.html).
 
 ## Setup
 
