@@ -57,7 +57,7 @@ sintr --gres=gpu:4 -A ukaea-ap002-gpu -p ukaea-amp -N1 -n1 -t 2:0:0
 Check accounts and partitions that I am allowed to use, (example for my acount ir-lore2):
 ```bash
 sacctmgr show associations user=$USER format=Cluster,User,Account,Partition
-```
+
 
  Cluster       User    Account  Partition 
 ---------- ---------- ---------- ---------- 
@@ -74,7 +74,7 @@ sacctmgr show associations user=$USER format=Cluster,User,Account,Partition
       csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
       csd3   ir-lore2 ukaea-ap0+  ukaea-spr 
       csd3   ir-lore2 ukaea-ap0+  ukaea-amp 
-
+```
 
 Show partitions, example for ukaea-icl:
 ```bash
