@@ -11,3 +11,4 @@ dependencies:
   - opencv
   - tqdm
   - ipywidgets
+  - scikit-learn
