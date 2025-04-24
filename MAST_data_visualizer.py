@@ -2,10 +2,113 @@ import zarr
 import s3fs
 import fsspec
 import numpy as np
+import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import cv2
+
+"""
+Dependencies:
+fastparquet
+"""
+def list_all_shots(URL = 'https://mastapp.site'):
+    shots_df = pd.read_parquet(f'{URL}/parquet/level2/shots')
+    return shots_df
+
+def list_all_sources(URL = 'https://mastapp.site'):
+    sources_df = pd.read_parquet(f"{URL}/parquet/level2/sources")
+    return sources_df
+
+def list_signals_per_shot(shot_id, URL = 'https://mastapp.site'):
+    signals_df = pd.read_parquet(f"{URL}/parquet/level2/signals?shot_id={shot_id}")
+    return signals_df
+
+def MAST_make_store(shot_id, API=True):
+    # shot_id=30421
+    if API:
+        try:
+            endpoint_url = 'https://s3.echo.stfc.ac.uk'
+            url = f's3://mast/test/level2/shots/{shot_id}.zarr'
+
+            fs = fsspec.filesystem(
+            **dict(
+                protocol='simplecache',
+                target_protocol="s3",
+                target_options=dict(anon=True, endpoint_url=endpoint_url)
+            )
+            )
+            store = zarr.storage.FSStore(fs=fs, url=url)
+            print("Created store")
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
+    else:
+        local_url = f"/srv/{shot_id}.zarr"
+        store = zarr.storage.FSStore(url=local_url)
+
+    return store
+
+def print_store(store):
+    """
+    Print all signals, attributes and methods in the store
+    """
+    print("All signals (keys) in the store")
+    for item in store:
+        print(item)
+
+    print(f"Attributes and methods of store: {dir(store)}")
+
+
+def is_signal_in_store(store, signal:str):
+    """
+    Tells if an signal is available in the store. 
+    """
+    availability = False
+
+    store_keys = list(store.keys())
+
+    for key in store_keys:
+        if signal in key:
+            print(f"We found the following signal: {key}")
+            availability = True
+        
+    return availability
+
+
+def print_signals_in_group(store, group):
+    """
+    Shows all signals in the group. 
+    """
+    [print(key) for key in store.keys() if key.startswith(group)]
+
+
+def get_signal(store, group, signal_name):
+    signal = None
+    time = None
+
+    try:
+        profile = xr.open_zarr(store, group=group)
+    except Exception as e:
+        print(f"Error opening Zarr store: {e}")
+        return None, None
+
+    try:
+        signal = profile[signal_name]
+    except KeyError:
+        print(f"Signal '{signal_name}' not found in group '{group}'.")
+    except Exception as e:
+        print(f"Error accessing signal '{signal_name}': {e}")
+
+    try:
+        time = profile["time"]
+    except KeyError:
+        print("Time coordinate not found.")
+    except Exception as e:
+        print(f"Error accessing time: {e}")
+
+    return signal, time
+
 
 def plot_1d_profile(profile: xr.DataArray, ax=None):
     try:
@@ -43,63 +146,6 @@ def plot_1d_profiles(profiles: xr.Dataset):
         print(f"Error: {e}")
 
 
-def MAST_make_store(shot_id =30421, API=True):
-    if API:
-        try:
-            endpoint_url = 'https://s3.echo.stfc.ac.uk'
-            url = f's3://mast/test/level2/shots/{shot_id}.zarr'
-
-            fs = fsspec.filesystem(
-            **dict(
-                protocol='simplecache',
-                target_protocol="s3",
-                target_options=dict(anon=True, endpoint_url=endpoint_url)
-            )
-            )
-            store = zarr.storage.FSStore(fs=fs, url=url)
-
-        except Exception as e:
-            print(f"Error: {e}")
-            return None
-    else:
-        local_url = f"/srv/{shot_id}.zarr"
-        store = zarr.storage.FSStore(url=local_url)
-
-    return store
-
-
-def print_store(store):
-
-    print("Print all items (keys) in the store")
-    for item in store:
-        print(item)
-
-    print(f"Attributes and methods of store: {dir(store)}")
-
-
-def is_item_in_store(store, item:str):
-    """
-    Tells if an item is available in the store. 
-    """
-    availability = False
-
-    store_keys = list(store.keys())
-
-    for key in store_keys:
-        if item in key:
-            print(f"We found the following item: {key}")
-            availability = True
-        
-    return availability
-
-
-def show_items_in_group(store, group):
-    """
-    Shows all items in the group. 
-    """
-    [print(key) for key in store.keys() if key.startswith(group)]
-
-
 def plot_plasma_current(store):
     try:
         profiles = xr.open_zarr(store, group='summary')
@@ -118,6 +164,7 @@ def plot_NBI(store):
 
 def plot_magnetic_field(store):
     try:
+        breakpoint()
         profiles = xr.open_zarr(store, group='magnetics')
 
         fig, axes = plt.subplots(3, 2, figsize=(8, 10))
@@ -195,10 +242,10 @@ def plot_Cameras(store, time_frame):
         print(f"Error: {e}")
 
 
-def plot_item_in_store(group, item, store):
+def plot_signal_in_store(group, signal, store):
     try:
         profiles = xr.open_zarr(store, group=group)
-        plot_1d_profiles(profiles[item])
+        plot_1d_profiles(profiles[signal])
     except Exception as e:
         print(f"Error: {e}")
 
@@ -300,9 +347,10 @@ def plot_magnetics(store):
 
 def main():
     try:
+      
         shot_id =30421
         store = MAST_make_store(shot_id)
-        print("Created store variable")
+        get_signal(store,"summary", "plasma_current")
         # plot_plasma_current(store)
         # plot_NBI(store)
         # plot_magnetic_field(store)
@@ -313,9 +361,6 @@ def main():
         # plot_mirnov_coils(store)
         # movie(store)
         plot_magnetics(store)
-   
-
-
     except Exception as e:
         print(f"Error: {e}")
 
