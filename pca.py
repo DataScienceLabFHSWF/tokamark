@@ -1,14 +1,13 @@
 from MAST_signal import SIGNAL
 import MAST_store as MASTbucket
-import xarray as xr
 import random
 from sklearn.impute import SimpleImputer
-import os
 import numpy as np
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import json
 from tqdm import tqdm
+from multiprocessing import Pool
 
 
 def load_config(path):
@@ -49,6 +48,11 @@ def process_single_shot_id(shot_id, group, signal_name):
     return imputed_array(sig, store)
 
 
+def process_single_shot_id_star(args):
+    """Wrapper for process_single_shot_id for multiprocessing starmap."""
+    return process_single_shot_id(*args)
+
+
 def main():
     CONFIG_FILE = "config_pca.json"
     
@@ -60,6 +64,7 @@ def main():
     group = config.get("group")
     signal_name = config.get("signal_name")
     N = config.get("nr_shots")
+    processes = config.get("processes")
 
     # Get all shot ids
     shot_ids = MASTbucket.list_all_shots()
@@ -68,11 +73,12 @@ def main():
     random_shot_ids = shuffle_shot_ids(shot_ids, N)
 
     # Process shot ids
-    results = []
-    for shot_id in tqdm(random_shot_ids):
-        vals = process_single_shot_id(shot_id, group, signal_name)
-        if vals is not None:
-            results.append(vals)
+    with Pool(processes=processes) as pool:
+        args_iterable = [(shot_id, group, signal_name) for shot_id in random_shot_ids]
+        results = list(tqdm(
+            pool.imap(process_single_shot_id_star, args_iterable),
+            total=len(random_shot_ids)
+        ))
 
     # Concatenate the results
     if results:
