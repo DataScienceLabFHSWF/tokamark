@@ -10,9 +10,6 @@ import matplotlib.pyplot as plt
 import json
 
 
-CONFIG_FILE = "config_pca.json"
-
-
 def load_config(path):
     with open(path, "r") as f:
         config = json.load(f)
@@ -52,6 +49,8 @@ def process_single_shot_id(shot_id, group, signal_name):
 
 
 def main():
+    CONFIG_FILE = "config_pca.json"
+    
     # input
     config = load_config(CONFIG_FILE)
 
