@@ -82,14 +82,14 @@ def main():
 
     # Concatenate the results
     if results:
-        flux_loop_array = np.concatenate([*results], axis=1)
+        data_array = np.concatenate([*results], axis=1)
     else:
         print("Warning: No results to concatenate.")
 
-    flux_loop_array = flux_loop_array.T
+    data_array = data_array.T
 
     pca = PCA(n_components)
-    pca.fit(flux_loop_array)
+    pca.fit(data_array)
 
     explained_variance = pca.explained_variance_ratio_
     cumulative_explained_variance = 0
