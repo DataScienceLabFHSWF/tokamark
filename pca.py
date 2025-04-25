@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import json
+from tqdm import tqdm
 
 
 def load_config(path):
@@ -63,12 +64,12 @@ def main():
     # Get all shot ids
     shot_ids = MASTbucket.list_all_shots()
 
-    # Return N rnd shot_ids
+    # Return N random shot_ids
     random_shot_ids = shuffle_shot_ids(shot_ids, N)
 
     # Process shot ids
     results = []
-    for shot_id in random_shot_ids:
+    for shot_id in tqdm(random_shot_ids):
         vals = process_single_shot_id(shot_id, group, signal_name)
         if vals is not None:
             results.append(vals)
@@ -100,19 +101,16 @@ def main():
     transformed = pca.transform(vals.T)
     reconstructed = pca.inverse_transform(transformed).T
 
-    fig, axes = plt.subplots(nrows=2, figsize=(8, 10))  # Adjust figsize as needed
+    fig, axes = plt.subplots(nrows=2, figsize=(8, 10))
 
-    # First subplot: Original
     axes[0].set_title("Original")
     p0 = axes[0].pcolorfast(vals)
     fig.colorbar(p0, ax=axes[0])
 
-    # Second subplot: Reconstructed
     axes[1].set_title("Reconstructed")
     p1 = axes[1].pcolorfast(reconstructed)
     fig.colorbar(p1, ax=axes[1])
 
-    # Layout and save
     plt.tight_layout()
     fig.savefig("comparison.png", bbox_inches="tight", dpi=300)
     plt.show()
