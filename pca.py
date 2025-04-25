@@ -16,8 +16,8 @@ def load_config(path):
     return config
 
 
-def shuffle_shot_ids(shot_ids, N):
-    random.seed(42)
+def shuffle_shot_ids(shot_ids, N, seed=None):
+    random.seed(seed)
     random.shuffle(shot_ids)
     return shot_ids[:N]
 
