@@ -13,10 +13,31 @@ import os
 Dependencies:
 fastparquet
 """
-def list_all_shots(URL = 'https://mastapp.site'):
-    shots_df= pd.read_parquet(f'{URL}/parquet/level2/shots')
-    shot_ids = [os.path.basename(url).replace(".zarr","") for url in shots_df["url"]]
+def list_all_shots(local=True):
+    """Get a list of all shot indices.
+    
+    Parameters
+    ----------
+    local : bool, optional
+        Set to True (default) to look in the CSD3 path. Set to False to
+        look in the cloud S3 bucket.
+    """
+    if local:
+        fs = fsspec.filesystem("file")
+        all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
+    else:
+        fs = fsspec.filesystem(
+            **dict(
+                protocol="s3",
+                anon=True,
+                endpoint_url="https://s3.echo.stfc.ac.uk"
+            )
+        )
+        all_files = fs.ls("s3://mast/level2/shots/")
+
+    shot_ids = [file.split("/")[-1].replace(".zarr", "") for file in all_files]
     shot_ids = [int(shot_id) for shot_id in shot_ids if shot_id.isdigit()]
+    
     return shot_ids
 
 def list_all_sources(URL = 'https://mastapp.site'):
