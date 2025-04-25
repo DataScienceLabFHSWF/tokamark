@@ -5,18 +5,34 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
-from matplotlib import colors
 import cv2
-import os
 
-"""
-Dependencies:
-fastparquet
-"""
-def list_all_shots(URL = 'https://mastapp.site'):
-    shots_df= pd.read_parquet(f'{URL}/parquet/level2/shots')
-    shot_ids = [os.path.basename(url).replace(".zarr","") for url in shots_df["url"]]
+
+def list_all_shots(local=True):
+    """Get a list of all shot indices.
+    
+    Parameters
+    ----------
+    local : bool, optional
+        Set to True (default) to look in the CSD3 path. Set to False to
+        look in the cloud S3 bucket.
+    """
+    if local:
+        fs = fsspec.filesystem("file")
+        all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
+    else:
+        fs = fsspec.filesystem(
+            **dict(
+                protocol="s3",
+                anon=True,
+                endpoint_url="https://s3.echo.stfc.ac.uk"
+            )
+        )
+        all_files = fs.ls("s3://mast/level2/shots/")
+
+    shot_ids = [file.split("/")[-1].replace(".zarr", "") for file in all_files]
     shot_ids = [int(shot_id) for shot_id in shot_ids if shot_id.isdigit()]
+    
     return shot_ids
 
 def list_all_sources(URL = 'https://mastapp.site'):
@@ -27,27 +43,34 @@ def list_signals_per_shot(shot_id, URL = 'https://mastapp.site'):
     signals_df = pd.read_parquet(f"{URL}/parquet/level2/signals?shot_id={shot_id}")
     return signals_df
 
-def make_store(shot_id, API=False):
-    # shot_id=30421
-    if API:
+def make_store(shot_id, local=True):
+    """Create a filesystem store given a shot id.
+    
+    Parameters
+    ----------
+    shot_id : int
+    local : bool, optional
+        Set to True (default) to look in the CSD3 path. Set to False to
+        look in the cloud S3 bucket.
+    """
+    if not local:
         try:
             endpoint_url = 'https://s3.echo.stfc.ac.uk'
             url = f's3://mast/test/level2/shots/{shot_id}.zarr'
 
             fs = fsspec.filesystem(
-            **dict(
-                protocol='simplecache',
-                target_protocol="s3",
-                target_options=dict(anon=True, endpoint_url=endpoint_url)
-            )
+                **dict(
+                    protocol='simplecache',
+                    target_protocol="s3",
+                    target_options=dict(anon=True, endpoint_url=endpoint_url)
+                )
             )
             store = zarr.storage.FSStore(fs=fs, url=url)
-            print("Created store")
         except Exception as e:
             print(f"Error: {e}")
-            return None
+            raise e
     else:
-        local_url = f"/srv/{shot_id}.zarr"
+        local_url = f"/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/{shot_id}.zarr"
         store = zarr.storage.FSStore(url=local_url)
 
     return store

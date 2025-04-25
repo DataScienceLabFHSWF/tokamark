@@ -12,3 +12,5 @@ dependencies:
   - tqdm
   - ipywidgets
   - scikit-learn
+  - black
+  - fastparquet
