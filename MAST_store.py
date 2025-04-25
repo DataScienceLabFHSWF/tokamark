@@ -48,27 +48,34 @@ def list_signals_per_shot(shot_id, URL = 'https://mastapp.site'):
     signals_df = pd.read_parquet(f"{URL}/parquet/level2/signals?shot_id={shot_id}")
     return signals_df
 
-def make_store(shot_id, API=False):
-    # shot_id=30421
-    if API:
+def make_store(shot_id, local=True):
+    """Create a filesystem store given a shot id.
+    
+    Parameters
+    ----------
+    shot_id : int
+    local : bool, optional
+        Set to True (default) to look in the CSD3 path. Set to False to
+        look in the cloud S3 bucket.
+    """
+    if not local:
         try:
             endpoint_url = 'https://s3.echo.stfc.ac.uk'
             url = f's3://mast/test/level2/shots/{shot_id}.zarr'
 
             fs = fsspec.filesystem(
-            **dict(
-                protocol='simplecache',
-                target_protocol="s3",
-                target_options=dict(anon=True, endpoint_url=endpoint_url)
-            )
+                **dict(
+                    protocol='simplecache',
+                    target_protocol="s3",
+                    target_options=dict(anon=True, endpoint_url=endpoint_url)
+                )
             )
             store = zarr.storage.FSStore(fs=fs, url=url)
-            print("Created store")
         except Exception as e:
             print(f"Error: {e}")
-            return None
+            raise e
     else:
-        local_url = f"/srv/{shot_id}.zarr"
+        local_url = f"/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/{shot_id}.zarr"
         store = zarr.storage.FSStore(url=local_url)
 
     return store
