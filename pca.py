@@ -11,10 +11,13 @@ import json
 
 
 CONFIG_FILE = "config_pca.json"
+
+
 def load_config(path):
     with open(path, "r") as f:
         config = json.load(f)
     return config
+
 
 def shuffle_shot_ids(shot_ids, N):
     random.seed(42)
@@ -24,7 +27,7 @@ def shuffle_shot_ids(shot_ids, N):
 
 def imputed_array(mast_signal, store):
     """
-    Process a single mast_signal to handle missing data, 
+    Process a single mast_signal to handle missing data,
     and return the imputed array.
 
     Args:
@@ -34,17 +37,19 @@ def imputed_array(mast_signal, store):
         Imputed numpy array of flux loop values for the given shot ID.
     """
     vals = mast_signal.get_values(store)
-    
+
     imp = SimpleImputer(missing_values=np.nan, strategy="mean")
     imp.fit(vals)
     vals = imp.transform(vals)
-    
+
     return vals
+
 
 def process_single_shot_id(shot_id, group, signal_name):
     sig = SIGNAL(group, signal_name, shot_id)
     store = MASTbucket.make_store(shot_id)
     return imputed_array(sig, store)
+
 
 def main():
     # input
@@ -60,7 +65,7 @@ def main():
     shot_ids = MASTbucket.list_all_shots()
 
     # Return N rnd shot_ids
-    random_shot_ids = shuffle_shot_ids(shot_ids,N)
+    random_shot_ids = shuffle_shot_ids(shot_ids, N)
 
     # Process shot ids
     results = []
@@ -77,7 +82,6 @@ def main():
 
     flux_loop_array = flux_loop_array.T
 
-
     pca = PCA(n_components)
     pca.fit(flux_loop_array)
 
@@ -88,10 +92,10 @@ def main():
         cumulative_explained_variance += val
         print(f"Principal component: {i+1}")
         print(f"Explained variance: {val:.3f}")
-        print(f"Cumulative explained variance: {cumulative_explained_variance:.3f}\n") 
+        print(f"Cumulative explained variance: {cumulative_explained_variance:.3f}\n")
 
-    # Demonstrate PCA transform and reconstruction 
-    id =16092
+    # Demonstrate PCA transform and reconstruction
+    id = 16092
     vals = process_single_shot_id(id, group, signal_name)
 
     transformed = pca.transform(vals.T)
@@ -111,10 +115,9 @@ def main():
 
     # Layout and save
     plt.tight_layout()
-    fig.savefig("comparison.png", bbox_inches='tight', dpi=300)
+    fig.savefig("comparison.png", bbox_inches="tight", dpi=300)
     plt.show()
 
 
 if __name__ == "__main__":
     main()
-
