@@ -13,4 +13,4 @@ dependencies:
   - ipywidgets
   - scikit-learn
   - black
-  - fastparquet
+  - pyarrow
