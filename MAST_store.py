@@ -5,14 +5,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
-from matplotlib import colors
 import cv2
-import os
 
-"""
-Dependencies:
-fastparquet
-"""
+
 def list_all_shots(local=True):
     """Get a list of all shot indices.
     
