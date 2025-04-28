@@ -1,20 +1,22 @@
+import joblib
+import json
+import matplotlib.pyplot as plt
 from MAST_signal import SIGNAL
 import MAST_store as MASTbucket
-import random
-from sklearn.impute import SimpleImputer
-import numpy as np
-from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-import json
-from tqdm import tqdm
 from multiprocessing import Pool
+import numpy as np
+import random
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from tqdm import tqdm
+import zarr
 
 
 def load_config(path):
     with open(path, "r") as f:
         config = json.load(f)
     return config
-
 
 def shuffle_shot_ids(shot_ids, N, seed=None):
     random.seed(seed)
@@ -60,7 +62,7 @@ def main():
     config = load_config(CONFIG_FILE)
 
     # Extract parameters
-    n_components = config.get("n_components")
+    max_componentss = config.get("max_components")
     group = config.get("group")
     signal_name = config.get("signal_name")
     N = config.get("nr_shots")
@@ -74,7 +76,7 @@ def main():
 
     # Process shot ids
     with Pool(processes=processes) as pool:
-        args_iterable = [(shot_id, group, signal_name) for shot_id in random_shot_ids]
+        args_iterable = [(shot_id, group, signal_name) for shot_id in random_shot_ids[:10]]
         results = list(tqdm(
             pool.imap(process_single_shot_id_star, args_iterable),
             total=len(random_shot_ids)
@@ -88,17 +90,19 @@ def main():
 
     data_array = data_array.T
 
-    pca = PCA(n_components)
-    pca.fit(data_array)
+    scaler = StandardScaler()
+    scaled_data = scaler.fit_transform(data_array)
 
-    explained_variance = pca.explained_variance_ratio_
-    cumulative_explained_variance = 0
+    for n_components in range(1,max_componentss):
+        pca = PCA(n_components)
+        pca.fit(scaled_data)
 
-    for i, val in enumerate(explained_variance):
-        cumulative_explained_variance += val
-        print(f"Principal component: {i+1}")
-        print(f"Explained variance: {val:.3f}")
-        print(f"Cumulative explained variance: {cumulative_explained_variance:.3f}\n")
+        explained_variance = pca.explained_variance_ratio_
+        cumulative_explained_variance = 0
+
+        if np.cumsum(explained_variance) >= 99.7:
+            break
+    
 
     # Demonstrate PCA transform and reconstruction
     id = 16092
@@ -106,6 +110,31 @@ def main():
 
     transformed = pca.transform(vals.T)
     reconstructed = pca.inverse_transform(transformed).T
+
+    pca_results = {
+        "original_data": data_array,
+        "scaled_data": scaled_data,
+        "scaler": scaler,
+        "loading": pca.components_,
+        "explained_variance_ratio": explained_variance,
+        "principal_component_scores": principal_component_scores,
+        "n_components": pca.n_components_,
+        "transformed": transformed
+    }
+
+    joblib.dump(pca_results, "PCA_joblib")
+    print(f"PCA results saved to PCA_joblib")
+
+
+    # 4. Save the array-like results in Zarr format
+    zarr_dir= "pca_results.zarr"
+    zarr.save(f"{zarr_dir}original_data", data_array)
+    zarr.save(f"{zarr_dir}/scaled_data.zarr", scaled_data)
+    zarr.save(f"{zarr_dir}/loadings.zarr", pca.components_)
+    zarr.save(f"{zarr_dir}/explained_variance_ratio.zarr", explained_variance_ratio)
+    zarr.save(f"{zarr_dir}/principal_component_scores.zarr", principal_component_scores)
+    zarr.save(f"{zarr_dir}/transformed.zarr", transformed) 
+
 
     fig, axes = plt.subplots(nrows=2, figsize=(8, 10))
 
