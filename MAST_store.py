@@ -15,11 +15,16 @@ def list_all_shots(local=True):
     ----------
     local : bool, optional
         Set to True (default) to look in the CSD3 path. Set to False to
-        look in the cloud S3 bucket.
+        look in the cloud S3 bucket. 
+        Exception added to allow working sigularity containers.
     """
     if local:
-        fs = fsspec.filesystem("file")
-        all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
+        try: 
+            fs = fsspec.filesystem("file")
+            all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
+        except:
+            fs = fsspec.filesystem("file")
+            all_files = fs.ls("/srv")
     else:
         fs = fsspec.filesystem(
             **dict(
@@ -70,9 +75,16 @@ def make_store(shot_id, local=True):
             print(f"Error: {e}")
             raise e
     else:
-        local_url = f"/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/{shot_id}.zarr"
-        store = zarr.storage.FSStore(url=local_url)
-
+        try:
+            # Check if path is reachable
+            fs = fsspec.filesystem("file")
+            fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
+            
+            local_url = f"/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/{shot_id}.zarr"
+            store = zarr.storage.FSStore(url=local_url)
+        except:
+            local_url = f"/srv/{shot_id}.zarr"
+            store = zarr.storage.FSStore(url=local_url)
     return store
 
 def print_store(store):

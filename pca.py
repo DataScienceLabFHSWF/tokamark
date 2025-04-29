@@ -62,7 +62,7 @@ def main():
     config = load_config(CONFIG_FILE)
 
     # Extract parameters
-    max_componentss = config.get("max_components")
+    max_components = config.get("max_components")
     group = config.get("group")
     signal_name = config.get("signal_name")
     N = config.get("nr_shots")
@@ -82,58 +82,48 @@ def main():
             total=len(random_shot_ids)
         ))
 
-    # Concatenate the results
     if results:
-        data_array = np.concatenate([*results], axis=1)
+        data_array = np.concatenate([*results], axis=1).T
     else:
         print("Warning: No results to concatenate.")
-
-    data_array = data_array.T
 
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(data_array)
 
-    for n_components in range(1,max_componentss):
+    for n_components in range(1,max_components):
         pca = PCA(n_components)
         pca.fit(scaled_data)
 
         explained_variance = pca.explained_variance_ratio_
-        cumulative_explained_variance = 0
 
-        if np.cumsum(explained_variance) >= 99.7:
+        if np.cumsum(explained_variance)[-1] >= 0.997:
             break
     
+    # Save PCA and scaler
+    joblib.dump({
+        "pca": pca,
+        "scaler": scaler,
+        "group": group,
+        "signal_name": signal_name
+    }, "pca_model.joblib")
+
+def test_reconstruction(id = 16092):
 
     # Demonstrate PCA transform and reconstruction
-    id = 16092
+    models = joblib.load("pca_model.joblib")
+    pca = models["pca"]
+    scaler = models["scaler"]
+
+    group = models["group"]
+    signal_name = models["signal_name"]
+
     vals = process_single_shot_id(id, group, signal_name)
+    vals_scaled = scaler.transform(vals.T)
 
-    transformed = pca.transform(vals.T)
-    reconstructed = pca.inverse_transform(transformed).T
+    transformed = pca.transform(vals_scaled)
 
-    pca_results = {
-        "original_data": data_array,
-        "scaled_data": scaled_data,
-        "scaler": scaler,
-        "loading": pca.components_,
-        "explained_variance_ratio": explained_variance,
-        "principal_component_scores": principal_component_scores,
-        "n_components": pca.n_components_,
-        "transformed": transformed
-    }
-
-    joblib.dump(pca_results, "PCA_joblib")
-    print(f"PCA results saved to PCA_joblib")
-
-
-    # 4. Save the array-like results in Zarr format
-    zarr_dir= "pca_results.zarr"
-    zarr.save(f"{zarr_dir}original_data", data_array)
-    zarr.save(f"{zarr_dir}/scaled_data.zarr", scaled_data)
-    zarr.save(f"{zarr_dir}/loadings.zarr", pca.components_)
-    zarr.save(f"{zarr_dir}/explained_variance_ratio.zarr", explained_variance_ratio)
-    zarr.save(f"{zarr_dir}/principal_component_scores.zarr", principal_component_scores)
-    zarr.save(f"{zarr_dir}/transformed.zarr", transformed) 
+    reconstructed = pca.inverse_transform(transformed)
+    reconstructed = scaler.inverse_transform(reconstructed)
 
 
     fig, axes = plt.subplots(nrows=2, figsize=(8, 10))
@@ -143,13 +133,16 @@ def main():
     fig.colorbar(p0, ax=axes[0])
 
     axes[1].set_title("Reconstructed")
-    p1 = axes[1].pcolorfast(reconstructed)
+    p1 = axes[1].pcolorfast(reconstructed.T)
     fig.colorbar(p1, ax=axes[1])
 
     plt.tight_layout()
     fig.savefig("comparison.png", bbox_inches="tight", dpi=300)
     plt.show()
 
+    RMS = np.sqrt(np.mean((vals - reconstructed.T) ** 2))
+    print(f"RMS = {RMS}")
 
 if __name__ == "__main__":
     main()
+    test_reconstruction()

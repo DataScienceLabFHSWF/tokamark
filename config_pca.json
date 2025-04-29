@@ -1,5 +1,5 @@
 {
-    "max_components": 5,
+    "max_components": 10,
     "group": "magnetics",
     "signal_name": "flux_loop_flux",
     "nr_shots": 100,
