@@ -76,7 +76,7 @@ def main():
 
     # Process shot ids
     with Pool(processes=processes) as pool:
-        args_iterable = [(shot_id, group, signal_name) for shot_id in random_shot_ids[:10]]
+        args_iterable = [(shot_id, group, signal_name) for shot_id in random_shot_ids[]]
         results = list(tqdm(
             pool.imap(process_single_shot_id_star, args_iterable),
             total=len(random_shot_ids)
