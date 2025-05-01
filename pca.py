@@ -44,9 +44,9 @@ def imputed_array(mast_signal, store):
     return vals
 
 
-def process_single_shot_id(shot_id, group, signal_name):
+def process_single_shot_id(shot_id, group, signal_name, location):
     sig = SIGNAL(group, signal_name, shot_id)
-    store = MASTbucket.make_store(shot_id)
+    store = MASTbucket.make_store(shot_id, location=location)
     return imputed_array(sig, store)
 
 
@@ -67,9 +67,10 @@ def main():
     signal_name = config.get("signal_name")
     N = config.get("nr_shots")
     processes = config.get("processes")
+    location = config.get("location")
 
     # Get all shot ids
-    shot_ids = MASTbucket.list_all_shots()
+    shot_ids = MASTbucket.list_all_shots(location=location)
 
     # Return N random shot_ids
     random_shot_ids = shuffle_shot_ids(shot_ids, N)
@@ -109,6 +110,10 @@ def main():
 
 def test_reconstruction(id = 16092):
 
+    CONFIG_FILE = "config_pca.json"
+    config = load_config(CONFIG_FILE)
+    location = config.get("location")
+
     # Demonstrate PCA transform and reconstruction
     models = joblib.load("pca_model.joblib")
     pca = models["pca"]
@@ -117,7 +122,7 @@ def test_reconstruction(id = 16092):
     group = models["group"]
     signal_name = models["signal_name"]
 
-    vals = process_single_shot_id(id, group, signal_name)
+    vals = process_single_shot_id(id, group, signal_name, location)
     vals_scaled = scaler.transform(vals.T)
 
     transformed = pca.transform(vals_scaled)
