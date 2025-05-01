@@ -1,5 +1,5 @@
+from typing import Literal
 import zarr
-import s3fs
 import fsspec
 import numpy as np
 import pandas as pd
@@ -8,24 +8,34 @@ import matplotlib.pyplot as plt
 import cv2
 
 
-def list_all_shots(local=True):
+def list_all_shots(location: Literal["local", "singularity", "S3"] = "local"):
     """Get a list of all shot indices.
     
     Parameters
     ----------
-    local : bool, optional
-        Set to True (default) to look in the CSD3 path. Set to False to
-        look in the cloud S3 bucket. 
-        Exception added to allow working sigularity containers.
+    location : str
+        Where to search for the data.
+        - If "local", tries to get data from
+          /rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/
+          which is the main CSD3 path.
+        - If "singularity", tries to get data from "/srv".
+        - If "S3", tries to get data from
+          s3://mast/level2/shots/
+          at the endpoint
+          https://s3.echo.stfc.ac.uk
+
+    Returns
+    -------
+    list
+        List of shot ID integers.
     """
-    if local:
-        try: 
-            fs = fsspec.filesystem("file")
-            all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
-        except:
+    if location == "local":
+        fs = fsspec.filesystem("file")
+        all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
+    elif location == "singularity":
             fs = fsspec.filesystem("file")
             all_files = fs.ls("/srv")
-    else:
+    elif location == "S3":
         fs = fsspec.filesystem(
             **dict(
                 protocol="s3",
@@ -34,6 +44,8 @@ def list_all_shots(local=True):
             )
         )
         all_files = fs.ls("s3://mast/level2/shots/")
+    else:
+        raise ValueError(f"Unknown location: {location}")
 
     shot_ids = [file.split("/")[-1].replace(".zarr", "") for file in all_files]
     shot_ids = [int(shot_id) for shot_id in shot_ids if shot_id.isdigit()]
