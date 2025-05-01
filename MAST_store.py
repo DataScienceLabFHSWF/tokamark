@@ -60,17 +60,29 @@ def list_signals_per_shot(shot_id, URL = 'https://mastapp.site'):
     signals_df = pd.read_parquet(f"{URL}/parquet/level2/signals?shot_id={shot_id}")
     return signals_df
 
-def make_store(shot_id, local=True):
+def make_store(shot_id, location: Literal["local", "singularity", "S3"] = "local"):
     """Create a filesystem store given a shot id.
     
     Parameters
     ----------
     shot_id : int
-    local : bool, optional
-        Set to True (default) to look in the CSD3 path. Set to False to
-        look in the cloud S3 bucket.
+    location : str
+        Where to search for the data.
+        - If "local", tries to get data from
+          /rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/
+          which is the main CSD3 path.
+        - If "singularity", tries to get data from "/srv".
+        - If "S3", tries to get data from
+          s3://mast/level2/shots/
+          at the endpoint
+          https://s3.echo.stfc.ac.uk
+
+    Returns
+    -------
+    store
+        FSStore with MAST data.
     """
-    if not local:
+    if location == "S3":
         try:
             endpoint_url = 'https://s3.echo.stfc.ac.uk'
             url = f's3://mast/test/level2/shots/{shot_id}.zarr'
@@ -86,17 +98,15 @@ def make_store(shot_id, local=True):
         except Exception as e:
             print(f"Error: {e}")
             raise e
+    elif location == "local":
+        local_url = f"/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/{shot_id}.zarr"
+        store = zarr.storage.FSStore(url=local_url)
+    elif location == "singularity":
+        local_url = f"/srv/{shot_id}.zarr"
+        store = zarr.storage.FSStore(url=local_url)
     else:
-        try:
-            # Check if path is reachable
-            fs = fsspec.filesystem("file")
-            fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
-            
-            local_url = f"/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/{shot_id}.zarr"
-            store = zarr.storage.FSStore(url=local_url)
-        except:
-            local_url = f"/srv/{shot_id}.zarr"
-            store = zarr.storage.FSStore(url=local_url)
+        raise ValueError(f"Unknown location: {location}")
+    
     return store
 
 def print_store(store):
