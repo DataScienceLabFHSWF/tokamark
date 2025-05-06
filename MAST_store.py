@@ -29,6 +29,7 @@ def list_all_shots(location: Literal["local", "singularity", "S3"] = "local"):
     list
         List of shot ID integers.
     """
+    location = "singularity"
     if location == "local":
         fs = fsspec.filesystem("file")
         all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")
@@ -82,6 +83,7 @@ def make_store(shot_id, location: Literal["local", "singularity", "S3"] = "local
     store
         FSStore with MAST data.
     """
+    location = "singularity"
     if location == "S3":
         try:
             endpoint_url = 'https://s3.echo.stfc.ac.uk'
@@ -197,7 +199,6 @@ def plot_NBI(store):
 
 def plot_magnetic_field(store):
     try:
-        breakpoint()
         profiles = xr.open_zarr(store, group='magnetics')
 
         fig, axes = plt.subplots(3, 2, figsize=(8, 10))

@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 from tqdm import tqdm
 import zarr
+import os
 
 
 def load_config(path):
@@ -74,6 +75,13 @@ def main():
 
     # Return N random shot_ids
     random_shot_ids = shuffle_shot_ids(shot_ids, N)
+    
+    if 16092 in random_shot_ids:
+        print(f"YES {len(random_shot_ids)}")
+    else:
+        print(f"NO {len(random_shot_ids)}")
+
+
 
     # Process shot ids
     with Pool(processes=processes) as pool:
@@ -106,7 +114,7 @@ def main():
         "scaler": scaler,
         "group": group,
         "signal_name": signal_name
-    }, "pca_model.joblib")
+    },  "pca_model.joblib")
 
 def test_reconstruction(id = 16092):
 
@@ -130,23 +138,35 @@ def test_reconstruction(id = 16092):
     reconstructed = pca.inverse_transform(transformed)
     reconstructed = scaler.inverse_transform(reconstructed)
 
+    RMS = np.sqrt(np.mean((vals - reconstructed.T) ** 2))
+    print(f"RMS = {RMS}")
 
     fig, axes = plt.subplots(nrows=2, figsize=(8, 10))
 
-    axes[0].set_title("Original")
+    vmin = min(vals.min(), reconstructed.T.min())
+    vmax = max(vals.max(), reconstructed.T.max())
+
+    p0 = axes[0].pcolorfast(vals, vmin=vmin, vmax=vmax)
+    p1 = axes[1].pcolorfast(reconstructed.T, vmin=vmin, vmax=vmax)
+
+
+    axes[0].set_title(r"$\bf{Original}$" + f" {group}/{signal_name} shot id = {id}")
     p0 = axes[0].pcolorfast(vals)
     fig.colorbar(p0, ax=axes[0])
 
-    axes[1].set_title("Reconstructed")
+    axes[1].set_title(r"$\bf{Reconstructed}$" + f" (RMS = {RMS:.4f})")
     p1 = axes[1].pcolorfast(reconstructed.T)
     fig.colorbar(p1, ax=axes[1])
 
     plt.tight_layout()
-    fig.savefig("comparison.png", bbox_inches="tight", dpi=300)
+
+
+    fig.savefig(f"{group}_{signal_name}.png", bbox_inches="tight", dpi=300)
     plt.show()
 
-    RMS = np.sqrt(np.mean((vals - reconstructed.T) ** 2))
-    print(f"RMS = {RMS}")
+    old_filename = "pca_model.joblib"
+    new_filename = f"{group}_{signal_name}_pca_model.joblib"
+    os.rename(old_filename, new_filename)
 
 if __name__ == "__main__":
     main()
