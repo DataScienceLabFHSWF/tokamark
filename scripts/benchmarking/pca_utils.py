@@ -13,10 +13,12 @@ from store_utils import MASTStorageManager
 def read_signals(filepath: str)->dict[str:int]:
     """
     filepath: path to file containing all 
-    signal names and their multeplicity (nr. of traces)
+    signal names and their multiplicity (nr. of traces). E.g.:
+    magnetics/flux_loop_flux 15
 
     Output: Dictionary with signal names as keys and 
-    number of traces as values
+    number of traces as values. Empty dictionary if
+    exception raised during reading.
     """
 
     signals = dict()
@@ -37,7 +39,7 @@ def signals_average_across_shots(store_manager : MASTStorageManager,
                                  local : bool,
                                  singularity: bool):
     """
-    Summary: calucalte average values of MAST signals across all shots available. 
+    Summary: calculate average values of MAST signals across all shots available. 
     Signals are listed inside the file found at filepath.
     """
 
