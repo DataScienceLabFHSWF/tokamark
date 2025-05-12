@@ -29,7 +29,8 @@ def read_signals(filepath: str)->dict[str:int]:
     signal names and their multeplicity (nr. of channels)
 
     Output: Dictionary with signal names as keys and 
-    number of traces as values
+    number of traces as values. Empty dictionary if
+    exception raised during reading.
     """
 
     signals = dict()
