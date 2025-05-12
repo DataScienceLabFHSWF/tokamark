@@ -1,8 +1,7 @@
 {
     "max_components": 10,
-    "group": "thomson_scattering",
-    "signal_name": "t_e",
-    "nr_shots": 100,
-    "processes":8,
-    "location": "singularity"
+    "group": "magnetics",
+    "signal_name": "flux_loop_flux",
+    "nr_shots": 10,
+    "processes":8
 }

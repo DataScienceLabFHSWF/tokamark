@@ -113,4 +113,4 @@ def signals_average_across_shots(store_manager : MASTStorageManager,
 if __name__ == "__main__":
     breakpoint()
     store_manager = MASTStorageManager(local_root_path = "/srv")
-    signals_average_across_shots(store_manager,"tmp/list_of_signals.txt", False, True)
+    signals_average_across_shots(store_manager,"data/list_of_signals.txt", False, True)
