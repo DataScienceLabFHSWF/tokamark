@@ -1,7 +1,7 @@
 """
 Classes for filling missing data in MAST signals.
 """
-
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import json
@@ -16,7 +16,10 @@ sys.path.append(mother_dir)
 
 from signal_utils import MASTSignalManager  
 from store_utils import MASTStorageManager
-from  utils import (is_finite_numeric_array,read_signals,make_dataframe_from_shot_ids)
+from  utils import (is_finite_numeric_array,
+                    read_signals,
+                    make_dataframe_from_shot_ids,
+                    shuffle_shot_ids)
  
 
 class SimpleFiller:
@@ -42,6 +45,16 @@ class SimpleFiller:
 
         return vals
 
+def test_simple_filler(local, singularity, group, signal_name, shot_id):
+    
+    sig = MASTSignalManager(group, signal_name, shot_id)
+
+    store_manager = MASTStorageManager(local_root_path =  "/srv")
+    store= store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
+
+    imputer = SimpleFiller()
+
+    return imputer.simple_fill(sig, store)
 
 class ConditionalFiller:
 
@@ -108,7 +121,7 @@ class ConditionalFiller:
             missing_cols = [col for col in col_keys_list if tshot[col].isna().any()]
             given_cols = [col for col in col_keys_list if not tshot[col].isna().any()]
 
-            if len(missing_cols) ==0 or len(given_cols) == 0:
+            if len(missing_cols) ==0:
                 filled_list.append(tshot_copy)
                 continue
 
@@ -147,7 +160,8 @@ class ConditionalFiller:
 
         try:
             self.fit_mu_cov()
-            return self.fill_shots()
+            filled_shots = self.fill_shots()
+            return filled_shots
 
         except Exception as e:
             print(f"Exception {e}")
@@ -155,13 +169,8 @@ class ConditionalFiller:
     
         
   
-def test_conditional_fill(local, singularity):
-    group = "magnetics"
-    signal_name = "flux_loop_flux"
-    shot_ids = [16092, 30421, 12116, 13889, 21336, 27422]
-
+def test_conditional_fill(local, singularity, group, signal_name, shot_ids):
     store_manager = MASTStorageManager(local_root_path = "/srv")
-
 
     channels, df = make_dataframe_from_shot_ids(store_manager,
                     shot_ids,
@@ -172,8 +181,9 @@ def test_conditional_fill(local, singularity):
 
 
     filler = ConditionalFiller(df, channels)
-
-    return df, filler.conditional_fill()
+    filled_shots = filler.conditional_fill()
+    
+    return filled_shots
 
 
 def signals_average_across_shots(store_manager : MASTStorageManager, 
@@ -290,4 +300,60 @@ def test_signals_average_across_shots():
 
 
 if __name__ == "__main__":
-    original, filled = test_conditional_fill(False, True)
+
+    # input
+    local = False
+    singularity = True
+    group = "magnetics"
+    signal_name = "flux_loop_flux"
+    shot_id = 16092
+
+    # MAST store manager
+    store_manager = MASTStorageManager(local_root_path =  "/srv")
+    shot_ids = store_manager.list_all_shots(local=local, singularity = singularity)
+    shot_ids = shuffle_shot_ids(shot_ids)[:6]
+
+    # Re-order shot_ids so that shot_id is always first
+    new_shot_ids = shot_ids[:]
+    if shot_id in new_shot_ids:
+        shot_ids.remove(shot_id)
+        new_shot_ids.insert(0, shot_id)
+    else:
+        new_shot_ids.insert(0, shot_id)
+    shot_ids = new_shot_ids
+
+    # Impute missing channels for test shot_id
+    conditional_filled = test_conditional_fill(local, singularity, group, signal_name, shot_ids)[0].T
+    conditional_filled = conditional_filled.to_numpy()
+    simple_filled = test_simple_filler(local, singularity, group, signal_name, shot_id)
+
+    # Retrieve original signal
+    sig = MASTSignalManager(group, signal_name, shot_id)
+    store = store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
+    vals = sig.get_values(store)
+
+    # Plot
+    fig, axes = plt.subplots(nrows=3, figsize=(8, 10))
+
+    vmin = min(conditional_filled.min(), simple_filled.min(), vals.min())
+    vmax = max(conditional_filled.max(), simple_filled.max(), vals.max())
+
+    p0 = axes[0].pcolorfast(vals, vmin=vmin, vmax=vmax)
+    p1 = axes[1].pcolorfast(conditional_filled, vmin=vmin, vmax=vmax)
+    p2 = axes[2].pcolorfast(simple_filled, vmin=vmin, vmax=vmax)
+
+
+    axes[0].set_title(r"$\bf{Original}$" + f" {group}/{signal_name} shot id = {shot_ids[0]}")
+    fig.colorbar(p0, ax=axes[0])
+
+    axes[1].set_title(r"$\bf{Conditional fill}$")
+    fig.colorbar(p1, ax=axes[1])
+
+    axes[2].set_title(r"$\bf{Simple fill}$")
+    fig.colorbar(p2, ax=axes[2])
+
+    plt.tight_layout()
+
+    fig.savefig(f"{group}_{signal_name}.png", bbox_inches="tight", dpi=300)
+    plt.show()
+

@@ -69,7 +69,7 @@ def main(
     shot_ids = store_manager.list_all_shots(local=local, singularity = singularity)
 
     # Return N random shot_ids
-    random_shot_ids = shuffle_shot_ids(shot_ids, N)
+    random_shot_ids = shuffle_shot_ids(shot_ids)[:N]
     
     if 16092 in random_shot_ids:
         print(f"YES {len(random_shot_ids)}")
@@ -158,11 +158,9 @@ def test_reconstruction(shot_id, config_file, local, singularity):
 
 
     axes[0].set_title(r"$\bf{Original}$" + f" {group}/{signal_name} shot id = {shot_id}")
-    p0 = axes[0].pcolorfast(vals)
     fig.colorbar(p0, ax=axes[0])
 
     axes[1].set_title(r"$\bf{Reconstructed}$" + f" (RMS = {RMS:.4f})")
-    p1 = axes[1].pcolorfast(reconstructed.T)
     fig.colorbar(p1, ax=axes[1])
 
     plt.tight_layout()

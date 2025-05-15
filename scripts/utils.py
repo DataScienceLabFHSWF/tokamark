@@ -44,10 +44,10 @@ def read_signals(filepath: str)->dict[str:int]:
     return signals
 
 
-def shuffle_shot_ids(shot_ids, N, seed=None):
+def shuffle_shot_ids(shot_ids, seed=None):
     random.seed(seed)
     random.shuffle(shot_ids)
-    return shot_ids[:N]
+    return shot_ids
 
 def make_dataframe_from_shot_ids(store_manager : MASTSignalManager, 
                     shot_ids: list[int], 
