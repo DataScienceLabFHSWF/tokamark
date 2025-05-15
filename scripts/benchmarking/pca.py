@@ -3,10 +3,8 @@ import json
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import numpy as np
-import random
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
 from tqdm import tqdm
 import zarr
 import os
@@ -14,39 +12,18 @@ import os
 import sys
 cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
-mast_tools_path = os.path.abspath(os.path.join(mother_dir , "MAST_tools"))
-sys.path.append(mast_tools_path)
+sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
+sys.path.append(mother_dir)
+
+from sigfill import SimpleFiller
 from signal_utils import MASTSignalManager  
 from store_utils import MASTStorageManager
+from  utils import (shuffle_shot_ids)
 
 def load_config(path):
     with open(path, "r") as f:
         config = json.load(f)
     return config
-
-def shuffle_shot_ids(shot_ids, N, seed=None):
-    random.seed(seed)
-    random.shuffle(shot_ids)
-    return shot_ids[:N]
-
-def imputed_array(mast_signal, store):
-    """
-    Process a single mast_signal to handle missing data,
-    and return the imputed array.
-
-    Args:
-        mast_signal: SIGNAL from MAST_signal.py.
-
-    Returns:
-        Imputed numpy array of flux loop values for the given shot ID.
-    """
-    vals = mast_signal.get_values(store)
-
-    imp = SimpleImputer(missing_values=np.nan, strategy="mean")
-    imp.fit(vals)
-    vals = imp.transform(vals)
-
-    return vals
 
 def process_single_shot_id( 
     shot_id,
@@ -58,7 +35,9 @@ def process_single_shot_id(
     ):
     sig = MASTSignalManager(group, signal_name, shot_id)
     store= store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
-    return imputed_array(sig, store)
+
+    imputer = SimpleFiller()
+    return imputer.simple_fill(sig, store)
 
 
 def process_single_shot_id_star(args):
@@ -98,29 +77,17 @@ def main(
         print(f"NO {len(random_shot_ids)}")
 
     # Process shot ids
-    # with Pool(processes=processes) as pool:
-    #     args_iterable = [(  shot_id, 
-    #                         group, 
-    #                         signal_name, 
-    #                         store_manager,
-    #                         local,
-    #                         singularity) for shot_id in random_shot_ids]
-    #     results = list(tqdm(
-    #         pool.imap(process_single_shot_id_star, args_iterable),
-    #         total=len(random_shot_ids)
-    #     ))
-     # Process shot ids
-    results = []
-    for shot_id in random_shot_ids:
-        vals = process_single_shot_id(shot_id, 
-            group, 
-            signal_name,
-            store_manager,
-            local,
-            singularity)
-
-        if vals is not None:
-            results.append(vals)
+    with Pool(processes=processes) as pool:
+        args_iterable = [(  shot_id, 
+                            group, 
+                            signal_name, 
+                            store_manager,
+                            local,
+                            singularity) for shot_id in random_shot_ids]
+        results = list(tqdm(
+            pool.imap(process_single_shot_id_star, args_iterable),
+            total=len(random_shot_ids)
+        ))
 
     if results:
         data_array = np.concatenate([*results], axis=1).T
