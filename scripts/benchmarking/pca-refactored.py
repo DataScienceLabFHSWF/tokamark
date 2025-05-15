@@ -84,7 +84,7 @@ def main():
 
     # Get all shot ids
     store_manager = MASTStorageManager()
-    shot_ids = store_manager.list_all_shots(local=local)
+    shot_ids = store_manager.list_all_shots(level=2, local=local, via_parquet=False)
 
     # Return N random shot_ids
     random_shot_ids = shuffle_shot_ids(shot_ids, n_shots)
