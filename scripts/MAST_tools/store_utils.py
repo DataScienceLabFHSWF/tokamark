@@ -898,7 +898,7 @@ def main():
         print(f"group_from_shot_id.tree() (group from shot ID): {group_from_shot_id.tree()}\n")
 
     # ..................................................................................................................
-    # Check all shots with given signal availability
+    # List all shots IDs for given signal availability
 
     if tests_to_run["check_signal_availability"]:
 
@@ -917,7 +917,8 @@ def main():
             required_signals=dict_target_signals
         )
 
-        print(f"\nfiltered_ids ({len(filtered_ids)} shots): {filtered_ids}")
+        print(f"\nfiltered_ids ({len(filtered_ids)} shots):")
+        pprint(filtered_ids)
 
     # ..................................................................................................................
 
