@@ -53,8 +53,7 @@ def make_dataframe_from_shot_ids(store_manager : MASTSignalManager,
                     shot_ids: list[int], 
                     group : str, 
                     signal_name: str,
-                    local=True,
-                    singularity=False):
+                    local=True):
     """Return a dataFrame from concateneted signals
 
     Parameters
@@ -62,15 +61,12 @@ def make_dataframe_from_shot_ids(store_manager : MASTSignalManager,
     ...
     local : bool, optional
         get data from local storage
-    singularity : bool, optional
-        if running within singularity the data storage must be bound to 
-        a directory within the singularity. 
     """
 
     channels = None
     shot_list = []
     for shot_id in shot_ids:
-        store = store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
+        store = store_manager.make_shot_store(shot_id=shot_id, local=local)
         sig = MASTSignalManager(group, signal_name, shot_id)
 
         if channels == None:

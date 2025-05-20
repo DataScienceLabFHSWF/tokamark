@@ -44,12 +44,12 @@ class SimpleFiller:
 
         return vals
 
-def test_simple_filler(local, singularity, group, signal_name, shot_id):
+def test_simple_filler(local, group, signal_name, shot_id):
     
     sig = MASTSignalManager(group, signal_name, shot_id)
 
-    store_manager = MASTStorageManager(local_root_path =  "/srv")
-    store= store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
+    store_manager = MASTStorageManager()
+    store= store_manager.make_shot_store(shot_id=shot_id, local=local)
 
     imputer = SimpleFiller(sig, store)
 
@@ -109,7 +109,7 @@ class ConditionalFiller:
     col_means=None, 
     col_covars=None,
     missing_val=np.nan,
-    focused_shots_number =1):
+    focused_shot_index = 0):
 
         if shot_tab_list is None:
             shot_tab_list = self.shot_tab_list
@@ -120,12 +120,16 @@ class ConditionalFiller:
         if col_covars is None:
             col_covars = self.col_covars
 
+        if focused_shot_index > len(shot_tab_list):
+            print(f"Error: focused_shot_index > len(shot_tab_list)")
+            return None
+
         filled_list = []
 
         for nr, tshot in enumerate(shot_tab_list):
             
-            if nr >= focused_shots_number:
-                break
+            if nr != focused_shot_index:
+                continue
 
             tshot_copy = tshot.copy()
             missing_cols = [col for col in col_keys_list if tshot[col].isna().any()]
@@ -166,11 +170,22 @@ class ConditionalFiller:
         return filled_list
     
         
-    def conditional_fill(self):
+    def conditional_fill(self, focused_shot_index: int):
+        """Apply fill_shots method to a specific shot.
+
+        Parameters
+        ----------
+        focused_shot_index : the positional index of the shot of which we wish 
+        to impute missing components within the self.shot_tab_list
+
+        Returns
+        -------
+        Filled shots
+        """
 
         try:
             self.fit_mu_cov()
-            filled_shots = self.fill_shots()
+            filled_shots = self.fill_shots(focused_shot_index=focused_shot_index)
             return filled_shots
 
         except Exception as e:
@@ -179,20 +194,21 @@ class ConditionalFiller:
     
         
   
-def test_conditional_fill(local, singularity, group, signal_name, shot_ids):
-    store_manager = MASTStorageManager(local_root_path = "/srv")
+def test_conditional_fill(local, 
+                            group, 
+                            signal_name, 
+                            shot_ids,
+                            focused_shot_index):
+    store_manager = MASTStorageManager()
 
     channels, df = make_dataframe_from_shot_ids(store_manager,
                     shot_ids,
                     group, 
                     signal_name,
-                    local=local,
-                    singularity=singularity)
+                    local=local)
 
-    # df[0]['FL/P3U/1'] = np.nan
-    # df[0]['AMB_FL/CC03'] = np.nan
     filler = ConditionalFiller(df, channels)
-    filled_shots = filler.conditional_fill()
+    filled_shots = filler.conditional_fill(focused_shot_index)
     
     return channels, filled_shots
 
@@ -200,8 +216,7 @@ def test_conditional_fill(local, singularity, group, signal_name, shot_ids):
 def signals_average_across_shots(store_manager : MASTStorageManager, 
                                  shot_ids : list[int],
                                  filepath:str,
-                                 local : bool,
-                                 singularity: bool):
+                                 local : bool):
     """
     For each shot:
 
@@ -239,7 +254,7 @@ def signals_average_across_shots(store_manager : MASTStorageManager,
 
         if nr>=0 :
             print(f"Shot number {nr+1} out of {len(shot_ids)}")
-        store = store_manager.make_shot_store(shot_id, local=local, singularity = singularity)
+        store = store_manager.make_shot_store(shot_id, local=local)
 
         for key, value in data_set.items():
             # Retrieve signal group and name
@@ -294,35 +309,29 @@ def signals_average_across_shots(store_manager : MASTStorageManager,
         json.dump(json_data, f, indent=4)
 
 
-def test_signals_average_across_shots():
+def test_signals_average_across_shots(data_path="data/list_of_signals.txt"):
 
     # Get all shot ids
-    local = False
-    singularity = True
-    store_manager = MASTStorageManager(local_root_path = "/srv")
-    shot_ids = store_manager.list_all_shots(local= local, singularity = singularity)
+    local = True
+    store_manager = MASTStorageManager()
+    shot_ids = store_manager.list_all_shots(local= local)
     signals_average_across_shots(store_manager,
                                 shot_ids[:5], 
-                                "data/list_of_signals.txt", 
-                                local,
-                                singularity)
-
-
-
+                                data_path, 
+                                local)
 
 if __name__ == "__main__":
 
     # input
-    local = False
-    singularity = True
+    local = True
     group = "magnetics"
     signal_name = "flux_loop_flux"
     shot_id = 16092
 
     # MAST store manager
-    store_manager = MASTStorageManager(local_root_path =  "/srv")
-    shot_ids = store_manager.list_all_shots(local=local, singularity = singularity)
-    shot_ids = shuffle_shot_ids(shot_ids)[:100]
+    store_manager = MASTStorageManager()
+    shot_ids = store_manager.list_all_shots(local=local)
+    shot_ids = shuffle_shot_ids(shot_ids)[:10]
 
     # Re-order shot_ids so that shot_id is always first
     new_shot_ids = shot_ids[:]
@@ -334,22 +343,15 @@ if __name__ == "__main__":
     shot_ids = new_shot_ids
 
     # Impute missing channels for test shot_id
-    channel_names, conditional_filled = test_conditional_fill(local, singularity, group, signal_name, shot_ids)
+    channel_names, conditional_filled = test_conditional_fill(local, group, signal_name, shot_ids, 0)
     conditional_filled = conditional_filled[0].T
     conditional_filled = conditional_filled.to_numpy()
-    simple_filled = test_simple_filler(local, singularity, group, signal_name, shot_id)
+    simple_filled = test_simple_filler(local, group, signal_name, shot_id)
 
     # Retrieve original signal
     sig = MASTSignalManager(group, signal_name, shot_id)
-    store = store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
+    store = store_manager.make_shot_store(shot_id=shot_id, local=local)
     vals = sig.get_values(store)
-
-    # RMSs
-    # RMSconditional = np.sqrt(np.mean((vals - conditional_filled) ** 2, axis=1))
-    # RMSsimnple =  np.sqrt(np.mean((vals - simple_filled) ** 2, axis=1))
-
-    # print(f" RMSconditional { RMSconditional[0]}")
-    # print(f"RMSsimnple {RMSsimnple[0]}")
 
     # Plot
     fig, axes = plt.subplots(nrows=3, figsize=(8, 10))

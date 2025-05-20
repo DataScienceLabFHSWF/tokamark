@@ -30,14 +30,32 @@ def process_single_shot_id(
     group,
     signal_name, 
     store_manager,
-    local,
-    singularity
+    local
     ):
     sig = MASTSignalManager(group, signal_name, shot_id)
-    store= store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
+    store= store_manager.make_shot_store(shot_id=shot_id, local=local)
 
-    imputer = SimpleFiller()
-    return imputer.simple_fill(sig, store)
+    imputer = SimpleFiller(sig, store)
+    return imputer.simple_fill()
+
+def process_single_shot_id_conditional(local,
+                            group,
+                            signal_name,
+                            shot_ids,
+                            focused_shot_index):
+
+    from .sigfill import  test_conditional_fill
+    channel_names, conditional_filled = test_conditional_fill(
+                                        local, 
+                                        group, 
+                                        signal_name, 
+                                        shot_ids,
+                                        focused_shot_index
+                                        )
+                                        
+    conditional_filled = conditional_filled[0].T
+    conditional_filled = conditional_filled.to_numpy()
+    return conditional_filled
 
 
 def process_single_shot_id_star(args):
@@ -47,9 +65,7 @@ def process_single_shot_id_star(args):
 
 def main(
     config_file, 
-    local_root_path, 
-    local,
-    singularity
+    local
     ):
 
     # input
@@ -63,10 +79,10 @@ def main(
     processes = config.get("processes")
 
     # Instanciate MASTStorageManager
-    store_manager = MASTStorageManager(local_root_path = local_root_path)
+    store_manager = MASTStorageManager()
 
     # Get all shot ids
-    shot_ids = store_manager.list_all_shots(local=local, singularity = singularity)
+    shot_ids = store_manager.list_all_shots(local=local)
 
     # Return N random shot_ids
     random_shot_ids = shuffle_shot_ids(shot_ids)[:N]
@@ -82,8 +98,7 @@ def main(
                             group, 
                             signal_name, 
                             store_manager,
-                            local,
-                            singularity) for shot_id in random_shot_ids]
+                            local) for shot_id in random_shot_ids]
         results = list(tqdm(
             pool.imap(process_single_shot_id_star, args_iterable),
             total=len(random_shot_ids)
@@ -114,10 +129,10 @@ def main(
         "signal_name": signal_name
     },  "pca_model.joblib")
 
-def test_reconstruction(shot_id, config_file, local, singularity):
+def test_reconstruction(shot_id, config_file, local):
 
     # Instanciate MASTStorageManager
-    store_manager = MASTStorageManager(local_root_path = "/srv")
+    store_manager = MASTStorageManager()
 
     config = load_config(config_file)
     location = config.get("location")
@@ -135,8 +150,7 @@ def test_reconstruction(shot_id, config_file, local, singularity):
         group,
         signal_name, 
         store_manager,
-        local,
-        singularity
+        local
         )
     vals_scaled = scaler.transform(vals.T)
 
@@ -174,5 +188,5 @@ def test_reconstruction(shot_id, config_file, local, singularity):
     os.rename(old_filename, new_filename)
 
 if __name__ == "__main__":
-    main("scripts/benchmarking/config_pca.json", "/srv", False, True)
-    test_reconstruction(16092, "scripts/benchmarking/config_pca.json",False, True)
+    main("scripts/benchmarking/config_pca.json",True)
+    test_reconstruction(16092, "scripts/benchmarking/config_pca.json",True)
