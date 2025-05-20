@@ -27,9 +27,14 @@ class MASTSignalManager:
 
     def get_channel_names(self, store):
         try:
-            profile = xr.open_zarr(store, group=self.group)
-            names = [name.item().replace("/","_") for name in  profile[self.signal_name]["flux_loop_channel"]]
-            return names
+            profile = xr.open_zarr(store, group=self.source)
+            data_array = profile[self.signal_name]
+            non_time_coords = [coord for coord in data_array.coords if coord != "time"]
+            if non_time_coords:
+                channel_coord = non_time_coords[0]
+                return data_array.coords[channel_coord].values
+            else:
+                return None
         except Exception as e:
             print(f"Error opening Zarr store: {e}")
             return None

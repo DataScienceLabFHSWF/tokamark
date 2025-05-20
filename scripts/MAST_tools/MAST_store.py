@@ -29,7 +29,6 @@ def list_all_shots(location: Literal["local", "singularity", "S3"] = "local"):
     list
         List of shot ID integers.
     """
-    location = "singularity"
     if location == "local":
         fs = fsspec.filesystem("file")
         all_files = fs.ls("/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2/")

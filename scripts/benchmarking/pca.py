@@ -3,10 +3,8 @@ import json
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import numpy as np
-import random
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
 from tqdm import tqdm
 import zarr
 import os
@@ -14,51 +12,50 @@ import os
 import sys
 cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
-mast_tools_path = os.path.abspath(os.path.join(mother_dir , "MAST_tools"))
-sys.path.append(mast_tools_path)
+sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
+sys.path.append(mother_dir)
+
+from sigfill import SimpleFiller
 from signal_utils import MASTSignalManager  
 from store_utils import MASTStorageManager
+from  utils import (shuffle_shot_ids)
 
 def load_config(path):
     with open(path, "r") as f:
         config = json.load(f)
     return config
 
-def shuffle_shot_ids(shot_ids, N, seed=None):
-    random.seed(seed)
-    random.shuffle(shot_ids)
-    return shot_ids[:N]
-
-def imputed_array(mast_signal, store):
-    """
-    Process a single mast_signal to handle missing data,
-    and return the imputed array.
-
-    Args:
-        mast_signal: SIGNAL from MAST_signal.py.
-
-    Returns:
-        Imputed numpy array of flux loop values for the given shot ID.
-    """
-    vals = mast_signal.get_values(store)
-
-    imp = SimpleImputer(missing_values=np.nan, strategy="mean")
-    imp.fit(vals)
-    vals = imp.transform(vals)
-
-    return vals
-
 def process_single_shot_id( 
     shot_id,
     group,
     signal_name, 
     store_manager,
-    local,
-    singularity
+    local
     ):
     sig = MASTSignalManager(group, signal_name, shot_id)
-    store= store_manager.make_shot_store(shot_id=shot_id, local=local, singularity=singularity)
-    return imputed_array(sig, store)
+    store= store_manager.make_shot_store(shot_id=shot_id, local=local)
+
+    imputer = SimpleFiller(sig, store)
+    return imputer.simple_fill()
+
+def process_single_shot_id_conditional(local,
+                            group,
+                            signal_name,
+                            shot_ids,
+                            focused_shot_index):
+
+    from .sigfill import  test_conditional_fill
+    channel_names, conditional_filled = test_conditional_fill(
+                                        local, 
+                                        group, 
+                                        signal_name, 
+                                        shot_ids,
+                                        focused_shot_index
+                                        )
+                                        
+    conditional_filled = conditional_filled[0].T
+    conditional_filled = conditional_filled.to_numpy()
+    return conditional_filled
 
 
 def process_single_shot_id_star(args):
@@ -68,9 +65,7 @@ def process_single_shot_id_star(args):
 
 def main(
     config_file, 
-    local_root_path, 
-    local,
-    singularity
+    local
     ):
 
     # input
@@ -84,13 +79,13 @@ def main(
     processes = config.get("processes")
 
     # Instanciate MASTStorageManager
-    store_manager = MASTStorageManager(local_root_path = local_root_path)
+    store_manager = MASTStorageManager()
 
     # Get all shot ids
-    shot_ids = store_manager.list_all_shots(local=local, singularity = singularity)
+    shot_ids = store_manager.list_all_shots(local=local)
 
     # Return N random shot_ids
-    random_shot_ids = shuffle_shot_ids(shot_ids, N)
+    random_shot_ids = shuffle_shot_ids(shot_ids)[:N]
     
     if 16092 in random_shot_ids:
         print(f"YES {len(random_shot_ids)}")
@@ -98,29 +93,16 @@ def main(
         print(f"NO {len(random_shot_ids)}")
 
     # Process shot ids
-    # with Pool(processes=processes) as pool:
-    #     args_iterable = [(  shot_id, 
-    #                         group, 
-    #                         signal_name, 
-    #                         store_manager,
-    #                         local,
-    #                         singularity) for shot_id in random_shot_ids]
-    #     results = list(tqdm(
-    #         pool.imap(process_single_shot_id_star, args_iterable),
-    #         total=len(random_shot_ids)
-    #     ))
-     # Process shot ids
-    results = []
-    for shot_id in random_shot_ids:
-        vals = process_single_shot_id(shot_id, 
-            group, 
-            signal_name,
-            store_manager,
-            local,
-            singularity)
-
-        if vals is not None:
-            results.append(vals)
+    with Pool(processes=processes) as pool:
+        args_iterable = [(  shot_id, 
+                            group, 
+                            signal_name, 
+                            store_manager,
+                            local) for shot_id in random_shot_ids]
+        results = list(tqdm(
+            pool.imap(process_single_shot_id_star, args_iterable),
+            total=len(random_shot_ids)
+        ))
 
     if results:
         data_array = np.concatenate([*results], axis=1).T
@@ -147,10 +129,10 @@ def main(
         "signal_name": signal_name
     },  "pca_model.joblib")
 
-def test_reconstruction(shot_id, config_file, local, singularity):
+def test_reconstruction(shot_id, config_file, local):
 
     # Instanciate MASTStorageManager
-    store_manager = MASTStorageManager(local_root_path = "/srv")
+    store_manager = MASTStorageManager()
 
     config = load_config(config_file)
     location = config.get("location")
@@ -168,8 +150,7 @@ def test_reconstruction(shot_id, config_file, local, singularity):
         group,
         signal_name, 
         store_manager,
-        local,
-        singularity
+        local
         )
     vals_scaled = scaler.transform(vals.T)
 
@@ -191,11 +172,9 @@ def test_reconstruction(shot_id, config_file, local, singularity):
 
 
     axes[0].set_title(r"$\bf{Original}$" + f" {group}/{signal_name} shot id = {shot_id}")
-    p0 = axes[0].pcolorfast(vals)
     fig.colorbar(p0, ax=axes[0])
 
     axes[1].set_title(r"$\bf{Reconstructed}$" + f" (RMS = {RMS:.4f})")
-    p1 = axes[1].pcolorfast(reconstructed.T)
     fig.colorbar(p1, ax=axes[1])
 
     plt.tight_layout()
@@ -209,5 +188,5 @@ def test_reconstruction(shot_id, config_file, local, singularity):
     os.rename(old_filename, new_filename)
 
 if __name__ == "__main__":
-    main("scripts/benchmarking/config_pca.json", "/srv", False, True)
-    test_reconstruction(16092, "scripts/benchmarking/config_pca.json",False, True)
+    main("scripts/benchmarking/config_pca.json",True)
+    test_reconstruction(16092, "scripts/benchmarking/config_pca.json",True)

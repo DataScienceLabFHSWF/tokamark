@@ -103,8 +103,7 @@ class MASTStorageManager:
             self,
             level: int = 2,
             test_data: bool = False,
-            local: bool = False,
-            singularity:bool = False
+            local: bool = False
     ):
         """
         Get a list of all shot indices.
@@ -130,8 +129,6 @@ class MASTStorageManager:
 
         if local:
             all_filenames = self.fs_local_fsspec.ls(f"{self.local_root_path}/level{level}/")
-        elif singularity:
-            all_filenames = self.fs_local_fsspec.ls(f"{self.local_root_path}")
         else:
             
             if test_data:
@@ -257,8 +254,7 @@ class MASTStorageManager:
             level: int = 2,
             test_data: bool = False,
             local: bool = False,
-            verbose: bool = False,
-            singularity:bool = False
+            verbose: bool = False
     ):
         """
         Get a store (either LocalStore or FsspecStore) for a given target shot.
@@ -288,9 +284,6 @@ class MASTStorageManager:
 
         if local:
             local_path = f"{self.local_root_path}/level{level}/{shot_id}.zarr"
-            store = zarr.storage.LocalStore(root=local_path)
-        elif singularity:
-            local_path = f"{self.local_root_path}/{shot_id}.zarr"
             store = zarr.storage.LocalStore(root=local_path)
         else:
             remote_shot_path = f"{'test/' if test_data else ''}level{level}/shots/{shot_id}.zarr"
