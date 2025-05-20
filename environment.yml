@@ -12,7 +12,12 @@ dependencies:
   - opencv
   - tqdm
   - ipywidgets
-  - scikit-learn
   - black
   - pyarrow
   - rich
+  - pip
+  - pip:
+    - torch
+    - torchvision
+    - numpy
+    - scikit-learn
