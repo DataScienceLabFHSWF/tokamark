@@ -59,7 +59,8 @@ class MASTSignalManager:
         if store_manager_settings is None:
             self.store_manager_settings = {}
         else:
-            assert isinstance(store_manager_settings)
+            assert isinstance(store_manager_settings, dict), "Type error: invalid store_manager_settings. It must be" \
+                                                             " of type dict."
             self.store_manager_settings = store_manager_settings
         self.store_manager = store_utils.MASTStorageManager(**self.store_manager_settings)
 
