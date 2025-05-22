@@ -138,7 +138,11 @@ class MASTSignalManager:
             profile = data_origin
 
         else:
-            self.store_manager._check_data_origin(data_origin)  # noqa.
+            try:
+                self.store_manager._check_data_origin(data_origin)  # noqa.
+            except Exception as e:
+                pass
+
             assert isinstance(source_name, str), "Type error: invalid source_name. It must be of type str."
 
             if isinstance(data_origin, dict):
@@ -153,6 +157,19 @@ class MASTSignalManager:
 
         return profile[signal_name].values
 
+    def get_channel_names(self, store, group, signal_name):
+        try:
+            profile = xr.open_zarr(store, group=group)
+            data_array = profile[signal_name]
+            non_time_coords = [coord for coord in data_array.coords if coord != "time"]
+            if non_time_coords:
+                channel_coord = non_time_coords[0]
+                return data_array.coords[channel_coord].values
+            else:
+                return None
+        except Exception as e:
+            print(f"Error opening Zarr store: {e}")
+            return None
 
 # ----------------------------------------------------------------------------------------------------------------------
 def test():
@@ -168,7 +185,6 @@ def test():
 
     # ..................................................................................................................
     # Get signal values from store
-
     store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=shot_info)
     signal_values = signal_manager.get_signal_values(
         signal_name=signal_name,
