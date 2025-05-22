@@ -43,7 +43,7 @@ class MASTSignalManager:
         get_signal_values(data_origin, source_name, signal_name)
             Get signal values from a given data origin.
         _set_store_manager(store_manager)
-            Not yet implemented.
+            Set the store_manager instance attribute.
 
         Remarks
         -------
@@ -66,7 +66,10 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def _set_store_manager(self, store_manager):
-        raise NotImplementedError
+        """Set the store_manager instance attribute."""
+        assert isinstance(store_manager, store_utils.MASTStorageManager), "Type error: invalid store_manager. It must" \
+                                                                          " be of type store_utils.MASTStorageManager."
+        self.store_manager = store_manager
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_source_profiles(
@@ -114,13 +117,12 @@ class MASTSignalManager:
 
         Parameters
         ----------
+        signal_name : str
+            Name of the target signal.
         data_origin : Union[dict, ZarrStoreType, cc.XarrayDatasetType]
             Origin of data for signal value retrieval.
         source_name : str
             Name of target source.
-            Optional. Default: None.
-        signal_name : str
-            Name of target signal.
             Optional. Default: None.
 
         Returns
@@ -156,6 +158,7 @@ class MASTSignalManager:
 def test():
 
     signal_manager = MASTSignalManager()
+    # print(type(signal_manager.store_manager))
 
     # ..................................................................................................................
 
