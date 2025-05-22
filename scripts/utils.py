@@ -66,13 +66,20 @@ def make_dataframe_from_shot_ids(store_manager : MASTSignalManager,
     channels = None
     shot_list = []
     for shot_id in shot_ids:
-        store = store_manager.make_shot_store(shot_id=shot_id, local=local)
-        sig = MASTSignalManager(group, signal_name, shot_id)
+        
+        store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
+        sig = MASTSignalManager()
+
+        sig_values = sig.get_signal_values(
+            data_origin=store,
+            source_name=group,
+            signal_name=signal_name
+        )
 
         if channels == None:
-            channels = list(sig.get_channel_names(store))
+            channels = list(sig.get_channel_names(store, group, signal_name))
 
-        df = pd.DataFrame(sig.get_values(store).T, columns=channels)
+        df = pd.DataFrame(sig_values.T, columns=channels)
         shot_list.append(df)
     
     return channels, shot_list

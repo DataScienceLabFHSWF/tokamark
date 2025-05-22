@@ -1,82 +1,24 @@
 import joblib
-import json
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
 import numpy as np
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from tqdm import tqdm
-import zarr
 import os
-
 import sys
+
 cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
 sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
 sys.path.append(mother_dir)
 
-from sigfill import SimpleFiller
+from my_PCA import my_PCA, process_single_shot_id
 from signal_utils import MASTSignalManager  
 from store_utils import MASTStorageManager
 from  utils import (shuffle_shot_ids)
 
-def load_config(path):
-    with open(path, "r") as f:
-        config = json.load(f)
-    return config
 
-def process_single_shot_id( 
-    shot_id,
-    group,
-    signal_name, 
-    store_manager,
-    local
-    ):
-    sig = MASTSignalManager(group, signal_name, shot_id)
-    store= store_manager.make_shot_store(shot_id=shot_id, local=local)
+my_pca = my_PCA("scripts/benchmarking/config_pca.json")
 
-    imputer = SimpleFiller(sig, store)
-    return imputer.simple_fill()
-
-def process_single_shot_id_conditional(local,
-                            group,
-                            signal_name,
-                            shot_ids,
-                            focused_shot_index):
-
-    from .sigfill import  test_conditional_fill
-    channel_names, conditional_filled = test_conditional_fill(
-                                        local, 
-                                        group, 
-                                        signal_name, 
-                                        shot_ids,
-                                        focused_shot_index
-                                        )
-                                        
-    conditional_filled = conditional_filled[0].T
-    conditional_filled = conditional_filled.to_numpy()
-    return conditional_filled
-
-
-def process_single_shot_id_star(args):
-    """Wrapper for process_single_shot_id for multiprocessing starmap."""
-    return process_single_shot_id(*args)
-
-
-def main(
-    config_file, 
-    local
-    ):
-
-    # input
-    config = load_config(config_file)
-
-    # Extract parameters from config file
-    max_components = config.get("max_components")
-    group = config.get("group")
-    signal_name = config.get("signal_name")
-    N = config.get("nr_shots")
-    processes = config.get("processes")
+def fit(my_pca=my_pca, focused_shot_id = 16092, N=10, local = True):
+    """ Prepare N random shots for PCA analysis """
 
     # Instanciate MASTStorageManager
     store_manager = MASTStorageManager()
@@ -84,58 +26,21 @@ def main(
     # Get all shot ids
     shot_ids = store_manager.list_all_shots(local=local)
 
-    # Return N random shot_ids
     random_shot_ids = shuffle_shot_ids(shot_ids)[:N]
     
-    if 16092 in random_shot_ids:
+    # If PCA sample includes the shot we are going to use for testing, then remove it
+    if focused_shot_id  in random_shot_ids:
+        random_shot_ids.remove(focused_shot_id)
         print(f"YES {len(random_shot_ids)}")
     else:
         print(f"NO {len(random_shot_ids)}")
 
-    # Process shot ids
-    with Pool(processes=processes) as pool:
-        args_iterable = [(  shot_id, 
-                            group, 
-                            signal_name, 
-                            store_manager,
-                            local) for shot_id in random_shot_ids]
-        results = list(tqdm(
-            pool.imap(process_single_shot_id_star, args_iterable),
-            total=len(random_shot_ids)
-        ))
+    # Return N random shot_ids
+    my_pca.fit_PCA(local, random_shot_ids)
 
-    if results:
-        data_array = np.concatenate([*results], axis=1).T
-    else:
-        print("Warning: No results to concatenate.")
-
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(data_array)
-
-    for n_components in range(1,max_components):
-        pca = PCA(n_components)
-        pca.fit(scaled_data)
-
-        explained_variance = pca.explained_variance_ratio_
-
-        if np.cumsum(explained_variance)[-1] >= 0.997:
-            break
-    
-    # Save PCA and scaler
-    joblib.dump({
-        "pca": pca,
-        "scaler": scaler,
-        "group": group,
-        "signal_name": signal_name
-    },  "pca_model.joblib")
-
-def test_reconstruction(shot_id, config_file, local):
-
+def test_reconstruction(shot_id, local):
     # Instanciate MASTStorageManager
     store_manager = MASTStorageManager()
-
-    config = load_config(config_file)
-    location = config.get("location")
 
     # Demonstrate PCA transform and reconstruction
     models = joblib.load("pca_model.joblib")
@@ -152,6 +57,7 @@ def test_reconstruction(shot_id, config_file, local):
         store_manager,
         local
         )
+
     vals_scaled = scaler.transform(vals.T)
 
     transformed = pca.transform(vals_scaled)
@@ -187,6 +93,7 @@ def test_reconstruction(shot_id, config_file, local):
     new_filename = f"{group}_{signal_name}_pca_model.joblib"
     os.rename(old_filename, new_filename)
 
+
 if __name__ == "__main__":
-    main("scripts/benchmarking/config_pca.json",True)
-    test_reconstruction(16092, "scripts/benchmarking/config_pca.json",True)
+    fit()
+    test_reconstruction(16092, local=True)

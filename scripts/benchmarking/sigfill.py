@@ -23,37 +23,23 @@ from  utils import (is_finite_numeric_array,
  
 
 class SimpleFiller:
-    def __init__(self, mast_signal, store):
-        self.mast_signal = mast_signal
-        self.store = store
+    def __init__(self, vals):
+        self.vals = vals
 
     def simple_fill(self):
-        """_Process a single mast_signal to handle missing data,
+        """_Process an array of values with missing data,
         and return the imputed array.
         
         Returns
         -------
         Imputed values as numpy array.
         """
-     
-        vals = self.mast_signal.get_values(self.store)
 
         imp = SimpleImputer(missing_values=np.nan, strategy="mean")
-        imp.fit(vals)
-        vals = imp.transform(vals)
+        imp.fit(self.vals)
 
-        return vals
+        return imp.transform(self.vals)
 
-def test_simple_filler(local, group, signal_name, shot_id):
-    
-    sig = MASTSignalManager(group, signal_name, shot_id)
-
-    store_manager = MASTStorageManager()
-    store= store_manager.make_shot_store(shot_id=shot_id, local=local)
-
-    imputer = SimpleFiller(sig, store)
-
-    return imputer.simple_fill()
 
 class ConditionalFiller:
 
@@ -193,8 +179,29 @@ class ConditionalFiller:
             return None
     
         
-  
-def test_conditional_fill(local, 
+def run_simple_filler(
+    shot_id,
+    group,
+    signal_name, 
+    store_manager,
+    local
+    ):
+
+    sig = MASTSignalManager()
+
+    store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
+
+    sig_values = sig.get_signal_values(
+        data_origin=store,
+        source_name=group,
+        signal_name=signal_name
+    )
+
+    imputer = SimpleFiller(sig_values)
+
+    return imputer.simple_fill()
+
+def run_conditional_fill(local, 
                             group, 
                             signal_name, 
                             shot_ids,
@@ -343,15 +350,25 @@ if __name__ == "__main__":
     shot_ids = new_shot_ids
 
     # Impute missing channels for test shot_id
-    channel_names, conditional_filled = test_conditional_fill(local, group, signal_name, shot_ids, 0)
+    channel_names, conditional_filled = run_conditional_fill(local, group, signal_name, shot_ids, 0)
     conditional_filled = conditional_filled[0].T
     conditional_filled = conditional_filled.to_numpy()
-    simple_filled = test_simple_filler(local, group, signal_name, shot_id)
+    simple_filled = run_simple_filler(  
+        shot_id,
+        group,
+        signal_name, 
+        store_manager,
+        local
+        )
 
     # Retrieve original signal
-    sig = MASTSignalManager(group, signal_name, shot_id)
-    store = store_manager.make_shot_store(shot_id=shot_id, local=local)
-    vals = sig.get_values(store)
+    sig = MASTSignalManager()
+    store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
+    vals = sig.get_signal_values(
+            data_origin=store,
+            source_name=group,
+            signal_name=signal_name
+        )
 
     # Plot
     fig, axes = plt.subplots(nrows=3, figsize=(8, 10))
