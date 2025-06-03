@@ -863,7 +863,12 @@ def objective(trial, device, composed_transform, num_workers=2):
         return float('inf')
 
 
-def run_hyperparameter_optimization(device, composed_transform, n_trials=20):
+def run_hyperparameter_optimization(
+        device,
+        composed_transform,
+        n_trials=20,
+        n_workers=2
+    ):
     """
     Run hyperparameter optimization using Optuna.
 
@@ -876,6 +881,8 @@ def run_hyperparameter_optimization(device, composed_transform, n_trials=20):
     n_trials : int, optional
         Number of trials to run for hyperparameter optimization. Default
         is 20.
+    n_workers : int, optional
+        Number of workers to use during data loading. Default is 2.
 
     Returns
     -------
@@ -888,7 +895,12 @@ def run_hyperparameter_optimization(device, composed_transform, n_trials=20):
     
     # Optimize
     study.optimize(
-        lambda trial: objective(trial, device, composed_transform),
+        lambda trial: objective(
+            trial,
+            device,
+            composed_transform,
+            n_workers
+        ),
         n_trials=n_trials
     )
     
@@ -1050,7 +1062,8 @@ if __name__ == "__main__":
     best_params = run_hyperparameter_optimization(
         device=device,
         composed_transform=composed_transform,
-        n_trials=num_trials
+        n_trials=num_trials,
+        n_workers=num_workers
     )
     
     # Train final model with best hyperparameters
