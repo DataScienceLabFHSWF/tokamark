@@ -1,7 +1,9 @@
 # Pipelines demo data and model files
 imputer.joblib
 pca_model.joblib
+scaler_model.joblib
 scripts/pipelines/data/
+scripts/pipelines/runs/
 
 # Local supporting folder
 zz/
