@@ -1,0 +1,507 @@
+"""
+Demonstration of a time series forecasting data loading, preprocessing
+and PyTorch model fitting pipeline.
+
+The following steps are performed:
+
+1. Synthetic Time Series Data Generation:
+   - Generate synthetic time series dataset with multiple signals per
+     example
+   - Each example has 3 input signals and 2 target signals
+   - Variable length time series between examples (90-120 timesteps)
+   - Split into training (100), validation (20), and test (20) examples
+   - Save the datasets as .npz files
+
+2. Data Preprocessing:
+   - Fit a PCA model to reduce 3D input signals to 2D at each time slice
+
+3. Dataset and DataLoader Creation:
+   - Custom PyTorch Dataset class to load time series data
+   - Returns full time series as dictionaries
+   - PCA transform applied to each time slice
+   - Chunking functionality to create input/target sequences
+
+4. Neural Network Model Definition:
+   - Define an LSTM for time series forecasting
+
+5. Model Training with TensorDict batches
+"""
+
+import os
+import numpy as np
+import torch
+import joblib
+from sklearn.decomposition import PCA
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+from tensordict import TensorDict
+
+
+# =====================
+# Data Generation
+# =====================
+
+
+def generate_synthetic_timeseries_data():
+    """
+    Generate synthetic time series data with multiple signals per example.
+    
+    Each example contains:
+    - 3 input signals
+    - 2 target signals
+    - Variable length between 90-120 timesteps
+    """
+    np.random.seed(42)
+    
+    # Define dataset splits
+    n_train, n_val, n_test = 100, 20, 20
+    splits = [("train", n_train), ("val", n_val), ("test", n_test)]
+    
+    os.makedirs("data", exist_ok=True)
+    
+    for split_name, n_examples in splits:
+        split_dir = os.path.join("data", split_name)
+        os.makedirs(split_dir, exist_ok=True)
+        
+        for i in range(n_examples):
+            # Random length for this example
+            length = np.random.randint(90, 121)
+            
+            # Generate time series data
+            t = np.linspace(0, 4*np.pi, length)
+            
+            # Create 3 input signals with different characteristics
+            input_1 = np.sin(t) + 0.1 * np.random.randn(length)
+            input_2 = np.cos(t + np.pi/4) + 0.1 * np.random.randn(length)
+            input_3 = np.sin(2*t) * np.cos(t/2) + 0.1 * np.random.randn(length)
+            
+            # Create 2 target signals that depend on inputs
+            target_1 = 0.5 * input_1 + 0.3 * input_2 + 0.05 * np.random.randn(length)
+            target_2 = 0.4 * input_2 + 0.6 * input_3 + 0.05 * np.random.randn(length)
+            
+            # Add some lag relationship for forecasting
+            if length > 5:
+                target_1[5:] += 0.2 * input_1[:-5]  # target depends on past input
+                target_2[5:] += 0.2 * input_3[:-5]
+            
+            # Save as individual files
+            data = {
+                'input_1': input_1,
+                'input_2': input_2,
+                'input_3': input_3,
+                'target_1': target_1,
+                'target_2': target_2,
+                'length': length
+            }
+            
+            np.savez(os.path.join(split_dir, f"example_{i:03d}.npz"), **data)
+    
+    print("Time series data saved in data/ subdirectories")
+
+
+# =====================
+# Preprocessing
+# =====================
+
+
+def fit_and_save_pca(train_data_dir, n_components=2, model_path="pca_model.joblib"):
+    """
+    Fit PCA to time slices of the 3 input signals to reduce from 3D to 2D.
+    
+    Parameters
+    ----------
+    train_data_dir : str
+        Directory where the train data files are located.
+    n_components : int
+        Number of PCA components (should be 2 for this example).
+    model_path : str
+        File path to save the fitted PCA model.
+    """
+    # Gather all time slices from training data
+    all_time_slices = []
+    
+    train_files = sorted([f for f in os.listdir(train_data_dir) if f.endswith('.npz')])
+    
+    for file in train_files:
+        data = np.load(os.path.join(train_data_dir, file))
+        
+        # For each time step, create a 3D vector [input_1[t], input_2[t], input_3[t]]
+        length = len(data['input_1'])
+        for t in range(length):
+            time_slice = np.array([
+                data['input_1'][t],
+                data['input_2'][t],
+                data['input_3'][t]
+            ])
+            all_time_slices.append(time_slice)
+    
+    # Convert to array: (n_time_slices, 3)
+    all_time_slices = np.array(all_time_slices)
+    
+    # Fit PCA
+    pca = PCA(n_components=n_components)
+    pca.fit(all_time_slices)
+    
+    joblib.dump(pca, model_path)
+    print(f"PCA model saved to {model_path}")
+    print(f"PCA explained variance ratio: {pca.explained_variance_ratio_}")
+
+
+# =====================
+# Dataset and Transforms
+# =====================
+
+
+class PCATransform(object):
+    """
+    Apply pre-fitted PCA to transform 3D input signals to 2D at each time slice.
+    
+    Parameters
+    ----------
+    pca_model_path : str
+        Path to fitted PCA model joblib file.
+    """
+    
+    def __init__(self, pca_model_path):
+        self.pca_model = joblib.load(pca_model_path)
+    
+    def __call__(self, sample):
+        x, y = sample
+        length = len(x['input_1'])
+        
+        # Create array for PCA-transformed inputs
+        transformed_inputs = np.zeros((length, 2))  # 2 PCA components
+        
+        for t in range(length):
+            # Create time slice vector
+            time_slice = np.array([
+                x['input_1'][t].item(),
+                x['input_2'][t].item(), 
+                x['input_3'][t].item()
+            ]).reshape(1, -1)
+            
+            # Apply PCA transform
+            transformed_slice = self.pca_model.transform(time_slice).squeeze()
+            transformed_inputs[t] = transformed_slice
+        
+        # Replace x dictionary with PCA-transformed data
+        x_transformed = {
+            'pca_1': torch.from_numpy(transformed_inputs[:, 0]).float(),
+            'pca_2': torch.from_numpy(transformed_inputs[:, 1]).float()
+        }
+        
+        return x_transformed, y
+
+
+class TimeSeriesDataset(Dataset):
+    """
+    Custom Dataset for loading time series data stored in .npz files.
+    
+    Returns full time series as dictionaries for x and y.
+
+    Parameters
+    ----------
+    data_dir : str
+       Path to directory containing .npz files.
+    transform : callable, optional
+      Optional transform to apply to the data.
+    """
+    
+    def __init__(self, data_dir, transform=None):
+        self.data_dir = data_dir
+        self.transform = transform
+        
+        self.data_files = sorted([
+            f for f in os.listdir(self.data_dir) 
+            if f.endswith('.npz')
+        ])
+    
+    def __len__(self):
+        return len(self.data_files)
+    
+    def __getitem__(self, idx):
+        file_path = os.path.join(self.data_dir, self.data_files[idx])
+        data = np.load(file_path)
+        
+        x = {
+            'input_1': torch.from_numpy(data['input_1']).float(),
+            'input_2': torch.from_numpy(data['input_2']).float(), 
+            'input_3': torch.from_numpy(data['input_3']).float()
+        }
+        
+        y = {
+            'target_1': torch.from_numpy(data['target_1']).float(),
+            'target_2': torch.from_numpy(data['target_2']).float()
+        }
+        
+        if self.transform:
+            x, y = self.transform((x, y))
+        
+        return x, y
+
+
+def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
+    """
+    Chunk time series into input/target sequences for forecasting.
+    
+    Parameters
+    ----------
+    x_dict : dict
+        Dictionary with input time series (after PCA: 'pca_1', 'pca_2')
+    y_dict : dict  
+        Dictionary with target time series
+    input_length : int
+        Length of input sequences
+    target_length : int
+        Length of target sequences to predict
+        
+    Returns
+    -------
+    list of TensorDict
+        List of chunked sequences as TensorDicts
+    """
+    chunks = []
+    
+    # Get series length (assuming all series in an example have same length)
+    series_length = len(x_dict['pca_1'])
+    
+    # Create chunks
+    for i in range(series_length - input_length - target_length + 1):
+        # Input chunk: 5 preceding values of 2 PCA components
+        input_chunk = TensorDict({
+            'pca_1': x_dict['pca_1'][i:i+input_length],
+            'pca_2': x_dict['pca_2'][i:i+input_length]
+        }, batch_size=[])
+        
+        # Target chunk: 3 following values of 2 target signals
+        target_start = i + input_length
+        target_chunk = TensorDict({
+            'target_1': y_dict['target_1'][target_start:target_start+target_length],
+            'target_2': y_dict['target_2'][target_start:target_start+target_length]
+        }, batch_size=[])
+        
+        chunk = TensorDict({
+            'x': input_chunk,
+            'y': target_chunk
+        }, batch_size=[])
+        
+        chunks.append(chunk)
+    
+    return chunks
+
+
+def collate_chunks(batch):
+    """
+    Custom collate function to combine chunks into TensorDict batches.
+    """
+    # Flatten all chunks from all examples in the batch
+    all_chunks = []
+    for x_dict, y_dict in batch:
+        chunks = chunk_time_series(x_dict, y_dict)
+        all_chunks.extend(chunks)
+    
+    if not all_chunks:
+        return TensorDict({}, batch_size=[0])
+    
+    # Stack chunks into batched TensorDict
+    return torch.stack(all_chunks, dim=0)
+
+
+def create_dataloaders(batch_size=32, num_workers=2, transform=None):
+    """
+    Create data loaders for train, validation, and test datasets.
+    """
+    train_data_dir = os.path.join("data", "train")
+    val_data_dir = os.path.join("data", "val") 
+    test_data_dir = os.path.join("data", "test")
+    
+    train_dataset = TimeSeriesDataset(train_data_dir, transform=transform)
+    val_dataset = TimeSeriesDataset(val_data_dir, transform=transform)
+    test_dataset = TimeSeriesDataset(test_data_dir, transform=transform)
+    
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=True,
+        collate_fn=collate_chunks
+    )
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=batch_size, 
+        num_workers=num_workers,
+        shuffle=False,
+        collate_fn=collate_chunks
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers, 
+        shuffle=False,
+        collate_fn=collate_chunks
+    )
+    
+    return train_dataloader, val_dataloader, test_dataloader
+
+
+# =====================
+# Model Definition and Training
+# =====================
+
+
+class TimeSeriesForecastingModel(nn.Module):
+    """
+    Neural network for time series forecasting.
+    
+    Takes 5 timesteps of 2 PCA-transformed input signals and predicts 3
+    timesteps of 2 target signals.
+    """
+    
+    def __init__(self, input_dim=2, hidden_dim=64):
+        super().__init__()
+        
+        # Input: (batch_size, 5 timesteps, 2 PCA components)
+        self.input_projection = nn.Linear(input_dim, hidden_dim)
+        self.lstm = nn.LSTM(hidden_dim, hidden_dim, batch_first=True)
+        
+        # Output: (batch_size, 3 timesteps, 2 signals)  
+        self.output_projection = nn.Linear(hidden_dim, 2)
+        self.output_length = 3
+    
+    def forward(self, x_tensordict):
+        # Extract PCA-transformed inputs from TensorDict
+        # x_tensordict['x'] has keys 'pca_1', 'pca_2'
+        inputs = torch.stack([
+            x_tensordict['x']['pca_1'],
+            x_tensordict['x']['pca_2']
+        ], dim=-1)  # (batch_size, 5, 2)
+        
+        # Project inputs
+        x = self.input_projection(inputs)  # (batch_size, 5, hidden_dim)
+        
+        # LSTM processing
+        lstm_out, (h_n, c_n) = self.lstm(x)  # (batch_size, 5, hidden_dim)
+        
+        # Use final hidden state to generate predictions
+        final_hidden = h_n[-1]  # (batch_size, hidden_dim)
+        
+        # Generate 3 timesteps of predictions
+        predictions = []
+        hidden = final_hidden
+        
+        for _ in range(self.output_length):
+            pred = self.output_projection(hidden)  # (batch_size, 2)
+            predictions.append(pred)
+            # Simple recurrence for next timestep
+            hidden = hidden + 0.1 * pred.sum(dim=-1, keepdim=True) * torch.randn_like(hidden)
+        
+        predictions = torch.stack(predictions, dim=1)  # (batch_size, 3, 2)
+        
+        return TensorDict({
+            'target_1': predictions[:, :, 0],  # (batch_size, 3)
+            'target_2': predictions[:, :, 1]   # (batch_size, 3)
+        }, batch_size=predictions.shape[0])
+
+
+def train_model(device, train_dataloader, val_dataloader, num_epochs=50, lr=1e-3):
+    """
+    Train the time series forecasting model.
+    """
+    model = TimeSeriesForecastingModel().to(device)
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    
+    for epoch in range(num_epochs):
+        print(f"Epoch: {epoch}")
+        
+        model.train()
+        running_loss = 0.0
+        num_batches = 0
+        
+        for batch_idx, batch_tensordict in enumerate(train_dataloader):
+            if batch_tensordict.batch_size[0] == 0:  # Skip empty batches
+                continue
+                
+            batch_tensordict = batch_tensordict.to(device)
+            
+            # Forward pass
+            predictions = model(batch_tensordict)
+            
+            # Calculate loss
+            targets = batch_tensordict['y']
+            loss = (criterion(predictions['target_1'], targets['target_1']) + 
+                   criterion(predictions['target_2'], targets['target_2']))
+            
+            # Backward pass
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+            num_batches += 1
+        
+        if num_batches > 0:
+            print(f"Train loss: {running_loss/num_batches:.4e}")
+        
+        model.eval()
+        running_loss = 0.0
+        num_batches = 0
+        
+        with torch.no_grad():
+            for batch_idx, batch_tensordict in enumerate(val_dataloader):
+                if batch_tensordict.batch_size[0] == 0:
+                    continue
+                    
+                batch_tensordict = batch_tensordict.to(device)
+                
+                predictions = model(batch_tensordict)
+                targets = batch_tensordict['y']
+                
+                loss = (criterion(predictions['target_1'], targets['target_1']) + 
+                       criterion(predictions['target_2'], targets['target_2']))
+                
+                running_loss += loss.item()
+                num_batches += 1
+        
+        if num_batches > 0:
+            print(f"Val loss: {running_loss/num_batches:.4e}")
+
+
+# =====================
+# Main Execution  
+# =====================
+
+if __name__ == "__main__":
+    # Determine device
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+    
+    # Generate data
+    generate_synthetic_timeseries_data()
+    
+    # Fit PCA to time slices of training data
+    fit_and_save_pca(os.path.join("data", "train"), n_components=2)
+    
+    # Create PCA transform
+    pca_transform = PCATransform("pca_model.joblib")
+    
+    # Create data loaders with PCA transform
+    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
+        batch_size=16, 
+        num_workers=2,
+        transform=pca_transform
+    )
+    
+    # Train model
+    train_model(
+        device,
+        train_dataloader,
+        val_dataloader, 
+        num_epochs=10,
+        lr=1e-3
+    )
