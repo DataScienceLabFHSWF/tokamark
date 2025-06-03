@@ -14,11 +14,13 @@ The following steps are performed:
 
 2. Data Preprocessing:
    - Fit a PCA model to reduce 3D input signals to 2D at each time slice
+   - Fit a StandardScaler to standardize the PCA-transformed features
 
 3. Dataset and DataLoader Creation:
    - Custom PyTorch Dataset class to load time series data
    - Returns full time series as dictionaries
    - PCA transform applied to each time slice
+   - StandardScaler applied to PCA-transformed features
    - Chunking functionality to create input/target sequences
 
 4. Neural Network Model Definition:
@@ -32,6 +34,7 @@ import numpy as np
 import torch
 import joblib
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
@@ -148,6 +151,60 @@ def fit_and_save_pca(train_data_dir, n_components=2, model_path="pca_model.jobli
     print(f"PCA explained variance ratio: {pca.explained_variance_ratio_}")
 
 
+def fit_and_save_scaler(
+        train_data_dir,
+        pca_model_path="pca_model.joblib", 
+        scaler_model_path="scaler_model.joblib"
+    ):
+    """
+    Fit StandardScaler to PCA-transformed training data.
+    
+    Parameters
+    ----------
+    train_data_dir : str
+        Directory where the train data files are located.
+    pca_model_path : str
+        Path to fitted PCA model.
+    scaler_model_path : str
+        File path to save the fitted StandardScaler model.
+    """
+    # Load PCA model
+    pca_model = joblib.load(pca_model_path)
+    
+    # Gather all PCA-transformed time slices from training data
+    all_pca_features = []
+    
+    train_files = sorted([f for f in os.listdir(train_data_dir) if f.endswith('.npz')])
+    
+    for file in train_files:
+        data = np.load(os.path.join(train_data_dir, file))
+        
+        # For each time step, create a 3D vector and apply PCA
+        length = len(data['input_1'])
+        for t in range(length):
+            time_slice = np.array([
+                data['input_1'][t],
+                data['input_2'][t],
+                data['input_3'][t]
+            ]).reshape(1, -1)
+            
+            # Apply PCA transform
+            pca_features = pca_model.transform(time_slice).squeeze()
+            all_pca_features.append(pca_features)
+    
+    # Convert to array: (n_time_slices, 2)
+    all_pca_features = np.array(all_pca_features)
+    
+    # Fit StandardScaler
+    scaler = StandardScaler()
+    scaler.fit(all_pca_features)
+    
+    joblib.dump(scaler, scaler_model_path)
+    print(f"StandardScaler model saved to {scaler_model_path}")
+    print(f"Scaler mean: {scaler.mean_}")
+    print(f"Scaler scale: {scaler.scale_}")
+
+
 # =====================
 # Dataset and Transforms
 # =====================
@@ -192,6 +249,40 @@ class PCATransform(object):
         }
         
         return x_transformed, y
+
+
+class StandardScalerTransform(object):
+    """
+    Apply pre-fitted StandardScaler to PCA-transformed input signals.
+    
+    Parameters
+    ----------
+    scaler_model_path : str
+        Path to fitted StandardScaler model joblib file.
+    """
+    
+    def __init__(self, scaler_model_path):
+        self.scaler_model = joblib.load(scaler_model_path)
+    
+    def __call__(self, sample):
+        x, y = sample
+        
+        # Stack PCA components for scaling
+        pca_features = np.column_stack([
+            x['pca_1'].numpy(),
+            x['pca_2'].numpy()
+        ])
+        
+        # Apply StandardScaler
+        scaled_features = self.scaler_model.transform(pca_features)
+        
+        # Replace x dictionary with scaled data
+        x_scaled = {
+            'pca_1': torch.from_numpy(scaled_features[:, 0]).float(),
+            'pca_2': torch.from_numpy(scaled_features[:, 1]).float()
+        }
+        
+        return x_scaled, y
 
 
 class TimeSeriesDataset(Dataset):
@@ -248,7 +339,7 @@ def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
     Parameters
     ----------
     x_dict : dict
-        Dictionary with input time series (after PCA: 'pca_1', 'pca_2')
+        Dictionary with input time series (after PCA and scaling: 'pca_1', 'pca_2')
     y_dict : dict  
         Dictionary with target time series
     input_length : int
@@ -268,7 +359,7 @@ def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
     
     # Create chunks
     for i in range(series_length - input_length - target_length + 1):
-        # Input chunk: 5 preceding values of 2 PCA components
+        # Input chunk: 5 preceding values of 2 PCA components (scaled)
         input_chunk = TensorDict({
             'pca_1': x_dict['pca_1'][i:i+input_length],
             'pca_2': x_dict['pca_2'][i:i+input_length]
@@ -354,8 +445,8 @@ class TimeSeriesForecastingModel(nn.Module):
     """
     Neural network for time series forecasting.
     
-    Takes 5 timesteps of 2 PCA-transformed input signals and predicts 3
-    timesteps of 2 target signals.
+    Takes 5 timesteps of 2 PCA-transformed and standardized input signals 
+    and predicts 3 timesteps of 2 target signals.
     """
     
     def __init__(self, input_dim=2, hidden_dim=64):
@@ -370,7 +461,7 @@ class TimeSeriesForecastingModel(nn.Module):
         self.output_length = 3
     
     def forward(self, x_tensordict):
-        # Extract PCA-transformed inputs from TensorDict
+        # Extract PCA-transformed and scaled inputs from TensorDict
         # x_tensordict['x'] has keys 'pca_1', 'pca_2'
         inputs = torch.stack([
             x_tensordict['x']['pca_1'],
@@ -487,14 +578,23 @@ if __name__ == "__main__":
     # Fit PCA to time slices of training data
     fit_and_save_pca(os.path.join("data", "train"), n_components=2)
     
-    # Create PCA transform
-    pca_transform = PCATransform("pca_model.joblib")
+    # Fit StandardScaler to PCA-transformed training data
+    fit_and_save_scaler(os.path.join("data", "train"))
     
-    # Create data loaders with PCA transform
+    # Create composed transforms: PCA followed by StandardScaler
+    pca_transform = PCATransform("pca_model.joblib")
+    scaler_transform = StandardScalerTransform("scaler_model.joblib")
+    
+    composed_transform = transforms.Compose([
+        pca_transform,
+        scaler_transform
+    ])
+    
+    # Create data loaders with composed transforms
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
         batch_size=16, 
-        num_workers=2,
-        transform=pca_transform
+        num_workers=0,
+        transform=composed_transform
     )
     
     # Train model
