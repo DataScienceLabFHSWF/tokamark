@@ -36,6 +36,8 @@ The following steps are performed:
 """
 
 import argparse
+import datetime
+import logging
 import os
 import numpy as np
 import torch
@@ -49,6 +51,17 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from tensordict import TensorDict
 import matplotlib.pyplot as plt
+
+# Set up logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('pytorch_pipeline_demo_timeseries.log'),
+        # logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 # =====================
@@ -112,7 +125,7 @@ def generate_synthetic_timeseries_data():
             
             np.savez(os.path.join(split_dir, f"example_{i:03d}.npz"), **data)
     
-    print("Time series data saved in data/ subdirectories")
+    logger.info("Time series data saved in data/ subdirectories")
 
 
 # =====================
@@ -167,8 +180,8 @@ def fit_and_save_pca(
     pca.fit(all_time_slices)
     
     joblib.dump(pca, model_path)
-    print(f"PCA model saved to {model_path}")
-    print(f"PCA explained variance ratio: {pca.explained_variance_ratio_}")
+    logger.info(f"PCA model saved to {model_path}")
+    logger.info(f"PCA explained variance ratio: {pca.explained_variance_ratio_}")
 
 
 def fit_and_save_scaler(
@@ -222,9 +235,9 @@ def fit_and_save_scaler(
     scaler.fit(all_pca_features)
     
     joblib.dump(scaler, scaler_model_path)
-    print(f"StandardScaler model saved to {scaler_model_path}")
-    print(f"Scaler mean: {scaler.mean_}")
-    print(f"Scaler scale: {scaler.scale_}")
+    logger.info(f"StandardScaler model saved to {scaler_model_path}")
+    logger.debug(f"Scaler mean: {scaler.mean_}")
+    logger.debug(f"Scaler scale: {scaler.scale_}")
 
 
 # =====================
@@ -646,6 +659,28 @@ def train_model_with_params(
         Tuple containing (best_val_loss, model) where best_val_loss is
         float and model is the trained TimeSeriesForecastingModel.
     """
+    # Create trial-specific logger
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    trial_suffix = f"_trial_{trial_num}" if trial_num is not None else ""
+    log_filename = f"training_{timestamp}{trial_suffix}.log"
+    
+    trial_logger = logging.getLogger(f"training{trial_suffix}")
+    trial_logger.setLevel(logging.INFO)
+    
+    # Remove any existing handlers to avoid duplication
+    for handler in trial_logger.handlers[:]:
+        trial_logger.removeHandler(handler)
+    
+    # Add file handler for this specific training run
+    file_handler = logging.FileHandler(log_filename)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_handler.setFormatter(formatter)
+    trial_logger.addHandler(file_handler)
+    
+    trial_logger.info(f"Starting training with hyperparameters: {hyperparams}")
+    
     # Extract hyperparameters
     lr = hyperparams['lr']
     optimizer_name = hyperparams['optimizer']
@@ -659,6 +694,10 @@ def train_model_with_params(
         num_layers=num_layers
     ).to(device)
     
+    trial_logger.info(
+        f"Model created with hidden_dim={hidden_dim}, num_layers={num_layers}"
+    )
+    
     # Create optimizer
     if optimizer_name == 'adam':
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -668,6 +707,8 @@ def train_model_with_params(
         optimizer = torch.optim.RMSprop(model.parameters(), lr=lr)
     else:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
+    
+    trial_logger.info(f"Optimizer: {optimizer_name}, Learning rate: {lr}")
     
     criterion = nn.MSELoss()
     early_stopping = EarlyStopping(patience=10, min_delta=1e-6)
@@ -727,6 +768,13 @@ def train_model_with_params(
         avg_train_loss = train_loss / max(train_batches, 1)
         avg_val_loss = val_loss / max(val_batches, 1)
         
+        # Log training progress
+        trial_logger.info(
+            f"Epoch {epoch}: " +
+            f"Train Loss: {avg_train_loss:.6f}, " +
+            f"Val Loss: {avg_val_loss:.6f}"
+        )
+        
         # Log to tensorboard if writer is provided
         if writer is not None:
             tag_prefix = f"trial_{trial_num}/" if trial_num is not None else ""
@@ -737,11 +785,23 @@ def train_model_with_params(
         # Update best validation loss
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
+            trial_logger.info(
+                f"New best validation loss: {best_val_loss:.6f} at epoch {epoch}"
+            )
         
         # Early stopping
         if early_stopping(avg_val_loss, model):
-            print(f"Early stopping at epoch {epoch}")
+            trial_logger.info(f"Early stopping at epoch {epoch}")
             break
+    
+    trial_logger.info(
+        f"Training completed. Best validation loss: {best_val_loss:.6f}"
+    )
+    
+    # Clean up logger handlers
+    for handler in trial_logger.handlers[:]:
+        handler.close()
+        trial_logger.removeHandler(handler)
     
     return best_val_loss, model
 
@@ -859,7 +919,7 @@ def objective(trial, device, composed_transform, num_workers=2):
         
     except Exception as e:
         writer.close()
-        print(f"Trial {trial.number} failed with error: {e}")
+        logger.error(f"Trial {trial.number} failed with error: {e}")
         return float('inf')
 
 
@@ -904,13 +964,13 @@ def run_hyperparameter_optimization(
         n_trials=n_trials
     )
     
-    # Print results
-    print("Best trial:")
+    # Log results
+    logger.info("Best trial:")
     trial = study.best_trial
-    print(f"  Value: {trial.value}")
-    print("  Params: ")
+    logger.info(f"  Value: {trial.value}")
+    logger.info("  Params: ")
     for key, value in trial.params.items():
-        print(f"    {key}: {value}")
+        logger.info(f"    {key}: {value}")
     
     return study.best_params
 
@@ -940,7 +1000,7 @@ def train_final_model(device, best_params, composed_transform, num_workers=2):
         the trained TimeSeriesForecastingModel and test_loss is the
         float evaluation loss on the test set.
     """
-    print("\nTraining final model with best hyperparameters")
+    logger.info("Training final model with best hyperparameters")
     
     # Create data loaders with best batch size
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
@@ -966,8 +1026,8 @@ def train_final_model(device, best_params, composed_transform, num_workers=2):
     # Evaluate on test set
     test_loss = evaluate_model(final_model, test_dataloader, device)
     
-    print(f"Final validation loss: {best_val_loss:.6f}")
-    print(f"Test loss: {test_loss:.6f}")
+    logger.info(f"Final validation loss: {best_val_loss:.6f}")
+    logger.info(f"Test loss: {test_loss:.6f}")
     
     writer.close()
     
@@ -1001,7 +1061,7 @@ def plot_optimization_history(study):
     
     figure_filename = "optuna_results.png"
     fig.savefig(figure_filename, dpi=300, bbox_inches='tight')
-    print(f"Figure saved as {figure_filename}")
+    logger.info(f"Figure saved as {figure_filename}")
 
 
 # =====================
@@ -1035,7 +1095,7 @@ if __name__ == "__main__":
     else:
         device = torch.device("cpu")
     
-    print(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
     
     # Generate data
     if not os.path.exists("data"):
@@ -1058,7 +1118,7 @@ if __name__ == "__main__":
     ])
     
     # Run hyperparameter optimization
-    print("\nRunning hyperparameter optimization")
+    logger.info("Running hyperparameter optimization")
     best_params = run_hyperparameter_optimization(
         device=device,
         composed_transform=composed_transform,
@@ -1074,9 +1134,8 @@ if __name__ == "__main__":
         num_workers=num_workers
     )
     
-    print(f"\nOptimization complete")
-    print(f"Best hyperparameters: {best_params}")
-    print(f"Final test loss: {test_loss:.6f}")
-    print(f"\nTensorBoard logs saved in 'runs/' directory")
-    print("To view: tensorboard --logdir=runs")
-    print("Best model saved as 'best_model.pth'")
+    logger.info("Optimization complete")
+    logger.info(f"Best hyperparameters: {best_params}")
+    logger.info(f"Final test loss: {test_loss:.6f}")
+    logger.info("TensorBoard logs saved in 'runs/' directory")
+    logger.info("Best model saved as 'best_model.pth'")
