@@ -1,6 +1,6 @@
 """
 Demonstration of a time series forecasting data loading, preprocessing
-and PyTorch model fitting pipeline.
+and PyTorch model fitting pipeline with hyperparameter optimization.
 
 The following steps are performed:
 
@@ -26,19 +26,29 @@ The following steps are performed:
 4. Neural Network Model Definition:
    - Define an LSTM for time series forecasting
 
-5. Model Training with TensorDict batches
+5. Hyperparameter Optimization with Optuna:
+   - Optimize learning rate, optimizer choice, batch size, hidden
+     dimensions, num layers
+   - Early stopping based on validation loss
+   - TensorBoard logging for training visualization
+
+6. Final Model Evaluation on Test Set
 """
 
+import argparse
 import os
 import numpy as np
 import torch
 import joblib
+import optuna
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from tensordict import TensorDict
+import matplotlib.pyplot as plt
 
 
 # =====================
@@ -80,8 +90,10 @@ def generate_synthetic_timeseries_data():
             input_3 = np.sin(2*t) * np.cos(t/2) + 0.1 * np.random.randn(length)
             
             # Create 2 target signals that depend on inputs
-            target_1 = 0.5 * input_1 + 0.3 * input_2 + 0.05 * np.random.randn(length)
-            target_2 = 0.4 * input_2 + 0.6 * input_3 + 0.05 * np.random.randn(length)
+            target_1 = 0.5 * input_1 + 0.3 * input_2 + 0.05 * \
+                       np.random.randn(length)
+            target_2 = 0.4 * input_2 + 0.6 * input_3 + 0.05 * \
+                       np.random.randn(length)
             
             # Add some lag relationship for forecasting
             if length > 5:
@@ -108,9 +120,14 @@ def generate_synthetic_timeseries_data():
 # =====================
 
 
-def fit_and_save_pca(train_data_dir, n_components=2, model_path="pca_model.joblib"):
+def fit_and_save_pca(
+        train_data_dir,
+        n_components=2,
+        model_path="pca_model.joblib"
+    ):
     """
-    Fit PCA to time slices of the 3 input signals to reduce from 3D to 2D.
+    Fit PCA to time slices of the 3 input signals to reduce from 3D to
+    2D.
     
     Parameters
     ----------
@@ -124,12 +141,15 @@ def fit_and_save_pca(train_data_dir, n_components=2, model_path="pca_model.jobli
     # Gather all time slices from training data
     all_time_slices = []
     
-    train_files = sorted([f for f in os.listdir(train_data_dir) if f.endswith('.npz')])
+    train_files = sorted(
+        [f for f in os.listdir(train_data_dir) if f.endswith('.npz')]
+    )
     
     for file in train_files:
         data = np.load(os.path.join(train_data_dir, file))
         
-        # For each time step, create a 3D vector [input_1[t], input_2[t], input_3[t]]
+        # For each time step, create a 3D vector
+        # [input_1[t], input_2[t], input_3[t]]
         length = len(data['input_1'])
         for t in range(length):
             time_slice = np.array([
@@ -174,7 +194,9 @@ def fit_and_save_scaler(
     # Gather all PCA-transformed time slices from training data
     all_pca_features = []
     
-    train_files = sorted([f for f in os.listdir(train_data_dir) if f.endswith('.npz')])
+    train_files = sorted(
+        [f for f in os.listdir(train_data_dir) if f.endswith('.npz')]
+    )
     
     for file in train_files:
         data = np.load(os.path.join(train_data_dir, file))
@@ -212,7 +234,8 @@ def fit_and_save_scaler(
 
 class PCATransform(object):
     """
-    Apply pre-fitted PCA to transform 3D input signals to 2D at each time slice.
+    Apply pre-fitted PCA to transform 3D input signals to 2D at each
+    time slice.
     
     Parameters
     ----------
@@ -339,7 +362,8 @@ def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
     Parameters
     ----------
     x_dict : dict
-        Dictionary with input time series (after PCA and scaling: 'pca_1', 'pca_2')
+        Dictionary with input time series (after PCA and scaling:
+        'pca_1', 'pca_2')
     y_dict : dict  
         Dictionary with target time series
     input_length : int
@@ -385,6 +409,21 @@ def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
 def collate_chunks(batch):
     """
     Custom collate function to combine chunks into TensorDict batches.
+
+    Parameters
+    ----------
+    batch : list
+        List of tuples where each tuple contains (x_dict, y_dict)
+        representing input and target dictionaries for a single time
+        series example.
+
+    Returns
+    -------
+    TensorDict
+        Batched TensorDict containing stacked chunks from all examples
+        in the batch. Each chunk has 'x' (input sequences) and 'y'
+        (target sequences). If no chunks are available, returns empty
+        TensorDict with batch_size [0].
     """
     # Flatten all chunks from all examples in the batch
     all_chunks = []
@@ -402,6 +441,22 @@ def collate_chunks(batch):
 def create_dataloaders(batch_size=32, num_workers=2, transform=None):
     """
     Create data loaders for train, validation, and test datasets.
+
+    Parameters
+    ----------
+    batch_size : int, optional
+        Number of samples per batch. Default is 32.
+    num_workers : int, optional
+        Number of subprocesses to use for data loading. Default is 2.
+    transform : callable, optional
+        Optional transform to be applied to the data.
+
+    Returns
+    -------
+    tuple
+        Tuple containing (train_dataloader, val_dataloader,
+        test_dataloader) where each element is a
+        torch.utils.data.DataLoader for the respective dataset split.
     """
     train_data_dir = os.path.join("data", "train")
     val_data_dir = os.path.join("data", "val") 
@@ -447,14 +502,31 @@ class TimeSeriesForecastingModel(nn.Module):
     
     Takes 5 timesteps of 2 PCA-transformed and standardized input signals 
     and predicts 3 timesteps of 2 target signals.
+
+    Parameters
+    ----------
+    input_dim : int, optional
+        Number of input features. Default is 2.
+    hidden_dim : int, optional
+       Number of hidden units. Default is 64.
+    num_layers : int, optional
+        Number of LSTM layers. Default is 1.
     """
     
-    def __init__(self, input_dim=2, hidden_dim=64):
+    def __init__(self, input_dim=2, hidden_dim=64, num_layers=1):
         super().__init__()
+        
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
         
         # Input: (batch_size, 5 timesteps, 2 PCA components)
         self.input_projection = nn.Linear(input_dim, hidden_dim)
-        self.lstm = nn.LSTM(hidden_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(
+            hidden_dim,
+            hidden_dim,
+            num_layers=num_layers,
+            batch_first=True
+        )
         
         # Output: (batch_size, 3 timesteps, 2 signals)  
         self.output_projection = nn.Linear(hidden_dim, 2)
@@ -485,7 +557,8 @@ class TimeSeriesForecastingModel(nn.Module):
             pred = self.output_projection(hidden)  # (batch_size, 2)
             predictions.append(pred)
             # Simple recurrence for next timestep
-            hidden = hidden + 0.1 * pred.sum(dim=-1, keepdim=True) * torch.randn_like(hidden)
+            hidden = hidden + 0.1 * pred.sum(dim=-1, keepdim=True) * \
+                     torch.randn_like(hidden)
         
         predictions = torch.stack(predictions, dim=1)  # (batch_size, 3, 2)
         
@@ -495,23 +568,120 @@ class TimeSeriesForecastingModel(nn.Module):
         }, batch_size=predictions.shape[0])
 
 
-def train_model(device, train_dataloader, val_dataloader, num_epochs=50, lr=1e-3):
-    """
-    Train the time series forecasting model.
-    """
-    model = TimeSeriesForecastingModel().to(device)
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+class EarlyStopping:
+    """Early stopping utility class.
     
-    for epoch in range(num_epochs):
-        print(f"Epoch: {epoch}")
+    Parameters
+    ----------
+    patience : int, optional
+        Number of epochs to wait before considering stopping. Default is
+        7.
+    min_delta : float, optional
+        Minimum delta to consider as improvement. Default is 0.
+    restore_best_weights : bool, optional
+        Restore the best weights found during training. Default is True.
+    """
+    
+    def __init__(self, patience=7, min_delta=0.0, restore_best_weights=True):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.restore_best_weights = restore_best_weights
+
+        self.best_loss = float('inf')
+        self.counter = 0
+        self.best_weights = None
+    
+    def __call__(self, val_loss, model):
+        if val_loss < self.best_loss - self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
+            if self.restore_best_weights:
+                self.best_weights = model.state_dict().copy()
+        else:
+            self.counter += 1
         
+        if self.counter >= self.patience:
+            if self.restore_best_weights and self.best_weights is not None:
+                model.load_state_dict(self.best_weights)
+            return True
+        return False
+
+
+def train_model_with_params(
+        device,
+        train_dataloader,
+        val_dataloader,
+        hyperparams,
+        trial_num=None,
+        writer=None,
+        max_epochs=100
+    ):
+    """
+    Train the time series forecasting model with given hyperparameters.
+    
+    Returns the best validation loss achieved.
+
+    Parameters
+    ----------
+    device : torch.device
+        Device to run the model on (CPU, CUDA, or MPS).
+    train_dataloader : torch.utils.data.DataLoader
+        DataLoader for training data.
+    val_dataloader : torch.utils.data.DataLoader
+        DataLoader for validation data.
+    hyperparams : dict
+        Dictionary containing hyperparameters with keys:
+        'lr' (float), 'optimizer' (str), 'hidden_dim' (int),
+        'num_layers' (int).
+    trial_num : int, optional
+        Trial number for logging purposes. Default is None.
+    writer : torch.utils.tensorboard.SummaryWriter, optional
+        TensorBoard writer for logging. Default is None.
+    max_epochs : int, optional
+        Maximum number of training epochs. Default is 100.
+
+    Returns
+    -------
+    tuple
+        Tuple containing (best_val_loss, model) where best_val_loss is
+        float and model is the trained TimeSeriesForecastingModel.
+    """
+    # Extract hyperparameters
+    lr = hyperparams['lr']
+    optimizer_name = hyperparams['optimizer']
+    hidden_dim = hyperparams['hidden_dim']
+    num_layers = hyperparams['num_layers']
+    
+    # Create model
+    model = TimeSeriesForecastingModel(
+        input_dim=2, 
+        hidden_dim=hidden_dim, 
+        num_layers=num_layers
+    ).to(device)
+    
+    # Create optimizer
+    if optimizer_name == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    elif optimizer_name == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    elif optimizer_name == 'rmsprop':
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=lr)
+    else:
+        raise ValueError(f"Unknown optimizer: {optimizer_name}")
+    
+    criterion = nn.MSELoss()
+    early_stopping = EarlyStopping(patience=10, min_delta=1e-6)
+    
+    best_val_loss = float('inf')
+    
+    for epoch in range(max_epochs):
+        # Training phase
         model.train()
-        running_loss = 0.0
-        num_batches = 0
+        train_loss = 0.0
+        train_batches = 0
         
-        for batch_idx, batch_tensordict in enumerate(train_dataloader):
-            if batch_tensordict.batch_size[0] == 0:  # Skip empty batches
+        for batch_tensordict in train_dataloader:
+            if batch_tensordict.batch_size[0] == 0:
                 continue
                 
             batch_tensordict = batch_tensordict.to(device)
@@ -529,18 +699,16 @@ def train_model(device, train_dataloader, val_dataloader, num_epochs=50, lr=1e-3
             loss.backward()
             optimizer.step()
             
-            running_loss += loss.item()
-            num_batches += 1
+            train_loss += loss.item()
+            train_batches += 1
         
-        if num_batches > 0:
-            print(f"Train loss: {running_loss/num_batches:.4e}")
-        
+        # Validation phase
         model.eval()
-        running_loss = 0.0
-        num_batches = 0
+        val_loss = 0.0
+        val_batches = 0
         
         with torch.no_grad():
-            for batch_idx, batch_tensordict in enumerate(val_dataloader):
+            for batch_tensordict in val_dataloader:
                 if batch_tensordict.batch_size[0] == 0:
                     continue
                     
@@ -552,11 +720,276 @@ def train_model(device, train_dataloader, val_dataloader, num_epochs=50, lr=1e-3
                 loss = (criterion(predictions['target_1'], targets['target_1']) + 
                        criterion(predictions['target_2'], targets['target_2']))
                 
-                running_loss += loss.item()
-                num_batches += 1
+                val_loss += loss.item()
+                val_batches += 1
         
-        if num_batches > 0:
-            print(f"Val loss: {running_loss/num_batches:.4e}")
+        # Calculate average losses
+        avg_train_loss = train_loss / max(train_batches, 1)
+        avg_val_loss = val_loss / max(val_batches, 1)
+        
+        # Log to tensorboard if writer is provided
+        if writer is not None:
+            tag_prefix = f"trial_{trial_num}/" if trial_num is not None else ""
+            writer.add_scalar(f"{tag_prefix}train_loss", avg_train_loss, epoch)
+            writer.add_scalar(f"{tag_prefix}val_loss", avg_val_loss, epoch)
+            writer.add_scalar(f"{tag_prefix}learning_rate", lr, epoch)
+        
+        # Update best validation loss
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+        
+        # Early stopping
+        if early_stopping(avg_val_loss, model):
+            print(f"Early stopping at epoch {epoch}")
+            break
+    
+    return best_val_loss, model
+
+
+def evaluate_model(model, dataloader, device):
+    """Evaluate model on a dataset and return average loss.
+    
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The trained model to evaluate.
+    dataloader : torch.utils.data.DataLoader
+        DataLoader containing the dataset to evaluate on.
+    device : torch.device
+        Device to run the evaluation on (CPU, CUDA, or MPS).
+
+    Returns
+    -------
+    float
+        Average loss across all batches in the dataset.
+    """
+    model.eval()
+    criterion = nn.MSELoss()
+    total_loss = 0.0
+    num_batches = 0
+    
+    with torch.no_grad():
+        for batch_tensordict in dataloader:
+            if batch_tensordict.batch_size[0] == 0:
+                continue
+                
+            batch_tensordict = batch_tensordict.to(device)
+            
+            predictions = model(batch_tensordict)
+            targets = batch_tensordict['y']
+            
+            loss = (criterion(predictions['target_1'], targets['target_1']) + 
+                   criterion(predictions['target_2'], targets['target_2']))
+            
+            total_loss += loss.item()
+            num_batches += 1
+    
+    return total_loss / max(num_batches, 1)
+
+
+# =====================
+# Hyperparameter Optimization
+# =====================
+
+
+def objective(trial, device, composed_transform, num_workers=2):
+    """
+    Optuna objective function for hyperparameter optimization.
+
+    Parameters
+    ----------
+    trial : optuna.trial.Trial
+        Optuna trial object for suggesting hyperparameters.
+    device : torch.device
+        Device to run the model on (CPU, CUDA, or MPS).
+    composed_transform : torchvision.transforms.Compose
+        Composed transform pipeline for data preprocessing.
+    num_workers : int, optional
+        Number of workers for data loading. Default is 2.
+
+    Returns
+    -------
+    float
+        Best validation loss achieved during training with the suggested
+        hyperparameters.
+    """
+    # Suggest hyperparameters
+    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    optimizer_name = trial.suggest_categorical(
+        "optimizer",
+        ["adam", "sgd", "rmsprop"]
+    )
+    batch_size = trial.suggest_categorical("batch_size", [8, 16, 32, 64])
+    hidden_dim = trial.suggest_categorical("hidden_dim", [32, 64, 128, 256])
+    num_layers = trial.suggest_int("num_layers", 1, 3)
+    
+    # Create data loaders with suggested batch size
+    train_dataloader, val_dataloader, _ = create_dataloaders(
+        batch_size=batch_size,
+        num_workers=num_workers,
+        transform=composed_transform
+    )
+    
+    # Prepare hyperparameters
+    hyperparams = {
+        'lr': lr,
+        'optimizer': optimizer_name,
+        'hidden_dim': hidden_dim,
+        'num_layers': num_layers
+    }
+    
+    # Create tensorboard writer for this trial
+    log_dir = f"runs/trial_{trial.number}"
+    writer = SummaryWriter(log_dir)
+    
+    try:
+        # Train model
+        best_val_loss, _ = train_model_with_params(
+            device=device,
+            train_dataloader=train_dataloader,
+            val_dataloader=val_dataloader,
+            hyperparams=hyperparams,
+            trial_num=trial.number,
+            writer=writer,
+            max_epochs=50
+        )
+        
+        writer.close()
+        return best_val_loss
+        
+    except Exception as e:
+        writer.close()
+        print(f"Trial {trial.number} failed with error: {e}")
+        return float('inf')
+
+
+def run_hyperparameter_optimization(device, composed_transform, n_trials=20):
+    """
+    Run hyperparameter optimization using Optuna.
+
+    Parameters
+    ----------
+    device : torch.device
+        Device to run the model on (CPU, CUDA, or MPS).
+    composed_transform : torchvision.transforms.Compose
+        Composed transform pipeline for data preprocessing.
+    n_trials : int, optional
+        Number of trials to run for hyperparameter optimization. Default
+        is 20.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the best hyperparameters found during
+        optimization.
+    """
+    # Create optuna study
+    study = optuna.create_study(direction="minimize")
+    
+    # Optimize
+    study.optimize(
+        lambda trial: objective(trial, device, composed_transform),
+        n_trials=n_trials
+    )
+    
+    # Print results
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print(f"    {key}: {value}")
+    
+    return study.best_params
+
+
+def train_final_model(device, best_params, composed_transform, num_workers=2):
+    """
+    Train the final model with best hyperparameters and evaluate on test
+    set.
+
+    Parameters
+    ----------
+    device : torch.device
+        Device to run the model on (CPU, CUDA, or MPS).
+    best_params : dict
+        Dictionary containing the best hyperparameters found during
+        optimization. Should contain keys: 'lr', 'optimizer',
+        'batch_size', 'hidden_dim', 'num_layers'.
+    composed_transform : torchvision.transforms.Compose
+        Composed transform pipeline for data preprocessing.
+    num_workers : int, optional
+        Number of workers to use in data loading. Default is 2.
+
+    Returns
+    -------
+    tuple
+        Tuple containing (final_model, test_loss) where final_model is
+        the trained TimeSeriesForecastingModel and test_loss is the
+        float evaluation loss on the test set.
+    """
+    print("\nTraining final model with best hyperparameters")
+    
+    # Create data loaders with best batch size
+    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
+        batch_size=best_params['batch_size'],
+        num_workers=num_workers,
+        transform=composed_transform
+    )
+    
+    # Create tensorboard writer for final training
+    writer = SummaryWriter("runs/final_model")
+    
+    # Train final model
+    best_val_loss, final_model = train_model_with_params(
+        device=device,
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
+        hyperparams=best_params,
+        trial_num=None,
+        writer=writer,
+        max_epochs=100
+    )
+    
+    # Evaluate on test set
+    test_loss = evaluate_model(final_model, test_dataloader, device)
+    
+    print(f"Final validation loss: {best_val_loss:.6f}")
+    print(f"Test loss: {test_loss:.6f}")
+    
+    writer.close()
+    
+    # Save final model
+    torch.save({
+        'model_state_dict': final_model.state_dict(),
+        'hyperparams': best_params,
+        'val_loss': best_val_loss,
+        'test_loss': test_loss
+    }, 'best_model.pth')
+    
+    return final_model, test_loss
+
+
+def plot_optimization_history(study):
+    """Plot optimization history.
+    
+    Parameters
+    ----------
+    study : optuna.study.Study
+        Optuna study object.
+    """
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
+    # Plot optimization history
+    optuna.visualization.matplotlib.plot_optimization_history(study, ax=axs[0])
+    axs[0].set_title("Optimization History")
+    
+    # Plot parameter importance
+    optuna.visualization.matplotlib.plot_param_importances(study, ax=axs[1])
+    axs[1].set_title("Parameter Importance")
+    
+    figure_filename = "optuna_results.png"
+    fig.savefig(figure_filename, dpi=300, bbox_inches='tight')
+    print(f"Figure saved as {figure_filename}")
 
 
 # =====================
@@ -564,6 +997,24 @@ def train_model(device, train_dataloader, val_dataloader, num_epochs=50, lr=1e-3
 # =====================
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=0,
+        help="Number of workers for DataLoader (default is 0)"
+    )
+    parser.add_argument(
+        "--num_trials",
+        type=int,
+        default=20,
+        help="Number of trials for Optuna (default is 20)"
+    )
+    args = parser.parse_args()
+
+    num_workers = args.num_workers
+    num_trials = args.num_trials
+
     # Determine device
     if torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -572,14 +1023,18 @@ if __name__ == "__main__":
     else:
         device = torch.device("cpu")
     
+    print(f"Using device: {device}")
+    
     # Generate data
-    generate_synthetic_timeseries_data()
+    if not os.path.exists("data"):
+        generate_synthetic_timeseries_data()
     
-    # Fit PCA to time slices of training data
-    fit_and_save_pca(os.path.join("data", "train"), n_components=2)
+    # Fit preprocessing models
+    if not os.path.exists("pca_model.joblib"):
+        fit_and_save_pca(os.path.join("data", "train"), n_components=2)
     
-    # Fit StandardScaler to PCA-transformed training data
-    fit_and_save_scaler(os.path.join("data", "train"))
+    if not os.path.exists("scaler_model.joblib"):
+        fit_and_save_scaler(os.path.join("data", "train"))
     
     # Create composed transforms: PCA followed by StandardScaler
     pca_transform = PCATransform("pca_model.joblib")
@@ -590,18 +1045,25 @@ if __name__ == "__main__":
         scaler_transform
     ])
     
-    # Create data loaders with composed transforms
-    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
-        batch_size=16, 
-        num_workers=0,
-        transform=composed_transform
+    # Run hyperparameter optimization
+    print("\nRunning hyperparameter optimization")
+    best_params = run_hyperparameter_optimization(
+        device=device,
+        composed_transform=composed_transform,
+        n_trials=num_trials
     )
     
-    # Train model
-    train_model(
-        device,
-        train_dataloader,
-        val_dataloader, 
-        num_epochs=10,
-        lr=1e-3
+    # Train final model with best hyperparameters
+    final_model, test_loss = train_final_model(
+        device=device,
+        best_params=best_params,
+        composed_transform=composed_transform,
+        num_workers=num_workers
     )
+    
+    print(f"\nOptimization complete")
+    print(f"Best hyperparameters: {best_params}")
+    print(f"Final test loss: {test_loss:.6f}")
+    print(f"\nTensorBoard logs saved in 'runs/' directory")
+    print("To view: tensorboard --logdir=runs")
+    print("Best model saved as 'best_model.pth'")
