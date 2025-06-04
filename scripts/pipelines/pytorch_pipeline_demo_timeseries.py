@@ -1166,9 +1166,10 @@ def create_prediction_gif(
     # Create legend
     ax_legend.axis('off')
     ax_legend.text(0.1, 0.8, 'Legend:', fontsize=12, weight='bold')
-    ax_legend.text(0.1, 0.6, '● History (α=0.5)', fontsize=10, alpha=0.5)
-    ax_legend.text(0.1, 0.4, '● Current Input (α=1.0)', fontsize=10, color='C0')
-    ax_legend.text(0.1, 0.2, '● True Target (α=1.0)', fontsize=10, color='C2')
+    ax_legend.text(0.1, 0.64, '● History (α=0.5)', fontsize=10, alpha=0.5)
+    ax_legend.text(0.1, 0.48, '● Input Window (α=1.0)', fontsize=10, color='C0')
+    ax_legend.text(0.1, 0.32, '● PCA inputs (α=1.0)', fontsize=10, color='C3')
+    ax_legend.text(0.1, 0.16, '● True Target (α=1.0)', fontsize=10, color='C2')
     ax_legend.text(0.1, 0.0, '● Predicted (α=1.0)', fontsize=10, color='C1')
     
     model.eval()
@@ -1194,13 +1195,13 @@ def create_prediction_gif(
         if current_time - input_length > 0:
             ax_input1.plot(time_range[:current_time-input_length], 
                           input_1[:current_time-input_length], 
-                          'b-', alpha=0.5, linewidth=1)
+                          'C0', alpha=0.5, linewidth=1)
             ax_input2.plot(time_range[:current_time-input_length], 
                           input_2[:current_time-input_length], 
-                          'b-', alpha=0.5, linewidth=1)
+                          'C0', alpha=0.5, linewidth=1)
             ax_input3.plot(time_range[:current_time-input_length], 
                           input_3[:current_time-input_length], 
-                          'b-', alpha=0.5, linewidth=1)
+                          'C0', alpha=0.5, linewidth=1)
         
         # Current input window with alpha=1.0
         input_start = current_time - input_length
@@ -1220,18 +1221,18 @@ def create_prediction_gif(
         if current_time - input_length > 0:
             ax_pca1.plot(time_range[:current_time-input_length], 
                         x_dict['pca_1'][:current_time-input_length], 
-                        'C0', alpha=0.5, linewidth=1)
+                        'C3', alpha=0.5, linewidth=1)
             ax_pca2.plot(time_range[:current_time-input_length], 
                         x_dict['pca_2'][:current_time-input_length], 
-                        'C0', alpha=0.5, linewidth=1)
+                        'C3', alpha=0.5, linewidth=1)
         
         # Current PCA window with alpha=1.0
         ax_pca1.plot(time_range[input_start:input_end], 
                     x_dict['pca_1'][input_start:input_end], 
-                    'C0', alpha=1.0, linewidth=2)
+                    'C3', alpha=1.0, linewidth=2)
         ax_pca2.plot(time_range[input_start:input_end], 
                     x_dict['pca_2'][input_start:input_end], 
-                    'C0', alpha=1.0, linewidth=2)
+                    'C3', alpha=1.0, linewidth=2)
         
         # Plot target signals
         # History with alpha=0.5
@@ -1267,16 +1268,10 @@ def create_prediction_gif(
             pred_target1 = predictions['target_1'].squeeze().cpu().numpy()
             pred_target2 = predictions['target_2'].squeeze().cpu().numpy()
             
-            # Plot predictions with alpha=1.0
+            # Plot true targets in prediction window with alpha=1.0
             pred_time_range = time_range[
                 current_time:current_time+target_length
             ]
-            ax_target1.plot(pred_time_range, pred_target1, 
-                           'C1', alpha=1.0, linewidth=2, label='Predicted')
-            ax_target2.plot(pred_time_range, pred_target2, 
-                           'C1', alpha=1.0, linewidth=2, label='Predicted')
-            
-            # Plot true targets in prediction window with alpha=1.0
             ax_target1.plot(pred_time_range, 
                            target_1[current_time:current_time+target_length], 
                            'C2', alpha=1.0, linewidth=2)
@@ -1284,6 +1279,12 @@ def create_prediction_gif(
                            target_2[current_time:current_time+target_length], 
                            'C2', alpha=1.0, linewidth=2)
         
+            # Plot predictions with alpha=1.0
+            ax_target1.plot(pred_time_range, pred_target1, 
+                           'C1', alpha=1.0, linewidth=2, label='Predicted')
+            ax_target2.plot(pred_time_range, pred_target2, 
+                           'C1', alpha=1.0, linewidth=2, label='Predicted')
+            
         # Set titles and limits
         ax_input1.set_title(f'Input 1 (t={current_time})')
         ax_input1.set_xlim(0, series_length-1)
@@ -1341,7 +1342,7 @@ def create_prediction_gif(
     )
     
     # Save as GIF
-    logger.info(f"Creating GIF with {max_frames} frames...")
+    logger.info(f"Creating GIF with {max_frames} frames")
     anim.save(filename, writer='pillow', fps=fps)
     logger.info(f"GIF saved as {filename}")
     
