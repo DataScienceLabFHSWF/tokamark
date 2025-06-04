@@ -975,6 +975,8 @@ def run_hyperparameter_optimization(
     logger.info("  Params: ")
     for key, value in trial.params.items():
         logger.info(f"    {key}: {value}")
+
+    plot_optimization_history(study)
     
     return study.best_params
 
@@ -1046,6 +1048,10 @@ def train_final_model(device, best_params, composed_transform, num_workers=2):
     return final_model, test_loss
 
 
+# =====================
+# Plotting
+# =====================
+
 def plot_optimization_history(study):
     """Plot optimization history.
     
@@ -1054,23 +1060,14 @@ def plot_optimization_history(study):
     study : optuna.study.Study
         Optuna study object.
     """
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
-    # Plot optimization history
-    optuna.visualization.matplotlib.plot_optimization_history(study, ax=axs[0])
-    axs[0].set_title("Optimization History")
-    
-    # Plot parameter importance
-    optuna.visualization.matplotlib.plot_param_importances(study, ax=axs[1])
-    axs[1].set_title("Parameter Importance")
-    
+    logger.info(f"Plotting optimization history")
+    ax = optuna.visualization.matplotlib.plot_optimization_history(study)
+    ax.set_title("Optimization History")
+    fig = ax.get_figure()
     figure_filename = "optuna_results.png"
     fig.savefig(figure_filename, dpi=300, bbox_inches='tight')
     logger.info(f"Figure saved as {figure_filename}")
 
-
-# =====================
-# Plotting
-# =====================
 
 def create_prediction_gif(
     model, 
