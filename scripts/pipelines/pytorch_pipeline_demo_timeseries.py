@@ -28,7 +28,7 @@ The following steps are performed:
 
 5. Hyperparameter Optimization with Optuna:
    - Optimize learning rate, optimizer choice, batch size, hidden
-     dimensions, num layers
+     dimensions, num layers, and input window size
    - Early stopping based on validation loss
    - TensorBoard logging for training visualization
 
@@ -334,11 +334,17 @@ class TimeSeriesDataset(Dataset):
        Path to directory containing .npz files.
     transform : callable, optional
       Optional transform to apply to the data.
+    input_length : int, optional
+        Length of input sequences for chunking. Default is 5.
+    target_length : int, optional
+        Length of target sequences for chunking. Default is 3.
     """
     
-    def __init__(self, data_dir, transform=None):
+    def __init__(self, data_dir, transform=None, input_length=5, target_length=3):
         self.data_dir = data_dir
         self.transform = transform
+        self.input_length = input_length
+        self.target_length = target_length
         
         self.data_files = sorted([
             f for f in os.listdir(self.data_dir) 
@@ -399,13 +405,13 @@ def chunk_time_series(x_dict, y_dict, file_path, input_length=5, target_length=3
     
     # Create chunks
     for i in range(series_length - input_length - target_length + 1):
-        # Input chunk: 5 preceding values of 2 PCA components (scaled)
+        # Input chunk: preceding values of 2 PCA components (scaled)
         input_chunk = TensorDict({
             'pca_1': x_dict['pca_1'][i:i+input_length],
             'pca_2': x_dict['pca_2'][i:i+input_length]
         }, batch_size=[])
         
-        # Target chunk: 3 following values of 2 target signals
+        # Target chunk: following values of 2 target signals
         target_start = i + input_length
         target_chunk = TensorDict({
             'target_1': y_dict['target_1'][target_start:target_start+target_length],
@@ -423,39 +429,64 @@ def chunk_time_series(x_dict, y_dict, file_path, input_length=5, target_length=3
     return chunks
 
 
-def collate_chunks(batch):
+class ChunkingCollateFunction:
     """
-    Custom collate function to combine chunks into TensorDict batches.
-
+    Custom collate function that handles input_length parameter.
+    
     Parameters
     ----------
-    batch : list
-        List of tuples where each tuple contains (x_dict, y_dict)
-        representing input and target dictionaries for a single time
-        series example.
-
-    Returns
-    -------
-    TensorDict
-        Batched TensorDict containing stacked chunks from all examples
-        in the batch. Each chunk has 'x' (input sequences) and 'y'
-        (target sequences). If no chunks are available, returns empty
-        TensorDict with batch_size [0].
+    input_length : int
+        Length of input sequences
+    target_length : int, optional
+        Length of target sequences. Default is 3.
     """
-    # Flatten all chunks from all examples in the batch
-    all_chunks = []
-    for x_dict, y_dict, file_path in batch:
-        chunks = chunk_time_series(x_dict, y_dict, file_path)
-        all_chunks.extend(chunks)
     
-    if not all_chunks:
-        return TensorDict({}, batch_size=[0])
+    def __init__(self, input_length=5, target_length=3):
+        self.input_length = input_length
+        self.target_length = target_length
     
-    # Stack chunks into batched TensorDict
-    return torch.stack(all_chunks, dim=0)
+    def __call__(self, batch):
+        """
+        Custom collate function to combine chunks into TensorDict batches.
+
+        Parameters
+        ----------
+        batch : list
+            List of tuples where each tuple contains (x_dict, y_dict)
+            representing input and target dictionaries for a single time
+            series example.
+
+        Returns
+        -------
+        TensorDict
+            Batched TensorDict containing stacked chunks from all examples
+            in the batch. Each chunk has 'x' (input sequences) and 'y'
+            (target sequences). If no chunks are available, returns empty
+            TensorDict with batch_size [0].
+        """
+        # Flatten all chunks from all examples in the batch
+        all_chunks = []
+        for x_dict, y_dict, file_path in batch:
+            chunks = chunk_time_series(
+                x_dict, y_dict, file_path, 
+                self.input_length, self.target_length
+            )
+            all_chunks.extend(chunks)
+        
+        if not all_chunks:
+            return TensorDict({}, batch_size=[0])
+        
+        # Stack chunks into batched TensorDict
+        return torch.stack(all_chunks, dim=0)
 
 
-def create_dataloaders(batch_size=32, num_workers=2, transform=None):
+def create_dataloaders(
+        batch_size=32,
+        num_workers=2,
+        transform=None,
+        input_length=5,
+        target_length=3
+    ):
     """
     Create data loaders for train, validation, and test datasets.
 
@@ -467,6 +498,10 @@ def create_dataloaders(batch_size=32, num_workers=2, transform=None):
         Number of subprocesses to use for data loading. Default is 2.
     transform : callable, optional
         Optional transform to be applied to the data.
+    input_length : int, optional
+        Length of input sequences. Default is 5.
+    target_length : int, optional
+        Length of target sequences. Default is 3.
 
     Returns
     -------
@@ -479,30 +514,42 @@ def create_dataloaders(batch_size=32, num_workers=2, transform=None):
     val_data_dir = os.path.join("data", "val") 
     test_data_dir = os.path.join("data", "test")
     
-    train_dataset = TimeSeriesDataset(train_data_dir, transform=transform)
-    val_dataset = TimeSeriesDataset(val_data_dir, transform=transform)
-    test_dataset = TimeSeriesDataset(test_data_dir, transform=transform)
+    train_dataset = TimeSeriesDataset(
+        train_data_dir, transform=transform, 
+        input_length=input_length, target_length=target_length
+    )
+    val_dataset = TimeSeriesDataset(
+        val_data_dir, transform=transform,
+        input_length=input_length, target_length=target_length
+    )
+    test_dataset = TimeSeriesDataset(
+        test_data_dir, transform=transform,
+        input_length=input_length, target_length=target_length
+    )
+    
+    # Create collate function with input_length
+    collate_fn = ChunkingCollateFunction(input_length, target_length)
     
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
         shuffle=True,
-        collate_fn=collate_chunks
+        collate_fn=collate_fn
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=batch_size, 
         num_workers=num_workers,
         shuffle=False,
-        collate_fn=collate_chunks
+        collate_fn=collate_fn
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=batch_size,
         num_workers=num_workers, 
         shuffle=False,
-        collate_fn=collate_chunks
+        collate_fn=collate_fn
     )
     
     return train_dataloader, val_dataloader, test_dataloader
@@ -517,7 +564,7 @@ class TimeSeriesForecastingModel(nn.Module):
     """
     Neural network for time series forecasting.
     
-    Takes 5 timesteps of 2 PCA-transformed and standardized input signals 
+    Takes variable timesteps of 2 PCA-transformed and standardized input signals 
     and predicts 3 timesteps of 2 target signals.
 
     Parameters
@@ -528,15 +575,24 @@ class TimeSeriesForecastingModel(nn.Module):
        Number of hidden units. Default is 64.
     num_layers : int, optional
         Number of LSTM layers. Default is 1.
+    input_length : int, optional
+        Number of input timesteps. Default is 5.
     """
     
-    def __init__(self, input_dim=2, hidden_dim=64, num_layers=1):
+    def __init__(
+            self,
+            input_dim=2,
+            hidden_dim=64,
+            num_layers=1,
+            input_length=5
+        ):
         super().__init__()
         
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+        self.input_length = input_length
         
-        # Input: (batch_size, 5 timesteps, 2 PCA components)
+        # Input: (batch_size, input_length timesteps, 2 PCA components)
         self.input_projection = nn.Linear(input_dim, hidden_dim)
         self.lstm = nn.LSTM(
             hidden_dim,
@@ -555,13 +611,13 @@ class TimeSeriesForecastingModel(nn.Module):
         inputs = torch.stack([
             x_tensordict['x']['pca_1'],
             x_tensordict['x']['pca_2']
-        ], dim=-1)  # (batch_size, 5, 2)
+        ], dim=-1)  # (batch_size, input_length, 2)
         
         # Project inputs
-        x = self.input_projection(inputs)  # (batch_size, 5, hidden_dim)
+        x = self.input_projection(inputs)  # (batch_size, input_length, hidden_dim)
         
         # LSTM processing
-        lstm_out, (h_n, c_n) = self.lstm(x)  # (batch_size, 5, hidden_dim)
+        lstm_out, (h_n, c_n) = self.lstm(x)  # (batch_size, input_length, hidden_dim)
         
         # Use final hidden state to generate predictions
         final_hidden = h_n[-1]  # (batch_size, hidden_dim)
@@ -649,7 +705,7 @@ def train_model_with_params(
     hyperparams : dict
         Dictionary containing hyperparameters with keys:
         'lr' (float), 'optimizer' (str), 'hidden_dim' (int),
-        'num_layers' (int).
+        'num_layers' (int), 'input_length' (int).
     trial_num : int, optional
         Trial number for logging purposes. Default is None.
     writer : torch.utils.tensorboard.SummaryWriter, optional
@@ -690,16 +746,19 @@ def train_model_with_params(
     optimizer_name = hyperparams['optimizer']
     hidden_dim = hyperparams['hidden_dim']
     num_layers = hyperparams['num_layers']
+    input_length = hyperparams['input_length']
     
     # Create model
     model = TimeSeriesForecastingModel(
         input_dim=2, 
         hidden_dim=hidden_dim, 
-        num_layers=num_layers
+        num_layers=num_layers,
+        input_length=input_length
     ).to(device)
     
     trial_logger.info(
-        f"Model created with hidden_dim={hidden_dim}, num_layers={num_layers}"
+        f"Model created with hidden_dim={hidden_dim}, num_layers={num_layers}, "
+        f"input_length={input_length}"
     )
     
     # Create optimizer
@@ -886,12 +945,15 @@ def objective(trial, device, composed_transform, num_workers=2):
     batch_size = trial.suggest_categorical("batch_size", [8, 16, 32, 64])
     hidden_dim = trial.suggest_categorical("hidden_dim", [32, 64, 128, 256])
     num_layers = trial.suggest_int("num_layers", 1, 3)
+    input_length = trial.suggest_int("input_length", 3, 20)
     
-    # Create data loaders with suggested batch size
+    # Create data loaders with suggested parameters
     train_dataloader, val_dataloader, _ = create_dataloaders(
         batch_size=batch_size,
         num_workers=num_workers,
-        transform=composed_transform
+        transform=composed_transform,
+        input_length=input_length,
+        target_length=3
     )
     
     # Prepare hyperparameters
@@ -899,7 +961,8 @@ def objective(trial, device, composed_transform, num_workers=2):
         'lr': lr,
         'optimizer': optimizer_name,
         'hidden_dim': hidden_dim,
-        'num_layers': num_layers
+        'num_layers': num_layers,
+        'input_length': input_length
     }
     
     # Create tensorboard writer for this trial
@@ -915,7 +978,7 @@ def objective(trial, device, composed_transform, num_workers=2):
             hyperparams=hyperparams,
             trial_num=trial.number,
             writer=writer,
-            max_epochs=50
+            max_epochs=100
         )
         
         writer.close()
@@ -993,7 +1056,7 @@ def train_final_model(device, best_params, composed_transform, num_workers=2):
     best_params : dict
         Dictionary containing the best hyperparameters found during
         optimization. Should contain keys: 'lr', 'optimizer',
-        'batch_size', 'hidden_dim', 'num_layers'.
+        'batch_size', 'hidden_dim', 'num_layers', 'input_length'.
     composed_transform : torchvision.transforms.Compose
         Composed transform pipeline for data preprocessing.
     num_workers : int, optional
@@ -1008,11 +1071,13 @@ def train_final_model(device, best_params, composed_transform, num_workers=2):
     """
     logger.info("Training final model with best hyperparameters")
     
-    # Create data loaders with best batch size
+    # Create data loaders with best parameters
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
         batch_size=best_params['batch_size'],
         num_workers=num_workers,
-        transform=composed_transform
+        transform=composed_transform,
+        input_length=best_params['input_length'],
+        target_length=3
     )
     
     # Create tensorboard writer for final training
@@ -1075,7 +1140,7 @@ def create_prediction_gif(
     device,
     example_idx=0, 
     filename="prediction_evolution.gif", 
-    input_length=5, 
+    input_length=None,
     target_length=3,
     fps=5
 ):
@@ -1096,12 +1161,16 @@ def create_prediction_gif(
     filename : str, optional
         Output filename for the GIF. Default is "prediction_evolution.gif".
     input_length : int, optional
-        Length of input sequences. Default is 5.
+        Length of input sequences. If None, gets from model. Default is None.
     target_length : int, optional
         Length of target sequences. Default is 3.
     fps : int, optional
         Frames per second for the GIF. Default is 5.
     """
+    # Get input_length from model if not provided
+    if input_length is None:
+        input_length = model.input_length
+    
     # Get the example data
     x_dict, y_dict, file_path = dataset[example_idx]
     
@@ -1375,7 +1444,8 @@ def demonstrate_prediction_gif():
     model = TimeSeriesForecastingModel(
         input_dim=2,
         hidden_dim=hyperparams['hidden_dim'],
-        num_layers=hyperparams['num_layers']
+        num_layers=hyperparams['num_layers'],
+        input_length=hyperparams['input_length'] 
     ).to(device)
     model.load_state_dict(checkpoint['model_state_dict'])
     
@@ -1384,11 +1454,13 @@ def demonstrate_prediction_gif():
     scaler_transform = StandardScalerTransform("scaler_model.joblib")
     composed_transform = transforms.Compose([pca_transform, scaler_transform])
     
-    # Create test dataset
+    # Create test dataset with the same input_length as the model
     test_data_dir = os.path.join("data", "test")
     test_dataset = TimeSeriesDataset(
         test_data_dir,
-        transform=composed_transform
+        transform=composed_transform,
+        input_length=hyperparams['input_length'],
+        target_length=3
     )
     
     # Create GIF for first test example
@@ -1398,6 +1470,7 @@ def demonstrate_prediction_gif():
         device=device,
         example_idx=0,
         filename="prediction_evolution_example_0.gif",
+        input_length=hyperparams['input_length'],
         fps=5
     )
     
@@ -1481,4 +1554,3 @@ if __name__ == "__main__":
     logger.info(f"Final test loss: {test_loss:.6f}")
     logger.info("TensorBoard logs saved in 'runs/' directory")
     logger.info("Best model saved as 'best_model.pth'")
-    logger.info("Example prediction GIF saved")
