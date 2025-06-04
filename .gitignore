@@ -4,6 +4,8 @@ pca_model.joblib
 scaler_model.joblib
 scripts/pipelines/data/
 scripts/pipelines/runs/
+scripts/pipelines/best_model.pth
+prediction_evolution_example_0.gif
 
 # Local supporting folder
 zz/

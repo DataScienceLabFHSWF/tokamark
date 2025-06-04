@@ -365,10 +365,10 @@ class TimeSeriesDataset(Dataset):
         if self.transform:
             x, y = self.transform((x, y))
         
-        return x, y
+        return x, y, file_path
 
 
-def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
+def chunk_time_series(x_dict, y_dict, file_path, input_length=5, target_length=3):
     """
     Chunk time series into input/target sequences for forecasting.
     
@@ -379,6 +379,8 @@ def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
         'pca_1', 'pca_2')
     y_dict : dict  
         Dictionary with target time series
+    file_path : str
+        Path to the raw input data file.
     input_length : int
         Length of input sequences
     target_length : int
@@ -411,7 +413,8 @@ def chunk_time_series(x_dict, y_dict, input_length=5, target_length=3):
         
         chunk = TensorDict({
             'x': input_chunk,
-            'y': target_chunk
+            'y': target_chunk,
+            'file_path': file_path
         }, batch_size=[])
         
         chunks.append(chunk)
@@ -440,8 +443,8 @@ def collate_chunks(batch):
     """
     # Flatten all chunks from all examples in the batch
     all_chunks = []
-    for x_dict, y_dict in batch:
-        chunks = chunk_time_series(x_dict, y_dict)
+    for x_dict, y_dict, file_path in batch:
+        chunks = chunk_time_series(x_dict, y_dict, file_path)
         all_chunks.extend(chunks)
     
     if not all_chunks:
