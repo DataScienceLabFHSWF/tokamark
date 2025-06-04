@@ -51,6 +51,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from tensordict import TensorDict
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 # Set up logging configuration
 logging.basicConfig(
@@ -1068,6 +1069,344 @@ def plot_optimization_history(study):
 
 
 # =====================
+# Plotting
+# =====================
+
+def create_prediction_gif(
+    model, 
+    dataset, 
+    device,
+    example_idx=0, 
+    filename="prediction_evolution.gif", 
+    input_length=5, 
+    target_length=3,
+    fps=5
+):
+    """
+    Create an animated GIF showing how inputs, targets, and predictions 
+    evolve through time for a single example.
+    
+    Parameters
+    ----------
+    model : TimeSeriesForecastingModel
+        Trained model for making predictions
+    dataset : TimeSeriesDataset
+        Dataset containing the examples
+    device : torch.device
+        Device to run the model on
+    example_idx : int, optional
+        Index of the example to visualize. Default is 0.
+    filename : str, optional
+        Output filename for the GIF. Default is "prediction_evolution.gif".
+    input_length : int, optional
+        Length of input sequences. Default is 5.
+    target_length : int, optional
+        Length of target sequences. Default is 3.
+    fps : int, optional
+        Frames per second for the GIF. Default is 5.
+    """
+    # Get the example data
+    x_dict, y_dict, file_path = dataset[example_idx]
+    
+    # Get original data before transforms for plotting
+    original_data = np.load(file_path)
+    input_1 = original_data['input_1']
+    input_2 = original_data['input_2'] 
+    input_3 = original_data['input_3']
+    target_1 = original_data['target_1']
+    target_2 = original_data['target_2']
+    
+    series_length = len(input_1)
+    
+    # Create figure with subplots
+    fig, axes = plt.subplots(2, 4, figsize=(16, 8), constrained_layout=True)
+    fig.suptitle(
+        f'Time Series Prediction Evolution - Example {example_idx}',
+        fontsize=16
+    )
+    
+    # Flatten axes for easier indexing
+    ax_input1, ax_input2, ax_input3, ax_pca1 = axes[0]
+    ax_pca2, ax_target1, ax_target2, ax_legend = axes[1]
+    
+    # Set up axes
+    time_range = np.arange(series_length)
+    
+    ax_input1.set_title('Input 1 (Original)')
+    ax_input1.set_xlim(0, series_length-1)
+    ax_input1.set_ylim(np.min(input_1)*1.1, np.max(input_1)*1.1)
+    
+    ax_input2.set_title('Input 2 (Original)')
+    ax_input2.set_xlim(0, series_length-1)
+    ax_input2.set_ylim(np.min(input_2)*1.1, np.max(input_2)*1.1)
+    
+    ax_input3.set_title('Input 3 (Original)')
+    ax_input3.set_xlim(0, series_length-1)
+    ax_input3.set_ylim(np.min(input_3)*1.1, np.max(input_3)*1.1)
+    
+    ax_pca1.set_title('PCA 1 (Transformed)')
+    ax_pca1.set_xlim(0, series_length-1)
+    ax_pca1.set_ylim(
+        np.min(x_dict['pca_1'].numpy())*1.1,
+        np.max(x_dict['pca_1'].numpy())*1.1
+    )
+    
+    ax_pca2.set_title('PCA 2 (Transformed)')
+    ax_pca2.set_xlim(0, series_length-1)
+    ax_pca2.set_ylim(
+        np.min(x_dict['pca_2'].numpy())*1.1,
+        np.max(x_dict['pca_2'].numpy())*1.1
+    )
+    
+    ax_target1.set_title('Target 1 (True vs Predicted)')
+    ax_target1.set_xlim(0, series_length-1)
+    ax_target1.set_ylim(np.min(target_1)*1.1, np.max(target_1)*1.1)
+    
+    ax_target2.set_title('Target 2 (True vs Predicted)')
+    ax_target2.set_xlim(0, series_length-1)
+    ax_target2.set_ylim(np.min(target_2)*1.1, np.max(target_2)*1.1)
+    
+    # Create legend
+    ax_legend.axis('off')
+    ax_legend.text(0.1, 0.8, 'Legend:', fontsize=12, weight='bold')
+    ax_legend.text(0.1, 0.6, '● History (α=0.5)', fontsize=10, alpha=0.5)
+    ax_legend.text(0.1, 0.4, '● Current Input (α=1.0)', fontsize=10, color='C0')
+    ax_legend.text(0.1, 0.2, '● True Target (α=1.0)', fontsize=10, color='C2')
+    ax_legend.text(0.1, 0.0, '● Predicted (α=1.0)', fontsize=10, color='C1')
+    
+    model.eval()
+    
+    def animate(frame):
+        # Clear all axes
+        for ax in [
+            ax_input1,
+            ax_input2,
+            ax_input3,
+            ax_pca1,
+            ax_pca2,
+            ax_target1,
+            ax_target2
+        ]:
+            ax.clear()
+        
+        # Current time step
+        current_time = frame + input_length
+        
+        # Plot input signals
+        # History with alpha=0.5
+        if current_time - input_length > 0:
+            ax_input1.plot(time_range[:current_time-input_length], 
+                          input_1[:current_time-input_length], 
+                          'b-', alpha=0.5, linewidth=1)
+            ax_input2.plot(time_range[:current_time-input_length], 
+                          input_2[:current_time-input_length], 
+                          'b-', alpha=0.5, linewidth=1)
+            ax_input3.plot(time_range[:current_time-input_length], 
+                          input_3[:current_time-input_length], 
+                          'b-', alpha=0.5, linewidth=1)
+        
+        # Current input window with alpha=1.0
+        input_start = current_time - input_length
+        input_end = current_time
+        ax_input1.plot(time_range[input_start:input_end], 
+                      input_1[input_start:input_end], 
+                      'C0', alpha=1.0, linewidth=2)
+        ax_input2.plot(time_range[input_start:input_end], 
+                      input_2[input_start:input_end], 
+                      'C0', alpha=1.0, linewidth=2)
+        ax_input3.plot(time_range[input_start:input_end], 
+                      input_3[input_start:input_end], 
+                      'C0', alpha=1.0, linewidth=2)
+        
+        # Plot PCA signals
+        # History with alpha=0.5
+        if current_time - input_length > 0:
+            ax_pca1.plot(time_range[:current_time-input_length], 
+                        x_dict['pca_1'][:current_time-input_length], 
+                        'C0', alpha=0.5, linewidth=1)
+            ax_pca2.plot(time_range[:current_time-input_length], 
+                        x_dict['pca_2'][:current_time-input_length], 
+                        'C0', alpha=0.5, linewidth=1)
+        
+        # Current PCA window with alpha=1.0
+        ax_pca1.plot(time_range[input_start:input_end], 
+                    x_dict['pca_1'][input_start:input_end], 
+                    'C0', alpha=1.0, linewidth=2)
+        ax_pca2.plot(time_range[input_start:input_end], 
+                    x_dict['pca_2'][input_start:input_end], 
+                    'C0', alpha=1.0, linewidth=2)
+        
+        # Plot target signals
+        # History with alpha=0.5
+        if current_time > 0:
+            ax_target1.plot(time_range[:current_time], 
+                           target_1[:current_time], 
+                           'C2', alpha=0.5, linewidth=1, label='True')
+            ax_target2.plot(time_range[:current_time], 
+                           target_2[:current_time], 
+                           'C2', alpha=0.5, linewidth=1, label='True')
+        
+        # Make prediction for current window
+        if current_time + target_length <= series_length:
+            # Create input tensor for prediction
+            input_chunk = TensorDict({
+                'pca_1': x_dict['pca_1'][input_start:input_end],
+                'pca_2': x_dict['pca_2'][input_start:input_end]
+            }, batch_size=[])
+            
+            # Create batch with single example
+            batch_chunk = TensorDict({
+                'x': input_chunk,
+                'y': TensorDict({}, batch_size=[])  # Empty targets for prediction
+            }, batch_size=[])
+            
+            # Add batch dimension and move to device
+            batch_chunk = batch_chunk.unsqueeze(0).to(device)
+            
+            with torch.no_grad():
+                predictions = model(batch_chunk)
+            
+            # Extract predictions
+            pred_target1 = predictions['target_1'].squeeze().cpu().numpy()
+            pred_target2 = predictions['target_2'].squeeze().cpu().numpy()
+            
+            # Plot predictions with alpha=1.0
+            pred_time_range = time_range[
+                current_time:current_time+target_length
+            ]
+            ax_target1.plot(pred_time_range, pred_target1, 
+                           'C1', alpha=1.0, linewidth=2, label='Predicted')
+            ax_target2.plot(pred_time_range, pred_target2, 
+                           'C1', alpha=1.0, linewidth=2, label='Predicted')
+            
+            # Plot true targets in prediction window with alpha=1.0
+            ax_target1.plot(pred_time_range, 
+                           target_1[current_time:current_time+target_length], 
+                           'C2', alpha=1.0, linewidth=2)
+            ax_target2.plot(pred_time_range, 
+                           target_2[current_time:current_time+target_length], 
+                           'C2', alpha=1.0, linewidth=2)
+        
+        # Set titles and limits
+        ax_input1.set_title(f'Input 1 (t={current_time})')
+        ax_input1.set_xlim(0, series_length-1)
+        ax_input1.set_ylim(np.min(input_1)*1.1, np.max(input_1)*1.1)
+        
+        ax_input2.set_title(f'Input 2 (t={current_time})')
+        ax_input2.set_xlim(0, series_length-1)
+        ax_input2.set_ylim(np.min(input_2)*1.1, np.max(input_2)*1.1)
+        
+        ax_input3.set_title(f'Input 3 (t={current_time})')
+        ax_input3.set_xlim(0, series_length-1)
+        ax_input3.set_ylim(np.min(input_3)*1.1, np.max(input_3)*1.1)
+        
+        ax_pca1.set_title(f'PCA 1 (t={current_time})')
+        ax_pca1.set_xlim(0, series_length-1)
+        ax_pca1.set_ylim(
+            np.min(x_dict['pca_1'].numpy())*1.1,
+            np.max(x_dict['pca_1'].numpy())*1.1
+        )
+        
+        ax_pca2.set_title(f'PCA 2 (t={current_time})')
+        ax_pca2.set_xlim(0, series_length-1)
+        ax_pca2.set_ylim(
+            np.min(x_dict['pca_2'].numpy())*1.1,
+            np.max(x_dict['pca_2'].numpy())*1.1
+        )
+        
+        ax_target1.set_title(f'Target 1 (t={current_time})')
+        ax_target1.set_xlim(0, series_length-1)
+        ax_target1.set_ylim(np.min(target_1)*1.1, np.max(target_1)*1.1)
+        
+        ax_target2.set_title(f'Target 2 (t={current_time})')
+        ax_target2.set_xlim(0, series_length-1)
+        ax_target2.set_ylim(np.min(target_2)*1.1, np.max(target_2)*1.1)
+        
+        # Add grid to all plots
+        for ax in [
+            ax_input1,
+            ax_input2,
+            ax_input3,
+            ax_pca1,
+            ax_pca2,
+            ax_target1,
+            ax_target2
+        ]:
+            ax.grid(True, alpha=0.3)
+            ax.set_xlabel('Time')
+    
+    # Calculate number of frames
+    max_frames = series_length - input_length - target_length + 1
+    
+    # Create animation
+    anim = animation.FuncAnimation(
+        fig, animate, frames=max_frames, interval=1000//fps, repeat=True
+    )
+    
+    # Save as GIF
+    logger.info(f"Creating GIF with {max_frames} frames...")
+    anim.save(filename, writer='pillow', fps=fps)
+    logger.info(f"GIF saved as {filename}")
+    
+    plt.close(fig)
+
+
+def demonstrate_prediction_gif():
+    """
+    Demonstrate the prediction GIF creation using the trained model.
+    """
+    logger.info("Creating example GIF")
+
+    # Load the trained model
+    if not os.path.exists('best_model.pth'):
+        logger.error("No trained model found.")
+        return
+    
+    # Determine device
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+    
+    # Load model
+    checkpoint = torch.load('best_model.pth', map_location=device)
+    hyperparams = checkpoint['hyperparams']
+    
+    model = TimeSeriesForecastingModel(
+        input_dim=2,
+        hidden_dim=hyperparams['hidden_dim'],
+        num_layers=hyperparams['num_layers']
+    ).to(device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    
+    # Create transforms
+    pca_transform = PCATransform("pca_model.joblib")
+    scaler_transform = StandardScalerTransform("scaler_model.joblib")
+    composed_transform = transforms.Compose([pca_transform, scaler_transform])
+    
+    # Create test dataset
+    test_data_dir = os.path.join("data", "test")
+    test_dataset = TimeSeriesDataset(
+        test_data_dir,
+        transform=composed_transform
+    )
+    
+    # Create GIF for first test example
+    create_prediction_gif(
+        model=model,
+        dataset=test_dataset,
+        device=device,
+        example_idx=0,
+        filename="prediction_evolution_example_0.gif",
+        fps=5
+    )
+    
+    logger.info("Prediction GIF demonstration complete!")
+
+
+# =====================
 # Main Execution  
 # =====================
 
@@ -1136,9 +1475,12 @@ if __name__ == "__main__":
         composed_transform=composed_transform,
         num_workers=num_workers
     )
+
+    demonstrate_prediction_gif()
     
     logger.info("Optimization complete")
     logger.info(f"Best hyperparameters: {best_params}")
     logger.info(f"Final test loss: {test_loss:.6f}")
     logger.info("TensorBoard logs saved in 'runs/' directory")
     logger.info("Best model saved as 'best_model.pth'")
+    logger.info("Example prediction GIF saved")
