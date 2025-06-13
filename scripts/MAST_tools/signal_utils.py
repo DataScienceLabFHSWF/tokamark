@@ -156,6 +156,66 @@ class MASTSignalManager:
             profile = xr.open_zarr(store=store, group=source_name)
 
         return profile[signal_name].values
+    
+    def get_profile(
+            self,
+            signal_name: str,
+            data_origin: Union[dict, cc.ZarrStoreType, cc.XarrayDatasetType],
+            source_name: Union[str, cc.NoneType] = None
+    ):
+        """
+        Get signal values from a given data origin.
+
+        Parameters
+        ----------
+        signal_name : str
+            Name of the target signal.
+        data_origin : Union[dict, ZarrStoreType, cc.XarrayDatasetType]
+            Origin of data for signal value retrieval.
+        source_name : str
+            Name of target source.
+            Optional. Default: None.
+        Returns
+        -------
+        numpy.ndarray
+            Signal values.
+
+        """
+        assert isinstance(signal_name, str), "Type error: invalid source_name. It must be of type str."
+
+        if isinstance(data_origin, cc.XarrayDatasetType):
+            # From group profile (i.e., xarray.core.dataset)
+            profile = data_origin
+
+        else:
+            try:
+                self.store_manager._check_data_origin(data_origin)  # noqa.
+            except Exception as e:
+                pass
+
+            assert isinstance(source_name, str), "Type error: invalid source_name. It must be of type str."
+
+            if isinstance(data_origin, dict):
+                # From shot info
+                store = self.store_manager.make_shot_store(shot_info=data_origin)
+
+            else:
+                # From store
+                store = data_origin
+
+            try:
+                profile = xr.open_zarr(store=store, group=source_name)
+            except KeyError as e:
+               return e
+            
+            if profile is not None:
+                try:
+                    signal = profile[signal_name]
+                except KeyError as e:
+                    return None
+
+            return signal
+
 
     def get_channel_names(self, store, group, signal_name):
         try:
