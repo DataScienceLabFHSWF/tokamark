@@ -22,17 +22,39 @@ from MAST_dataset import MAST_Dataset
 
 from CNN_transform import CNNSpecificTransform
 from CNN_model import MultiBranchCNNModel
+import torch.multiprocessing as mp
+
+
+# Determine device to train on
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
+
+def flatten_then_collate(batch):
+
+    print(batch)
+
+    try:
+        print(f"Collating batch of size {len(batch)}")
+        
+        # Flatten the batch of lists into a single list
+        flattened_batch = [item for sublist in batch for item in sublist]
+        print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
+        # Use the default collate function
+        return default_collate(flattened_batch)
+    
+    except Exception as e:
+        print("Exception in collate_fn:", e)
+        raise
 
 
 if __name__== "__main__":
 
-    # Determine device to train on
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
+    mp.set_start_method("spawn", force=True)
 
     # ------------------------------------------------------------------------------------ #
     # COMMON PIPELINE
@@ -65,14 +87,6 @@ if __name__== "__main__":
                                             # SamplewiseNormalizeTransform()
                                             ]) for k in [ f'{source}-{signal}' for source, signal in source_signal_list ] }
     
-    def flatten_then_collate(batch):
-        # Flatten the batch of lists into a single list
-        flattened_batch = [item for sublist in batch for item in sublist]
-        print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
-        # Use the default collate function
-        return default_collate(flattened_batch)
-    
-
     # ------------------------------------------------------------------------------------ #
     # CNN PIPELINE
 
@@ -105,21 +119,21 @@ if __name__== "__main__":
     # Prepare dataset and dataloader
 
     train_dataset = MAST_Dataset(local = True, 
-                                shots_list = train_shots[0:30], 
+                                shots_list = train_shots[0:50], 
                                 source_signal_list = source_signal_list, 
                                 transform_map=transform_map,
                                 model_specific_transform=CNNSpecificTransform(parameters_cnn))
     print("len(mast_train_dataset)", len(train_dataset))
 
     val_dataset = MAST_Dataset(local = True, 
-                                shots_list =val_shots[0:10], 
+                                shots_list =val_shots[0:30], 
                                 source_signal_list = source_signal_list, 
                                 transform_map=transform_map,
                                 model_specific_transform=CNNSpecificTransform(parameters_cnn))
     print("len(val_dataset)", len(val_dataset))
 
     test_dataset = MAST_Dataset(local = True, 
-                                shots_list = test_shots[0:10], 
+                                shots_list = test_shots[0:30], 
                                 source_signal_list = source_signal_list, 
                                 transform_map=transform_map,
                                 model_specific_transform=CNNSpecificTransform(parameters_cnn))
@@ -127,22 +141,22 @@ if __name__== "__main__":
 
 
     train_dataloader = DataLoader( train_dataset,
-            batch_size=8,
-            num_workers=1,
+            batch_size=32,
+            num_workers=4,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
 
     val_dataloader = DataLoader( val_dataset,
-            batch_size=8,
-            num_workers=1,
+            batch_size=32,
+            num_workers=4,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
 
     test_dataloader = DataLoader( train_dataset,
-            batch_size=8,
-            num_workers=1,
+            batch_size=32,
+            num_workers=4,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
