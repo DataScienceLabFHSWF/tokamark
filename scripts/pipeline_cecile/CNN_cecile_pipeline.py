@@ -14,7 +14,7 @@ from MAST_transformer import (ComposeTransform,
                                SamplewiseNormalizeTransform,
                               FillWithZerosImputerTransform,
                               SamplingtoReferenceTimeTransform)
-from utils import read_data_split_csv
+from utils import read_data_split_csv, flatten_then_collate
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data import DataLoader, Dataset
 
@@ -24,6 +24,8 @@ from CNN_transform import CNNSpecificTransform
 from CNN_model import MultiBranchCNNModel
 import torch.multiprocessing as mp
 
+from multiprocess import cpu_count
+print(f"\nNumber of Cores: {cpu_count()}\n")
 
 # Determine device to train on
 if torch.backends.mps.is_available():
@@ -32,25 +34,6 @@ elif torch.cuda.is_available():
     device = torch.device("cuda")
 else:
     device = torch.device("cpu")
-
-
-def flatten_then_collate(batch):
-
-    print(batch)
-
-    try:
-        print(f"Collating batch of size {len(batch)}")
-        
-        # Flatten the batch of lists into a single list
-        flattened_batch = [item for sublist in batch for item in sublist]
-        print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
-        # Use the default collate function
-        return default_collate(flattened_batch)
-    
-    except Exception as e:
-        print("Exception in collate_fn:", e)
-        raise
-
 
 if __name__== "__main__":
 
@@ -81,7 +64,7 @@ if __name__== "__main__":
                             ( 'equilibrium', 'magnetic_axis_r'), 
                             ( 'equilibrium', 'magnetic_axis_z') ]
     transform_map = {k: ComposeTransform([ForwardFillImputerTransform(),
-                                            # SamplewiseNormalizeTransform(),
+                                            SamplewiseNormalizeTransform(), 
                                             FillWithZerosImputerTransform(),
                                             SamplingtoReferenceTimeTransform(ref_freq),
                                             # SamplewiseNormalizeTransform()
@@ -112,51 +95,54 @@ if __name__== "__main__":
                         'dt': int(0.025/ref_freq)
                     }
 
-    from torch.utils.data._utils.collate import default_collate
-
     
     # --------------------------------------------------------------------------------------------------- #
     # Prepare dataset and dataloader
 
     train_dataset = MAST_Dataset(local = True, 
-                                shots_list = train_shots[0:50], 
+                                shots_list = train_shots, 
                                 source_signal_list = source_signal_list, 
                                 transform_map=transform_map,
                                 model_specific_transform=CNNSpecificTransform(parameters_cnn))
     print("len(mast_train_dataset)", len(train_dataset))
 
     val_dataset = MAST_Dataset(local = True, 
-                                shots_list =val_shots[0:30], 
+                                shots_list = val_shots, 
                                 source_signal_list = source_signal_list, 
                                 transform_map=transform_map,
                                 model_specific_transform=CNNSpecificTransform(parameters_cnn))
     print("len(val_dataset)", len(val_dataset))
 
     test_dataset = MAST_Dataset(local = True, 
-                                shots_list = test_shots[0:30], 
+                                shots_list = test_shots, 
                                 source_signal_list = source_signal_list, 
                                 transform_map=transform_map,
                                 model_specific_transform=CNNSpecificTransform(parameters_cnn))
     print("len(test_dataset)", len(test_dataset))
 
-
     train_dataloader = DataLoader( train_dataset,
-            batch_size=32,
-            num_workers=4,
+                                  batch_size=500,
+            # batch_size=len(train_dataset),
+            num_workers=64,
+            # num_workers=5,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
 
     val_dataloader = DataLoader( val_dataset,
-            batch_size=32,
-            num_workers=4,
+                                batch_size=500,
+            # batch_size=len(val_dataset),
+            # num_workers=cpu_count(),
+            num_workers=64,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
 
-    test_dataloader = DataLoader( train_dataset,
-            batch_size=32,
-            num_workers=4,
+    test_dataloader = DataLoader( test_dataset,
+                                 batch_size=500,
+            # batch_size=len(test_dataset),
+            # num_workers=cpu_count(),
+            num_workers=64,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
@@ -197,7 +183,7 @@ if __name__== "__main__":
             outputs = model(*x_train).squeeze()
             # print('outputs', outputs.shape)
             loss = criterion(outputs, y_train)
-            # print('loss', loss)
+            print('Batch loss', loss)
 
             optimizer.zero_grad()
             loss.backward()
@@ -234,8 +220,8 @@ if __name__== "__main__":
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             best_model_state = model.state_dict()  # Save best model state
-            os.makedirs("cnn_model/", exist_ok=True)
-            torch.save(best_model_state, "cnn_model/best_model.pt")
+            os.makedirs("cnn_model_test_2/", exist_ok=True)
+            torch.save(best_model_state, "cnn_model_test_2/best_model.pt")
         else:
             epochs_no_improve += 1
             print(f"No improvement for {epochs_no_improve} epochs.")
@@ -244,7 +230,6 @@ if __name__== "__main__":
                 early_stop = True
                 break
         
-        break
 
     # Optionally restore best model weights
     if early_stop:

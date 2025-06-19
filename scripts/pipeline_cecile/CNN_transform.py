@@ -84,7 +84,11 @@ class CNNSpecificTransform:
                                             for timestamp in range(min_common_time-self.dt) ] ]
         # print('len(list_reshaped_y)', len(list_reshaped_y))
 
-        return list_reshaped_x, list_reshaped_y
+        list_chunks = []
+        for xc, yc in zip(list_reshaped_x, list_reshaped_y):
+            list_chunks.append( (xc, yc) )
+
+        return list_chunks
 
     def _group_arrays_by_shape(self, arrays):
         grouped = defaultdict(list)
