@@ -14,6 +14,7 @@ sys.path.append(os.path.join( os.path.dirname(cwd) ) )
 
 from torch.utils.data._utils.collate import default_collate
 
+
 #================================================================
         ##########   DATA-SPLIT  ##########
 #================================================================
@@ -45,20 +46,19 @@ def read_data_split_csv(csv_path="/home/ir-rous1/hncdi-fusion-plasma/fairmast-da
 
 
 
+#================================================================
+        ##########  COLLATE FUNCTION  ##########
+#================================================================
 def flatten_then_collate(batch):
 
-    # print(batch)
-
-    try:
-        print(f"Collating batch of size {len(batch)}")
-        
-        # Flatten the batch of lists into a single list
-        if isinstance(batch[0], list) :
-            flattened_batch = [item for sublist in batch for item in sublist]
-            print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
-        # Use the default collate function
-        return default_collate(flattened_batch)
+    print(f"Collating batch of size {len(batch)}")
     
-    except Exception as e:
-        print("Exception in collate_fn:", e)
-        raise
+    # Flatten the batch of lists into a single list
+    if isinstance(batch[0], list) :
+        flattened_batch = [item for sublist in batch for item in sublist]
+        print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
+    # Use the default collate function
+    return default_collate(flattened_batch)
+#================================================================
+        ##########  END OF COLLATE FUNCTION  ##########
+#================================================================

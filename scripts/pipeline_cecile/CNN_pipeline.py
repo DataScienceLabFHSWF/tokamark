@@ -9,21 +9,31 @@ sys.path.append(cwd)
 sys.path.append(os.path.join( os.path.dirname(cwd) ) )
 
 import torch
+import torch.multiprocessing as mp
+from torch.utils.data import DataLoader, Dataset
+
+from utils import read_data_split_csv
+
+# Dataset utils
+from MAST_dataset import MAST_Dataset
+
+# Variable transforms
 from MAST_transformer import (ComposeTransform, 
                               ForwardFillImputerTransform, 
                                SamplewiseNormalizeTransform,
                               FillWithZerosImputerTransform,
                               SamplingtoReferenceTimeTransform)
-from utils import read_data_split_csv, flatten_then_collate
-from torch.utils.data._utils.collate import default_collate
-from torch.utils.data import DataLoader, Dataset
+from utils import flatten_then_collate
 
-from MAST_dataset import MAST_Dataset
+# Shot transforms
+from segmentation_transform import WindowSegmenterTransform
+from scripts.pipeline_cecile.model_transform import CNNSpecificTransform
 
-from CNN_transform import CNNSpecificTransform
+# Model level
 from CNN_model import MultiBranchCNNModel
-import torch.multiprocessing as mp
 
+
+# ------------------------------------------------------------------------------------------------------------------- #
 from multiprocess import cpu_count
 print(f"\nNumber of Cores: {cpu_count()}\n")
 
@@ -35,6 +45,9 @@ elif torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
+
+
+# ------------------------------------------------------------------------------------------------------------------- #
 if __name__== "__main__":
 
     mp.set_start_method("spawn", force=True)
@@ -63,7 +76,7 @@ if __name__== "__main__":
                             ( 'equilibrium', 'minor_radius'), 
                             ( 'equilibrium', 'magnetic_axis_r'), 
                             ( 'equilibrium', 'magnetic_axis_z') ]
-    transform_map = {k: ComposeTransform([ForwardFillImputerTransform(),
+    variable_transform_map = {k: ComposeTransform([ForwardFillImputerTransform(),
                                             SamplewiseNormalizeTransform(), 
                                             FillWithZerosImputerTransform(),
                                             SamplingtoReferenceTimeTransform(ref_freq),
@@ -94,6 +107,7 @@ if __name__== "__main__":
                             },
                         'dt': int(0.025/ref_freq)
                     }
+    shot_transform = ComposeTransform([WindowSegmenterTransform, CNNSpecificTransform])
 
     
     # --------------------------------------------------------------------------------------------------- #
@@ -102,22 +116,22 @@ if __name__== "__main__":
     train_dataset = MAST_Dataset(local = True, 
                                 shots_list = train_shots, 
                                 source_signal_list = source_signal_list, 
-                                transform_map=transform_map,
-                                model_specific_transform=CNNSpecificTransform(parameters_cnn))
+                                transform_map=variable_transform_map,
+                                model_specific_transform=shot_transform)
     print("len(mast_train_dataset)", len(train_dataset))
 
     val_dataset = MAST_Dataset(local = True, 
                                 shots_list = val_shots, 
                                 source_signal_list = source_signal_list, 
-                                transform_map=transform_map,
-                                model_specific_transform=CNNSpecificTransform(parameters_cnn))
+                                transform_map=variable_transform_map,
+                                model_specific_transform=shot_transform)
     print("len(val_dataset)", len(val_dataset))
 
     test_dataset = MAST_Dataset(local = True, 
                                 shots_list = test_shots, 
                                 source_signal_list = source_signal_list, 
-                                transform_map=transform_map,
-                                model_specific_transform=CNNSpecificTransform(parameters_cnn))
+                                transform_map=variable_transform_map,
+                                model_specific_transform=shot_transform)
     print("len(test_dataset)", len(test_dataset))
 
     train_dataloader = DataLoader( train_dataset,
@@ -157,7 +171,7 @@ if __name__== "__main__":
     
     # --------------------------------------------------------------------------------------------------- #
     # Train CNN model
-    num_epochs = 500
+    num_epochs = 1
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
@@ -220,8 +234,8 @@ if __name__== "__main__":
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             best_model_state = model.state_dict()  # Save best model state
-            os.makedirs("cnn_model_test_2/", exist_ok=True)
-            torch.save(best_model_state, "cnn_model_test_2/best_model.pt")
+            os.makedirs("cnn_model_test_3/", exist_ok=True)
+            torch.save(best_model_state, "cnn_model_test_3/best_model.pt")
         else:
             epochs_no_improve += 1
             print(f"No improvement for {epochs_no_improve} epochs.")
