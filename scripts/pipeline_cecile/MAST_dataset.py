@@ -5,7 +5,7 @@ mother_dir = os.path.dirname(cwd) + os.sep
 sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
 sys.path.append(mother_dir)
 sys.path.append(cwd)
-sys.path.append(os.path.join( os.path.dirname(cwd) ) )
+sys.path.append(os.path.join( cwd,  "scripts" ) )
 
 import pandas as pd
 from torch.utils.data import Dataset
@@ -105,6 +105,9 @@ class MAST_Dataset(Dataset):
                 for subdict in shot.values() 
                 for subval in subdict.values()) :
                 list_chunks = self.shot_transform( shot )
-            return list_chunks
+                return list_chunks
+            else:
+                print('Nan still present in shot')
+                return []
         else:
             return(shot)

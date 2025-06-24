@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Dataset
 
 cwd = os.path.dirname(os.getcwd())
 mother_dir = os.path.dirname(cwd) + os.sep
-print(mother_dir)
+# print(mother_dir)
 sys.path.append(os.path.abspath(os.path.join(mother_dir , "fairmast-data-preprocessing/scripts")))
 sys.path.append(mother_dir)
 sys.path.append(cwd)
@@ -59,6 +59,7 @@ def flatten_then_collate(batch):
         print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
     # Use the default collate function
     return default_collate(flattened_batch)
+
 #================================================================
         ##########  END OF COLLATE FUNCTION  ##########
 #================================================================

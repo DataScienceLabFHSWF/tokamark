@@ -66,7 +66,7 @@ class MultiBranchCNNModel(nn.Module):
         super().__init__()
 
         self.branches = nn.ModuleList()
-        self.output_shape = output_shape[0]
+        self.output_shape = output_shape[0][0]
         merged_dim = 0
 
         for shape in input_shapes:

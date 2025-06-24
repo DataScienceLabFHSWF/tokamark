@@ -18,7 +18,7 @@ from utils import read_data_split_csv
 from MAST_dataset import MAST_Dataset
 
 # Variable transforms
-from MAST_transformer import (ComposeTransform, 
+from scripts.pipeline_cecile.var_level_transform import (ComposeTransform, 
                               ForwardFillImputerTransform, 
                                SamplewiseNormalizeTransform,
                               FillWithZerosImputerTransform,
@@ -26,8 +26,8 @@ from MAST_transformer import (ComposeTransform,
 from utils import flatten_then_collate
 
 # Shot transforms
-from segmentation_transform import WindowSegmenterTransform
-from scripts.pipeline_cecile.model_transform import CNNSpecificTransform
+from segmentation_transform import TruncationTransform, WindowSegmenterTransform
+from scripts.pipeline_cecile.model_specific_transform import CNNSpecificTransform
 
 # Model level
 from CNN_model import MultiBranchCNNModel
@@ -87,76 +87,117 @@ if __name__== "__main__":
     # CNN PIPELINE
 
     # Create CNN datasets
-    parameters_cnn = {  'x': { 'magnetics-flux_loop_flux' : 't',
-                            'magnetics-b_field_pol_probe_ccbv_field' : 't',
-                            'magnetics-b_field_pol_probe_obr_field' : 't',
-                            'magnetics-b_field_pol_probe_obv_field' : 't',
-                            'pf_active-solenoid_current' : 't',
-                            'pf_active-coil_voltage' : 't',
-                            'pf_active-coil_current' : 't',
-                            'pulse_schedule-i_plasma' : 't',
-                            'summary-power_nbi' : 't',
-                            },
-                        'y': { 'equilibrium-elongation' : 't+dt',
-                            'equilibrium-elongation_axis' : 't+dt',
-                            'equilibrium-triangularity_upper' : 't+dt',
-                            'equilibrium-triangularity_lower' : 't+dt',
-                            'equilibrium-minor_radius' : 't+dt',
-                            'equilibrium-magnetic_axis_r' : 't+dt',
-                            'equilibrium-magnetic_axis_z' : 't+dt', 
-                            },
-                        'dt': int(0.025/ref_freq)
-                    }
-    shot_transform = ComposeTransform([WindowSegmenterTransform, CNNSpecificTransform])
+    # parameters_cnn = {  'x': { 'magnetics-flux_loop_flux' : 't',
+    #                         'magnetics-b_field_pol_probe_ccbv_field' : 't',
+    #                         'magnetics-b_field_pol_probe_obr_field' : 't',
+    #                         'magnetics-b_field_pol_probe_obv_field' : 't',
+    #                         'pf_active-solenoid_current' : 't',
+    #                         'pf_active-coil_voltage' : 't',
+    #                         'pf_active-coil_current' : 't',
+    #                         'pulse_schedule-i_plasma' : 't',
+    #                         'summary-power_nbi' : 't',
+    #                         },
+    #                     'y': { 'equilibrium-elongation' : 't+dt',
+    #                         'equilibrium-elongation_axis' : 't+dt',
+    #                         'equilibrium-triangularity_upper' : 't+dt',
+    #                         'equilibrium-triangularity_lower' : 't+dt',
+    #                         'equilibrium-minor_radius' : 't+dt',
+    #                         'equilibrium-magnetic_axis_r' : 't+dt',
+    #                         'equilibrium-magnetic_axis_z' : 't+dt', 
+    #                         },
+    #                     'dt': int(0.025/ref_freq)
+    #                 }
+    parameters__windows_segmenter = {
+        'x_keys': [
+            'equilibrium-elongation',
+            'magnetics-flux_loop_flux',
+            'magnetics-b_field_pol_probe_ccbv_field',
+            'magnetics-b_field_pol_probe_obr_field',
+            'magnetics-b_field_pol_probe_obv_field',
+            'pf_active-solenoid_current',
+            'pf_active-coil_voltage',
+            'pf_active-coil_current',
+            'pulse_schedule-i_plasma',
+            'summary-power_nbi',
+        ],
+        'y_keys': [
+            'equilibrium-elongation',
+            'equilibrium-elongation_axis',
+            'equilibrium-triangularity_upper',
+            'equilibrium-triangularity_lower',
+            'equilibrium-minor_radius',
+            'equilibrium-magnetic_axis_r',
+            'equilibrium-magnetic_axis_z',
+        ],
+        'x_window_sec': 0,
+        'y_window_sec': 0,
+        'dt_sec': 0.025,
+        'stride_sec': None,
+        'stride_unitary': True,
+        'min_samples_per_window': 1,
+        'verbose': False,
+    }
+    
+    shot_transform = ComposeTransform([ # shape-consistent transform
+                                        TruncationTransform(),
+                                        WindowSegmenterTransform(**parameters__windows_segmenter), # shape modifying transform
+                                        CNNSpecificTransform()
+                                        ]) # shape modifying transform
 
     
     # --------------------------------------------------------------------------------------------------- #
     # Prepare dataset and dataloader
 
     train_dataset = MAST_Dataset(local = True, 
-                                shots_list = train_shots, 
+                                shots_list = train_shots[0:25], 
                                 source_signal_list = source_signal_list, 
-                                transform_map=variable_transform_map,
-                                model_specific_transform=shot_transform)
+                                variable_transform_map=variable_transform_map,
+                                shot_transform=shot_transform)
     print("len(mast_train_dataset)", len(train_dataset))
 
+    out = train_dataset[0]
+
     val_dataset = MAST_Dataset(local = True, 
-                                shots_list = val_shots, 
+                                shots_list = val_shots[0:15], 
                                 source_signal_list = source_signal_list, 
-                                transform_map=variable_transform_map,
-                                model_specific_transform=shot_transform)
+                                variable_transform_map=variable_transform_map,
+                                shot_transform=shot_transform)
     print("len(val_dataset)", len(val_dataset))
 
     test_dataset = MAST_Dataset(local = True, 
-                                shots_list = test_shots, 
+                                shots_list = test_shots[0:15], 
                                 source_signal_list = source_signal_list, 
-                                transform_map=variable_transform_map,
-                                model_specific_transform=shot_transform)
+                                variable_transform_map=variable_transform_map,
+                                shot_transform=shot_transform)
     print("len(test_dataset)", len(test_dataset))
+    
+
+
+    # out = train_dataset[0]
 
     train_dataloader = DataLoader( train_dataset,
-                                  batch_size=500,
+                                  batch_size=5, #500
             # batch_size=len(train_dataset),
-            num_workers=64,
+            num_workers=0, #64
             # num_workers=5,
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
 
     val_dataloader = DataLoader( val_dataset,
-                                batch_size=500,
+                                batch_size=5, #500
             # batch_size=len(val_dataset),
             # num_workers=cpu_count(),
-            num_workers=64,
+            num_workers=0, #64
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
 
     test_dataloader = DataLoader( test_dataset,
-                                 batch_size=500,
+                                 batch_size=5, #500
             # batch_size=len(test_dataset),
             # num_workers=cpu_count(),
-            num_workers=64,
+            num_workers=0, #64
             shuffle=True,
             #    drop_last=True, 
             collate_fn = flatten_then_collate)
@@ -165,7 +206,7 @@ if __name__== "__main__":
     # Create CNN architecture
     input_shapes = [arr.shape for arr in train_dataloader.dataset[0][0][0] ]
     print('input_shapes', input_shapes)
-    output_shape = train_dataloader.dataset[0][0][1].shape
+    output_shape = [arr.shape for arr in train_dataloader.dataset[0][0][1] ]
     print('output_shape', output_shape)
     model = MultiBranchCNNModel(input_shapes, output_shape).to(device)
     
@@ -186,13 +227,13 @@ if __name__== "__main__":
         num_batches = 0
 
         for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
-            print(f'Batch size is {len(y_train)}')
 
             x_train = [arr.to(torch.float32).to(device) for arr in x_train]
             # print([arr.shape for arr in x_train])
             # print(y_train.min().item(), y_train.max().item())
-            y_train = y_train.to(torch.float32).to(device)
+            y_train = y_train[0].to(torch.float32).to(device)
             # print(y_train.shape)
+            print(f'\nBatch {batch_idx} size is {len(y_train)}')
 
             outputs = model(*x_train).squeeze()
             # print('outputs', outputs.shape)
@@ -219,7 +260,7 @@ if __name__== "__main__":
         with torch.no_grad():
             for x_val, y_val in val_dataloader:
                 x_val = [arr.to(torch.float32).to(device) for arr in x_val]
-                y_val = y_val.to(torch.float32).to(device)
+                y_val = y_val[0].to(torch.float32).to(device)
 
                 val_outputs = model(*x_val).squeeze()
                 val_loss = criterion(val_outputs, y_val)
@@ -244,6 +285,7 @@ if __name__== "__main__":
                 early_stop = True
                 break
         
+        
 
     # Optionally restore best model weights
     if early_stop:
@@ -259,7 +301,7 @@ if __name__== "__main__":
     with torch.no_grad():  # Disable gradient calculation for efficiency
         for x_test, y_test in test_dataloader:
             x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-            y_test = y_test.to(torch.float32).to(device)
+            y_test = y_test[0].to(torch.float32).to(device)
 
             outputs = model(*x_test).squeeze()
             loss = criterion(outputs, y_test)

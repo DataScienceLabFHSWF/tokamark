@@ -9,7 +9,7 @@ sys.path.append(cwd)
 sys.path.append(os.path.join( os.path.dirname(cwd) ) )
 
 import torch
-from MAST_transformer import (ComposeTransform, 
+from scripts.pipeline_cecile.var_level_transform import (ComposeTransform, 
                               ForwardFillImputerTransform, 
                                SamplewiseNormalizeTransform,
                               FillWithZerosImputerTransform,
@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from MAST_dataset import MAST_Dataset
 
-from scripts.pipeline_cecile.model_transform import CNNSpecificTransform
+from scripts.pipeline_cecile.model_specific_transform import CNNSpecificTransform
 from CNN_model import MultiBranchCNNModel
 import torch.multiprocessing as mp
 

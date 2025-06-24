@@ -53,6 +53,26 @@ Note: a slice like `slice(0, 1, None)` is equivalent to standard Python slicing 
 
 """
 
+class TruncationTransform:
+
+    def __call__(self, shot):
+
+        # print('Truncation Transform')
+
+        new_shot = {}
+        # get min time for all variables of shot
+        min_common_time = min(len(data['time']) for var, data in shot.items())
+
+        for var, data in shot.items():
+            new_data={}
+            new_data['time']=data['time'][:min_common_time]
+            new_data['values']=data['values'][..., :min_common_time]
+            new_shot[var]=new_data
+
+        return(new_shot)
+
+
+
 import numpy as np
 
 
@@ -82,6 +102,9 @@ class WindowSegmenterTransform:
         self.stride_unitary = stride_unitary
 
     def __call__(self, shot):
+
+        # print('Window-Segmentation')
+
         for var in shot:
             v = shot[var]['values']
             if v.ndim == 1:
@@ -124,20 +147,24 @@ class WindowSegmenterTransform:
             y_data, y_time, y_map = self._collect_time_window(shot, self.y_keys, t_y_start, t_y_end)
 
             if x_data is not None and y_data is not None:
+                x={}
+                for var, slice in x_map.items():
+                    x[var] = {}
+                    x[var]['time'] = x_time
+                    # reconstruction of channel
+                    x[var]['values'] = x_data[slice]
+                y={}
+                for var, slice in y_map.items():
+                    y[var] = {}
+                    y[var]['time'] = y_time
+                    # reconstruction of channel
+                    y[var]['values'] = y_data[slice]
                 result = {
-                    'x_time': x_time,
-                    'x_values': x_data,
-                    'x_channels': x_map,
-                    'y_time': y_time,
-                    'y_values': y_data,
-                    'y_channels': y_map,
-                    'x_samples': len(x_time),
-                    'y_samples': len(y_time),
-                    'shot_id': shot.get("shot_id", None),
+                    'x': x,
+                    'y': y,
                     'window_index': i,
                 }
                 results.append(result)
-
                 if self.verbose:
                     print(f"[Window {i}] x_samples: {len(x_time)}, y_samples: {len(y_time)}")
             elif self.verbose:
@@ -184,47 +211,3 @@ class WindowSegmenterTransform:
 
         data_out = np.concatenate(arrays, axis=0)
         return data_out, times_out, channel_map
-
-
-# ------------------------------
-# CNN-specific usage
-# ------------------------------
-
-# def reduce_to_cnn_format(windows):
-#     """
-#     Convert windowed samples to CNN-compatible format:
-#     - x_list: List of flattened or grouped channels per sample
-#     - y_list: List of scalar or mean target values per sample
-#     """
-#     x_list = [np.mean(w['x_values'], axis=1) for w in windows]  # shape (n_features,)
-#     y_list = [np.mean(w['y_values']) for w in windows]          # scalar
-#     return x_list, y_list
-
-
-# ------------------------------
-# Flattening MAST-style samples
-# ------------------------------
-
-# def flatten_mast_sample(nested_dict):
-#     """
-#     Convert MAST-style nested structure into flat dict expected by ShotWindowSegmenter.
-
-#     Parameters
-#     ----------
-#     nested_dict : dict with key "source_name-signal_name"
-#         Each value is a list of dicts with keys: 'signal_name', 'time', 'values'
-
-#     Returns
-#     -------
-#     flat_dict : dict[str, dict]
-#         Keys are signal names, values are {'time': ..., 'values': ...}
-#     """
-#     flat = {}
-#     for entry in nested_dict["source_name-signal_name"]:
-#         signal_name = entry["signal_name"]
-#         flat[signal_name] = {
-#             "time": entry["time"],
-#             "values": entry["values"]
-#         }
-#     flat["shot_id"] = nested_dict.get("shot_id", None)
-#     return flat
