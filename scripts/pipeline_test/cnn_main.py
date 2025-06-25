@@ -14,10 +14,14 @@ from torch.utils.data import DataLoader
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipeline_test.utils.utils import read_data_split_csv, flatten_then_collate
 
+from scripts.pipeline_test.preprocessing.sampled_shot_list import yamane_sampled_shot_list
+from scripts.pipeline_test.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
+
 from scripts.pipeline_test.utils.utils import ComposeTransforms
 from scripts.pipeline_test.transformers.signal_level_transformers.fill_with_zeros_imputer_transform import FillWithZerosImputerTransform
 from scripts.pipeline_test.transformers.signal_level_transformers.forward_fill_imputer_transform import ForwardFillImputerTransform
 from scripts.pipeline_test.transformers.signal_level_transformers.sample_wise_normalize_transform import SamplewiseNormalizeTransform
+from scripts.pipeline_test.transformers.signal_level_transformers.pretrained_stdscale_normalize_transform import StdScalingTransform
 from scripts.pipeline_test.transformers.signal_level_transformers.sampling_reference_time_transform import SamplingtoReferenceTimeTransform
 
 from scripts.pipeline_test.transformers.shot_level_transformers.truncation_transform import TruncationTransform
@@ -71,26 +75,29 @@ if __name__== "__main__":
         ('equilibrium', 'magnetic_axis_z')
     ]
 
-    # Fitting of mean and std
+    # ------------------------------------------------------------------------------------ #
+    # Fitting of mean and std for signal transform
     preprocessing_train_dataset = MastDataset(
         local=True,
-        shots_list=train_shots[0:25],
+        shots_list=yamane_sampled_shot_list(train_shots[0:25], error=0.05),
         source_signal_list=source_signal_list,
         signal_level_transform_map=None,
         shot_level_transform_map=None
     )
+    print("len(preprocessing_train_dataset)", len(preprocessing_train_dataset))
+    dict_mean = get_mean_shot(preprocessing_train_dataset)
+    dict_std = get_std_shot(preprocessing_train_dataset)
 
-    print("len(mast_train_dataset)", len(preprocessing_train_dataset)) 
-
-    # Signal transform
-    signal_transform_map = {k: ComposeTransforms([
+    # Map Signal transform
+    signal_transform_map = {var: ComposeTransforms([
         ForwardFillImputerTransform(),
-        SamplewiseNormalizeTransform(),
+        # SamplewiseNormalizeTransform(),
+        StdScalingTransform(dict_mean[var], dict_std[var]),
         FillWithZerosImputerTransform(),
         SamplingtoReferenceTimeTransform(ref_freq),
         # SamplewiseNormalizeTransform()
     ])
-        for k in [ f'{source}-{signal}' for source, signal in source_signal_list]
+        for var in [ f'{source}-{signal}' for source, signal in source_signal_list]
     }
     
     # ------------------------------------------------------------------------------------ #
