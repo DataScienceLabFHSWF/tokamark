@@ -1,57 +1,89 @@
 """
-shot_window_segmenter.py
+window_segmenter_transform.py
 
-This module defines a general-purpose ShotWindowSegmenter class to transform a shot
-(a dictionary of time series or profile signals) into a list of time-aligned x/y windows
-for supervised learning tasks.
+This module defines a general-purpose WindowSegmenterTransform class to transform a shot
+(a dictionary of time series or profile signals) into a list of time-aligned (x, y) windows
+for supervised learning tasks such as regression or forecasting.
 
 Supports:
+---------
 - Time-based segmentation
-- Asymmetric window sizes for x and y
+- Asymmetric window durations for x and y
 - Delays (dt) between x and y
-- CNN-friendly shape standardization (C, T)
-- Automatic unitary stride based on time resolution
-- Padding or skipping incomplete windows
-- Auto-correction for 0-second window durations (uses one-sample fallback)
-- Optional channel indexing via x/y channel maps
+- Stride-based or unitary-step segmentation
+- Optional removal of incomplete windows
+- Auto-adjustment for zero-length windows
+- Channel-wise stacking of multivariate signals
+- Consistent alignment across multiple signals
+- Optional debug printing
 
 Example usage:
-    segmenter = ShotWindowSegmenter(
-        x_keys=["signal_1", "signal_2"],
+--------------
+    segmenter = WindowSegmenterTransform(
+        x_keys=["input_signal_1", "input_signal_2"],
         y_keys=["target_signal"],
-        x_window_sec=0.01,
+        x_window_sec=0.02,
         y_window_sec=0.01,
         dt_sec=0.002,
-        stride_unitary=True,
+        stride_sec=0.005,
+        drop_incomplete_windows=True,
         verbose=True
     )
-    segments = segmenter(shot)
+    windowed_data = segmenter(shot)
 
-Output:
---------
-Returns a list of dictionaries, one for each valid (x, y) window:
+Special behaviors:
+------------------
+- If `stride_unitary = True`:
+    The stride between windows is automatically set to the native sampling resolution
+    (i.e., the smallest time delta between samples). This produces overlapping, densely sampled windows
+    with stride = Δt.
 
-    {
-        'x_time': np.ndarray,              # shape (W_x,), time points in x window
-        'x_values': np.ndarray,            # shape (C_x, W_x), stacked input values
-        'x_channels': Dict[str, slice],    # mapping of signal name to slice index in x_values
+- If `x_window_sec = 0` or `y_window_sec = 0`:
+    The corresponding window duration is automatically replaced with one time step
+    (i.e., Δt), resulting in a single-sample window for that side. This is useful for
+    evaluating instantaneous responses or preparing 1-step-ahead forecasting windows
 
-        'y_time': np.ndarray,              # shape (W_y,), time points in y window
-        'y_values': np.ndarray,            # shape (C_y, W_y), stacked target values
-        'y_channels': Dict[str, slice],    # mapping of signal name to slice index in y_values
+Input format:
+-------------
+    shot : dict
+        {
+            'signal_name': {
+                'time': np.ndarray,       # shape (T,)
+                'values': np.ndarray      # shape (C, T)
+            },
+            ...,
+            'shot_id': int or str        # optional metadata (non-signal)
+        }
 
-        'x_samples': int,                  # number of time points in x window
-        'y_samples': int,                  # number of time points in y window
-        'shot_id': str or int,             # optional metadata from the input
-        'window_index': int                # sequential index of this window
-    }
+Output format:
+--------------
+    List of windows, each as a dictionary:
+        {
+            'x': {
+                signal_name: {
+                    'time': np.ndarray,   # shape (T_x,)
+                    'values': np.ndarray  # shape (C, T_x)
+                },
+                ...
+            },
+            'y': {
+                signal_name: {
+                    'time': np.ndarray,   # shape (T_y,)
+                    'values': np.ndarray  # shape (C, T_y)
+                },
+                ...
+            },
+            'window_index': int,          # sequential window number
+            'shot_id': int or str         # carried over from input if present
+        }
 
-You can recover a signal slice using:
-    x_val = window['x_values'][window['x_channels']['some-signal']]
-
-Note: a slice like `slice(0, 1, None)` is equivalent to standard Python slicing `x[0:1]` — it extracts one row.
-
+Notes:
+------
+- Signal slices are returned as separate entries under 'x' and 'y', organized by signal name.
+- All output time arrays are aligned to the original shot's sampling grid.
+- This structure supports downstream projection, modeling, and evaluation steps.
 """
+
 
 import numpy as np
 
