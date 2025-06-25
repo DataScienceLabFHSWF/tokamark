@@ -14,13 +14,12 @@ from torch.utils.data import DataLoader
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipeline_test.utils.utils import read_data_split_csv, flatten_then_collate
 
-from scripts.pipeline_test.transformers.signal_level_transformers.compose_signal_transforms import ComposeSignalTransforms
+from scripts.pipeline_test.utils.utils import ComposeTransforms
 from scripts.pipeline_test.transformers.signal_level_transformers.fill_with_zeros_imputer_transform import FillWithZerosImputerTransform
 from scripts.pipeline_test.transformers.signal_level_transformers.forward_fill_imputer_transform import ForwardFillImputerTransform
 from scripts.pipeline_test.transformers.signal_level_transformers.sample_wise_normalize_transform import SamplewiseNormalizeTransform
 from scripts.pipeline_test.transformers.signal_level_transformers.sampling_reference_time_transform import SamplingtoReferenceTimeTransform
 
-from scripts.pipeline_test.transformers.shot_level_transformers.compose_shot_transform import ComposeShotTransforms
 from scripts.pipeline_test.transformers.shot_level_transformers.truncation_transform import TruncationTransform
 from scripts.pipeline_test.transformers.shot_level_transformers.window_segmenter_transform import WindowSegmenterTransform
 from scripts.pipeline_test.transformers.shot_level_transformers.cnn_transform import CNNTransform
@@ -72,12 +71,24 @@ if __name__== "__main__":
         ('equilibrium', 'magnetic_axis_z')
     ]
 
-    signal_transform_map = {k: ComposeSignalTransforms([
+    # Fitting of mean and std
+    preprocessing_train_dataset = MastDataset(
+        local=True,
+        shots_list=train_shots[0:25],
+        source_signal_list=source_signal_list,
+        signal_level_transform_map=None,
+        shot_level_transform_map=None
+    )
+
+    print("len(mast_train_dataset)", len(preprocessing_train_dataset)) 
+
+    # Signal transform
+    signal_transform_map = {k: ComposeTransforms([
         ForwardFillImputerTransform(),
         SamplewiseNormalizeTransform(),
         FillWithZerosImputerTransform(),
         SamplingtoReferenceTimeTransform(ref_freq),
-        SamplewiseNormalizeTransform()
+        # SamplewiseNormalizeTransform()
     ])
         for k in [ f'{source}-{signal}' for source, signal in source_signal_list]
     }
@@ -138,18 +149,18 @@ if __name__== "__main__":
         'verbose': False,
     }
 
-    shot_transform_map = ComposeShotTransforms([  # shape-consistent transform
+    shot_transform_map = ComposeTransforms([  # shape-consistent transform
         TruncationTransform(),
         WindowSegmenterTransform(**parameters_windows_segmenter),  # shape modifying transform
-        CNNTransform()
-    ])  # shape modifying transform
+        CNNTransform() # shape modifying transform
+        ])
     
     # --------------------------------------------------------------------------------------------------- #
     # Prepare dataset and dataloader
 
     train_dataset = MastDataset(
-        local=False,
-        shots_list=train_shots[0:2],
+        local=True,
+        shots_list=train_shots[0:25],
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform_map=shot_transform_map
@@ -157,8 +168,8 @@ if __name__== "__main__":
     print("len(mast_train_dataset)", len(train_dataset))
 
     val_dataset = MastDataset(
-        local=False,
-        shots_list=val_shots[0:1],
+        local=True,
+        shots_list=val_shots[0:15],
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform_map=shot_transform_map
@@ -166,8 +177,8 @@ if __name__== "__main__":
     print("len(val_dataset)", len(val_dataset))
 
     test_dataset = MastDataset(
-        local=False,
-        shots_list=test_shots[0:1],
+        local=True,
+        shots_list=test_shots[0:15],
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform_map=shot_transform_map
@@ -298,22 +309,21 @@ if __name__== "__main__":
         model.load_state_dict(best_model_state)
 
 
+    # model.eval()  # Set the model to evaluation mode
+    # test_loss = 0.0
+    # test_batches = 0
+    # criterion = torch.nn.MSELoss()  # or whatever you used during training
 
-    model.eval()  # Set the model to evaluation mode
-    test_loss = 0.0
-    test_batches = 0
-    criterion = torch.nn.MSELoss()  # or whatever you used during training
+    # with torch.no_grad():  # Disable gradient calculation for efficiency
+    #     for x_test, y_test in test_dataloader:
+    #         x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+    #         y_test = y_test[0].to(torch.float32).to(device)
 
-    with torch.no_grad():  # Disable gradient calculation for efficiency
-        for x_test, y_test in test_dataloader:
-            x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-            y_test = y_test[0].to(torch.float32).to(device)
+    #         outputs = model(*x_test).squeeze()
+    #         loss = criterion(outputs, y_test)
+    #         test_loss += loss.item()
 
-            outputs = model(*x_test).squeeze()
-            loss = criterion(outputs, y_test)
-            test_loss += loss.item()
+    #         test_batches += len(y_test)
 
-            test_batches += len(y_test)
-
-    avg_test_loss = test_loss / test_batches
-    print(f"Test Loss: {avg_test_loss:.4f}")
+    # avg_test_loss = test_loss / test_batches
+    # print(f"Test Loss: {avg_test_loss:.4f}")

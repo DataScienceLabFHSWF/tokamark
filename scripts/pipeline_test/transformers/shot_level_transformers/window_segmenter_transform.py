@@ -52,7 +52,6 @@ Input format:
                 'values': np.ndarray      # shape (C, T)
             },
             ...,
-            'shot_id': int or str        # optional metadata (non-signal)
         }
 
 Output format:
@@ -74,7 +73,6 @@ Output format:
                 ...
             },
             'window_index': int,          # sequential window number
-            'shot_id': int or str         # carried over from input if present
         }
 
 Notes:
@@ -176,7 +174,6 @@ class WindowSegmenterTransform:
                     'x': x,
                     'y': y,
                     'window_index': i,
-                    'shot_id': shot.get("shot_id", None)
                 }
                 results.append(result)
                 if self.verbose:

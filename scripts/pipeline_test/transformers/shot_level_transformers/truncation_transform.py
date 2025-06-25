@@ -15,18 +15,13 @@ class TruncationTransform:
     """
 
     def __call__(self, shot):
-        # Filter only valid signal entries: dicts that contain 'time' and 'values'
-        valid_data = {
-            var: data for var, data in shot.items()
-            if isinstance(data, dict) and "time" in data and "values" in data
-        }
 
         # Compute the minimum available time length across all valid signals
-        min_common_time = min(len(data["time"]) for data in valid_data.values())
+        min_common_time = min(len(data["time"]) for data in shot.values())
 
         # Construct new truncated shot
         new_shot = {}
-        for var, data in valid_data.items():
+        for var, data in shot.items():
             new_shot[var] = {
                 "time": data["time"][:min_common_time],
                 "values": data["values"][..., :min_common_time]

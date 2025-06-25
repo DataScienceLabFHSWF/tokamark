@@ -46,7 +46,6 @@ class MastDataset(Dataset):
     def __len__(self):
         return len(self.shots_list)
 
-
     def __getitem__(self, idx):
 
         store_manager = self.sig.store_manager
@@ -88,13 +87,10 @@ class MastDataset(Dataset):
                 shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals}
             
         # Apply shot-level transforms to obtain a list of training objects
-        shot["shot_id"] = self.shots_list[idx]
         if self.shot_level_transform_map :
-            if all(
-                    isinstance(v, dict) and "values" in v and v["values"] is not None and v["time"] is not None
-                    for k, v in shot.items() if isinstance(v, dict)
-            ):
-
+            if all( subval is not None 
+                for subdict in shot.values() 
+                for subval in subdict.values()) :
                 list_chunks = self.shot_level_transform_map(shot)
                 return list_chunks
             else:
