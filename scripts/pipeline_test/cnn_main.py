@@ -79,7 +79,7 @@ if __name__== "__main__":
     # Fitting of mean and std for signal transform
     preprocessing_train_dataset = MastDataset(
         local=True,
-        shots_list=yamane_sampled_shot_list(train_shots[0:25], error=0.05),
+        shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
         source_signal_list=source_signal_list,
         signal_level_transform_map=None,
         shot_level_transform_map=None
@@ -167,7 +167,7 @@ if __name__== "__main__":
 
     train_dataset = MastDataset(
         local=True,
-        shots_list=train_shots[0:25],
+        shots_list=train_shots,
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform_map=shot_transform_map
@@ -176,28 +176,28 @@ if __name__== "__main__":
 
     val_dataset = MastDataset(
         local=True,
-        shots_list=val_shots[0:15],
+        shots_list=val_shots,
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform_map=shot_transform_map
     )
     print("len(val_dataset)", len(val_dataset))
 
-    test_dataset = MastDataset(
-        local=True,
-        shots_list=test_shots[0:15],
-        source_signal_list=source_signal_list,
-        signal_level_transform_map=signal_transform_map,
-        shot_level_transform_map=shot_transform_map
-    )
-    print("len(test_dataset)", len(test_dataset))
+    # test_dataset = MastDataset(
+    #     local=True,
+    #     shots_list=test_shots[0:15],
+    #     source_signal_list=source_signal_list,
+    #     signal_level_transform_map=signal_transform_map,
+    #     shot_level_transform_map=shot_transform_map
+    # )
+    # print("len(test_dataset)", len(test_dataset))
 
 
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=5, #500
+        batch_size=500, #500
         # batch_size=len(train_dataset),
-        num_workers=0, #64
+        num_workers=64, #64
         # num_workers=5,
         shuffle=True,
         #    drop_last=True,
@@ -206,25 +206,25 @@ if __name__== "__main__":
 
     val_dataloader = DataLoader(
         val_dataset,
-        batch_size=5, #500
+        batch_size=500, #500
         # batch_size=len(val_dataset),
         # num_workers=cpu_count(),
-        num_workers=0, #64
+        num_workers=64, #64
         shuffle=True,
         #    drop_last=True,
         collate_fn = flatten_then_collate
     )
 
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=5, #500
-        # batch_size=len(test_dataset),
-        # num_workers=cpu_count(),
-        num_workers=0, #64
-        shuffle=True,
-        #    drop_last=True,
-        collate_fn = flatten_then_collate
-    )
+    # test_dataloader = DataLoader(
+    #     test_dataset,
+    #     batch_size=5, #500
+    #     # batch_size=len(test_dataset),
+    #     # num_workers=cpu_count(),
+    #     num_workers=0, #64
+    #     shuffle=True,
+    #     #    drop_last=True,
+    #     collate_fn = flatten_then_collate
+    # )
     
     # --------------------------------------------------------------------------------------------------- #
     # Create CNN architecture
@@ -236,7 +236,7 @@ if __name__== "__main__":
     
     # --------------------------------------------------------------------------------------------------- #
     # Train CNN model
-    num_epochs = 1
+    num_epochs = 500
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
@@ -299,8 +299,8 @@ if __name__== "__main__":
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             best_model_state = model.state_dict()  # Save best model state
-            os.makedirs("cnn_model_test_3/", exist_ok=True)
-            torch.save(best_model_state, "cnn_model_test_3/best_model.pt")
+            os.makedirs("cnn_model_test_25_06/", exist_ok=True)
+            torch.save(best_model_state, "cnn_model_test_25_06/best_model.pt")
         else:
             epochs_no_improve += 1
             print(f"No improvement for {epochs_no_improve} epochs.")
