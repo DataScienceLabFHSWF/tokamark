@@ -14,6 +14,7 @@ def get_mean_shot(dataset):
     
     dict_mean={}
     for var, list in dict_mean_list.items():
+        print(f'Shapes in dict_mean_list for var {var}', [arr.shape for arr in list])
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             dict_mean[var]=np.nanmean(list)
@@ -33,6 +34,7 @@ def get_std_shot(dataset):
     
     dict_std={}
     for var, list in dict_std_list.items():
+        print(f'Shapes in dict_std_list for var {var}', [arr.shape for arr in list])
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             dict_std[var]=np.nanmean(list)

@@ -31,7 +31,7 @@ from scripts.main_pipeline.transformers.shot_level_transformers.cnn_transform im
 from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
 
 from multiprocess import cpu_count
-print(f"\nNumber of Cores: {cpu_count()}\n")
+# print(f"\nNumber of Cores: {cpu_count()}\n")
 
 # ------------------------------------------------------------------------------------------------------------------- #
 
@@ -77,6 +77,7 @@ if __name__== "__main__":
 
     # ------------------------------------------------------------------------------------ #
     # Fitting of mean and std for signal transform
+    print('\n\n----------TRANSFORM FITTING----------\n')
     preprocessing_train_dataset = MastDataset(
         local=True,
         shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
@@ -102,28 +103,6 @@ if __name__== "__main__":
     
     # ------------------------------------------------------------------------------------ #
     # CNN PIPELINE
-
-    # Create CNN datasets
-    # parameters_cnn = {  'x': { 'magnetics-flux_loop_flux' : 't',
-    #                         'magnetics-b_field_pol_probe_ccbv_field' : 't',
-    #                         'magnetics-b_field_pol_probe_obr_field' : 't',
-    #                         'magnetics-b_field_pol_probe_obv_field' : 't',
-    #                         'pf_active-solenoid_current' : 't',
-    #                         'pf_active-coil_voltage' : 't',
-    #                         'pf_active-coil_current' : 't',
-    #                         'pulse_schedule-i_plasma' : 't',
-    #                         'summary-power_nbi' : 't',
-    #                         },
-    #                     'y': { 'equilibrium-elongation' : 't+dt',
-    #                         'equilibrium-elongation_axis' : 't+dt',
-    #                         'equilibrium-triangularity_upper' : 't+dt',
-    #                         'equilibrium-triangularity_lower' : 't+dt',
-    #                         'equilibrium-minor_radius' : 't+dt',
-    #                         'equilibrium-magnetic_axis_r' : 't+dt',
-    #                         'equilibrium-magnetic_axis_z' : 't+dt', 
-    #                         },
-    #                     'dt': int(0.025/ref_freq)
-    #                 }
 
     parameters_windows_segmenter = {
         'x_keys': [
@@ -164,6 +143,7 @@ if __name__== "__main__":
     
     # --------------------------------------------------------------------------------------------------- #
     # Prepare dataset and dataloader
+    print('\n\n----------DATASET & DATALOADER INITIALIZATION----------\n')
 
     train_dataset = MastDataset(
         local=True,
@@ -228,6 +208,7 @@ if __name__== "__main__":
     
     # --------------------------------------------------------------------------------------------------- #
     # Create CNN architecture
+    print('\n\n----------MODEL INITIALIZATION----------\n')
     input_shapes = [arr.shape for arr in train_dataloader.dataset[0][0][0] ]
     print('input_shapes', input_shapes)
     output_shape = [arr.shape for arr in train_dataloader.dataset[0][0][1] ]
@@ -236,6 +217,7 @@ if __name__== "__main__":
     
     # --------------------------------------------------------------------------------------------------- #
     # Train CNN model
+    print('\n\n----------TRAINING----------\n')
     num_epochs = 500
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
@@ -250,6 +232,8 @@ if __name__== "__main__":
         running_loss = 0.0
         num_batches = 0
 
+        print(f'\nEpoch {epoch}\n')
+
         for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
 
             x_train = [arr.to(torch.float32).to(device) for arr in x_train]
@@ -257,7 +241,7 @@ if __name__== "__main__":
             # print(y_train.min().item(), y_train.max().item())
             y_train = y_train[0].to(torch.float32).to(device)
             # print(y_train.shape)
-            print(f'\nBatch {batch_idx} size is {len(y_train)}')
+            print(f'Batch {batch_idx} size is {len(y_train)}')
 
             outputs = model(*x_train).squeeze()
             # print('outputs', outputs.shape)
