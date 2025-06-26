@@ -1,4 +1,5 @@
 
+import numpy as np 
 from torch.utils.data import Dataset
 from scripts.MAST_tools.signal_utils import MASTSignalManager
 
@@ -69,7 +70,11 @@ class MastDataset(Dataset):
             
             if shot_profile is not None:
                 try:
-                    shot_time = shot_profile.time.values
+                    if not np.isnan(shot_profile.time.values).any():
+                        shot_time = shot_profile.time.values
+                    else:
+                        print(f'Nan in the timescale of shot {self.shots_list[idx]} ! ')
+                        shot_time = None
                 except  AttributeError:
                     shot_time = None
                 try:
