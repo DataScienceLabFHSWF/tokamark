@@ -20,7 +20,7 @@ class MastDataset(Dataset):
         shots_list: list[int], 
         source_signal_list = list,
         signal_level_transform_map=None,
-        shot_level_transform_map=None
+        shot_level_transform=None
         ):
         """ Initialize the MASTDataset.
         Parameters
@@ -41,7 +41,7 @@ class MastDataset(Dataset):
         self.shots_list = shots_list
         self.source_signal_list = source_signal_list
         self.signal_level_transform_map = signal_level_transform_map
-        self.shot_level_transform_map = shot_level_transform_map
+        self.shot_level_transform = shot_level_transform
         self.sig = MASTSignalManager()  
 
     def __len__(self):
@@ -92,11 +92,11 @@ class MastDataset(Dataset):
                 shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals}
             
         # Apply shot-level transforms to obtain a list of training objects
-        if self.shot_level_transform_map :
+        if self.shot_level_transform :
             if all( subval is not None 
                 for subdict in shot.values() 
                 for subval in subdict.values()) :
-                list_chunks = self.shot_level_transform_map(shot)
+                list_chunks = self.shot_level_transform(shot)
                 return list_chunks
             else:
                 print('Nan still present in shot')
