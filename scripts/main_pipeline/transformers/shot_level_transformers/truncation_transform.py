@@ -1,4 +1,7 @@
+import numpy as np
 
+
+# ======================================================================================================================
 # class TruncationTransform:
 #     """
 #     A shot-level transform that truncates all time series signals in a shot
@@ -33,10 +36,7 @@
 
 #         return new_shot
 
-
-
-import numpy as np
-
+# ======================================================================================================================
 class TruncationTransform:
     """
     Shot-level transform that truncates all signals in a shot to the minimum end time
@@ -72,6 +72,8 @@ class TruncationTransform:
     - Signals with no valid data before the truncation point will raise an error.
     """
 
+    # ------------------------------------------------------------------------------------------------------------------
+
     def __call__(self, shot):
         # Step 1: Determine min end time
         min_end_time = min(
@@ -105,3 +107,5 @@ class TruncationTransform:
             new_shot["shot_id"] = shot["shot_id"]
 
         return new_shot
+
+    # ------------------------------------------------------------------------------------------------------------------

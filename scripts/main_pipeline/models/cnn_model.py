@@ -1,8 +1,11 @@
-
 import torch
 import torch.nn as nn
 
+
+# ======================================================================================================================
 class SmallCNNBranch(nn.Module):
+
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(self, input_len, D):
         super().__init__()
         self.cnn = nn.Sequential(
@@ -22,6 +25,7 @@ class SmallCNNBranch(nn.Module):
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Linear(4 * D, input_len)
 
+    # ------------------------------------------------------------------------------------------------------------------
     def forward(self, x):
         x = self.cnn(x)
         x = self.global_avg_pool(x).squeeze(-1)  # [B, C]
@@ -30,15 +34,20 @@ class SmallCNNBranch(nn.Module):
 
 
 class NumericalBranch(nn.Module):
+
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(self, input_len):
         super().__init__()
         self.bn = nn.BatchNorm1d(input_len)
 
+    # ------------------------------------------------------------------------------------------------------------------
     def forward(self, x):
         return self.bn(x)
 
 
 class MultiBranchCNNModel(nn.Module):
+
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(self, input_shapes, output_shape, D=16):
         super().__init__()
 
@@ -71,6 +80,7 @@ class MultiBranchCNNModel(nn.Module):
             nn.Linear(32, self.output_shape),
         )
 
+    # ------------------------------------------------------------------------------------------------------------------
     def forward(self, *inputs):
         branch_outputs = []
 
@@ -80,3 +90,5 @@ class MultiBranchCNNModel(nn.Module):
 
         merged = torch.cat(branch_outputs, dim=1)
         return self.fc(merged)
+
+    # ------------------------------------------------------------------------------------------------------------------

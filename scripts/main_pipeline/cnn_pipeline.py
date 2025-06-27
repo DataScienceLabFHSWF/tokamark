@@ -1,41 +1,52 @@
 import os
 import sys
 
-# Adds the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-print(REPO_ROOT)
-
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 
+# Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
+                                         else os.getcwd(), "..", ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+print(f"REPO_ROOT: {REPO_ROOT}")
+
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.main_pipeline.utils.utils import read_data_split_csv, flatten_then_collate
-
 from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
-
 from scripts.main_pipeline.utils.utils import ComposeTransforms
-from scripts.main_pipeline.transformers.signal_level_transformers.fill_with_zeros_imputer_transform import FillWithZerosImputerTransform
-from scripts.main_pipeline.transformers.signal_level_transformers.forward_fill_imputer_transform import ForwardFillImputerTransform
-from scripts.main_pipeline.transformers.signal_level_transformers.sample_wise_normalize_transform import SamplewiseNormalizeTransform
-from scripts.main_pipeline.transformers.signal_level_transformers.pretrained_stdscale_normalize_transform import StdScalingTransform
-from scripts.main_pipeline.transformers.signal_level_transformers.sampling_reference_time_transform import SamplingtoReferenceTimeTransform
-
-from scripts.main_pipeline.transformers.shot_level_transformers.truncation_transform import TruncationTransform
-from scripts.main_pipeline.transformers.shot_level_transformers.window_segmenter_transform import WindowSegmenterTransform
+from scripts.main_pipeline.transformers.signal_level_transformers.fill_with_zeros_imputer_transform import (
+    FillWithZerosImputerTransform
+)
+from scripts.main_pipeline.transformers.signal_level_transformers.forward_fill_imputer_transform import (
+    ForwardFillImputerTransform
+)
+from scripts.main_pipeline.transformers.signal_level_transformers.sample_wise_normalize_transform import (
+    SamplewiseNormalizeTransform
+)
+from scripts.main_pipeline.transformers.signal_level_transformers.pretrained_stdscale_normalize_transform import(
+    StdScalingTransform
+)
+from scripts.main_pipeline.transformers.signal_level_transformers.sampling_reference_time_transform import (
+    SamplingToReferenceTimeTransform
+)
+from scripts.main_pipeline.transformers.shot_level_transformers.truncation_transform import (
+    TruncationTransform
+)
+from scripts.main_pipeline.transformers.shot_level_transformers.window_segmenter_transform import (
+    WindowSegmenterTransform
+)
 from scripts.main_pipeline.transformers.shot_level_transformers.cnn_transform import CNNTransform
-
 from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
+from multiprocessing import cpu_count
 
-from multiprocess import cpu_count
-# print(f"\nNumber of Cores: {cpu_count()}\n")
+print(f"\nNumber of Cores: {cpu_count()}\n")
 
-# ------------------------------------------------------------------------------------------------------------------- #
-
+# ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
+
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 elif torch.cuda.is_available():
@@ -43,24 +54,33 @@ elif torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-# ------------------------------------------------------------------------------------------------------------------- #
-if __name__== "__main__":
+# ======================================================================================================================
+if __name__ == "__main__":
+
+    LOCAL_FLAG = False
 
     mp.set_start_method("spawn", force=True)
 
-    # ------------------------------------------------------------------------------------ #
+    # ------------------------------------------------------------------------------------------------------------------
     # COMMON PIPELINE
+
+    SUBSET_OF_SHOTS = 10  # <- This can be None for the entire dataset, or a small integer.
 
     # Create sets of shot IDs for training, validation and testing
     train_shots, test_shots, val_shots = read_data_split_csv()
 
+    if SUBSET_OF_SHOTS:
+        train_shots = train_shots[0:SUBSET_OF_SHOTS]
+        val_shots = val_shots[0:SUBSET_OF_SHOTS]
+        test_shots = test_shots[0:SUBSET_OF_SHOTS]
+
     # Create MAST datasets
     ref_freq = 0.005
     source_signal_list = [
-        ('magnetics', 'flux_loop_flux' ),
-        ('magnetics', 'b_field_pol_probe_ccbv_field' ),
-        ('magnetics', 'b_field_pol_probe_obr_field' ),
-        ('magnetics', 'b_field_pol_probe_obv_field' ),
+        ('magnetics', 'flux_loop_flux'),
+        ('magnetics', 'b_field_pol_probe_ccbv_field'),
+        ('magnetics', 'b_field_pol_probe_obr_field'),
+        ('magnetics', 'b_field_pol_probe_obv_field'),
         ('pf_active', 'solenoid_current'),
         ('pf_active', 'coil_voltage'),
         ('pf_active', 'coil_current'),
@@ -75,11 +95,12 @@ if __name__== "__main__":
         ('equilibrium', 'magnetic_axis_z')
     ]
 
-    # ------------------------------------------------------------------------------------ #
+    # ------------------------------------------------------------------------------------------------------------------
     # Fitting of mean and std for signal transform
+
     print('\n\n----------TRANSFORM FITTING----------\n')
     preprocessing_train_dataset = MastDataset(
-        local=True,
+        local=LOCAL_FLAG,
         shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
         source_signal_list=source_signal_list,
         signal_level_transform_map=None,
@@ -95,13 +116,13 @@ if __name__== "__main__":
         # SamplewiseNormalizeTransform(),
         StdScalingTransform(dict_mean[var], dict_std[var]),
         FillWithZerosImputerTransform(),
-        SamplingtoReferenceTimeTransform(ref_freq),
+        SamplingToReferenceTimeTransform(ref_freq),
         # SamplewiseNormalizeTransform()
     ])
-        for var in [ f'{source}-{signal}' for source, signal in source_signal_list]
+        for var in [f'{source}-{signal}' for source, signal in source_signal_list]
     }
     
-    # ------------------------------------------------------------------------------------ #
+    # ------------------------------------------------------------------------------------------------------------------
     # CNN PIPELINE
 
     parameters_windows_segmenter = {
@@ -137,16 +158,16 @@ if __name__== "__main__":
 
     shot_transform = ComposeTransforms([  # shape-consistent transform
         TruncationTransform(),
-        WindowSegmenterTransform(**parameters_windows_segmenter),  # shape modifying transform
-        CNNTransform() # shape modifying transform
+        WindowSegmenterTransform(**parameters_windows_segmenter),  # shape-modifying transform
+        CNNTransform()  # shape-modifying transform
         ])
     
-    # --------------------------------------------------------------------------------------------------- #
+    # ------------------------------------------------------------------------------------------------------------------
     # Prepare dataset and dataloader
     print('\n\n----------DATASET & DATALOADER INITIALIZATION----------\n')
 
     train_dataset = MastDataset(
-        local=True,
+        local=LOCAL_FLAG,
         shots_list=train_shots,
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
@@ -155,7 +176,7 @@ if __name__== "__main__":
     print("len(mast_train_dataset)", len(train_dataset))
 
     val_dataset = MastDataset(
-        local=True,
+        local=LOCAL_FLAG,
         shots_list=val_shots,
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
@@ -164,7 +185,7 @@ if __name__== "__main__":
     print("len(val_dataset)", len(val_dataset))
 
     # test_dataset = MastDataset(
-    #     local=True,
+    #     local=LOCAL_FLAG,
     #     shots_list=test_shots[0:15],
     #     source_signal_list=source_signal_list,
     #     signal_level_transform_map=signal_transform_map,
@@ -172,27 +193,26 @@ if __name__== "__main__":
     # )
     # print("len(test_dataset)", len(test_dataset))
 
-
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=500, #500
+        batch_size=500,  # 500
         # batch_size=len(train_dataset),
-        num_workers=64, #64
+        num_workers=64,  # 64
         # num_workers=5,
         shuffle=True,
-        #    drop_last=True,
-        collate_fn = flatten_then_collate
+        # drop_last=True,
+        collate_fn=flatten_then_collate
     )
 
     val_dataloader = DataLoader(
         val_dataset,
-        batch_size=500, #500
+        batch_size=500,  # 500
         # batch_size=len(val_dataset),
         # num_workers=cpu_count(),
-        num_workers=64, #64
+        num_workers=64,  # 64
         shuffle=True,
-        #    drop_last=True,
-        collate_fn = flatten_then_collate
+        # drop_last=True,
+        collate_fn=flatten_then_collate
     )
 
     # test_dataloader = DataLoader(
@@ -206,16 +226,16 @@ if __name__== "__main__":
     #     collate_fn = flatten_then_collate
     # )
     
-    # --------------------------------------------------------------------------------------------------- #
+    # ------------------------------------------------------------------------------------------------------------------
     # Create CNN architecture
     print('\n\n----------MODEL INITIALIZATION----------\n')
-    input_shapes = [arr.shape for arr in train_dataloader.dataset[0][0][0] ]
+    input_shapes = [arr.shape for arr in train_dataloader.dataset[0][0][0]]
     print('input_shapes', input_shapes)
-    output_shape = [arr.shape for arr in train_dataloader.dataset[0][0][1] ]
+    output_shape = [arr.shape for arr in train_dataloader.dataset[0][0][1]]
     print('output_shape', output_shape)
     model = MultiBranchCNNModel(input_shapes, output_shape).to(device)
     
-    # --------------------------------------------------------------------------------------------------- #
+    # ------------------------------------------------------------------------------------------------------------------
     # Train CNN model
     print('\n\n----------TRAINING----------\n')
     num_epochs = 500
@@ -227,6 +247,7 @@ if __name__== "__main__":
     epochs_no_improve = 0
     early_stop = False
 
+    best_model_state = None
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
@@ -292,13 +313,11 @@ if __name__== "__main__":
                 print("Early stopping triggered.")
                 early_stop = True
                 break
-        
-        
 
     # Optionally restore best model weights
     if early_stop:
-        model.load_state_dict(best_model_state)
-
+        if best_model_state is not None:
+            model.load_state_dict(best_model_state)
 
     # model.eval()  # Set the model to evaluation mode
     # test_loss = 0.0

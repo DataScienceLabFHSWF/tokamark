@@ -61,6 +61,7 @@ from typing import List, Dict, Any
 import numpy as np
 
 
+# ======================================================================================================================
 class WindowSegmenterTransform:
 
     """
@@ -109,6 +110,7 @@ class WindowSegmenterTransform:
     - This transform is commonly used as the first step in supervised pipelines for forecasting or sequence modeling.
     """
 
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(
         self,
         x_keys,
@@ -134,6 +136,7 @@ class WindowSegmenterTransform:
         self.verbose = verbose
         self.stride_unitary = stride_unitary
 
+    # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, shot: Dict[str, Any]) -> List[Dict[str, Any]]:
         for var, entry in shot.items():
             if not (isinstance(entry, dict) and "values" in entry and "time" in entry):
@@ -281,7 +284,7 @@ class WindowSegmenterTransform:
 
         return results
 
-
+    # ------------------------------------------------------------------------------------------------------------------
     def _collect_per_signal_windows(self, shot, keys, t_start, t_end):
         signal_slices = {}
         for key in keys:
@@ -307,3 +310,5 @@ class WindowSegmenterTransform:
             }
 
         return signal_slices
+
+    # ------------------------------------------------------------------------------------------------------------------
