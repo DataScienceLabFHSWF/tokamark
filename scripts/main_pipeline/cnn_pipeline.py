@@ -137,7 +137,6 @@ if __name__ == "__main__":
 
     parameters_windows_segmenter = {
         'x_keys': [
-            'equilibrium-elongation',
             'magnetics-flux_loop_flux',
             'magnetics-b_field_pol_probe_ccbv_field',
             'magnetics-b_field_pol_probe_obr_field',
