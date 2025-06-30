@@ -1,6 +1,7 @@
 import os
 import sys
 
+import pickle
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
@@ -57,14 +58,19 @@ else:
 # ======================================================================================================================
 if __name__ == "__main__":
 
-    LOCAL_FLAG = False
+    LOCAL_FLAG = True
 
     mp.set_start_method("spawn", force=True)
 
     # ------------------------------------------------------------------------------------------------------------------
     # COMMON PIPELINE
 
-    SUBSET_OF_SHOTS = 10  # <- This can be None for the entire dataset, or a small integer.
+    SUBSET_OF_SHOTS = 25  # <- This can be None for the entire dataset, or a small integer.
+    OUTPUT_FOLDER = 'cnn_output/'  
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True) 
+    BATCH_SIZE = 5 #500
+    NUM_WORKERS = 0 #64
+    MAX_EPOCHS = 500
 
     # Create sets of shot IDs for training, validation and testing
     train_shots, test_shots, val_shots = read_data_split_csv()
@@ -109,6 +115,11 @@ if __name__ == "__main__":
     print("len(preprocessing_train_dataset)", len(preprocessing_train_dataset))
     dict_mean = get_mean_shot(preprocessing_train_dataset)
     dict_std = get_std_shot(preprocessing_train_dataset)
+    # Save dict_mean and dict_std used!
+    with open(OUTPUT_FOLDER + 'dict_mean_shot.pkl', 'wb') as f:
+        pickle.dump(dict_mean, f)
+    with open(OUTPUT_FOLDER + 'dict_mean_std.pkl', 'wb') as f:
+        pickle.dump(dict_mean, f)
 
     # Map Signal transform
     signal_transform_map = {var: ComposeTransforms([
@@ -117,7 +128,6 @@ if __name__ == "__main__":
         StdScalingTransform(dict_mean[var], dict_std[var]),
         FillWithZerosImputerTransform(),
         SamplingToReferenceTimeTransform(ref_freq),
-        # SamplewiseNormalizeTransform()
     ])
         for var in [f'{source}-{signal}' for source, signal in source_signal_list]
     }
@@ -186,7 +196,7 @@ if __name__ == "__main__":
 
     # test_dataset = MastDataset(
     #     local=LOCAL_FLAG,
-    #     shots_list=test_shots[0:15],
+    #     shots_list=test_shots,
     #     source_signal_list=source_signal_list,
     #     signal_level_transform_map=signal_transform_map,
     #     shot_level_transform=shot_transform
@@ -195,10 +205,9 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=500,  # 500
+        batch_size=BATCH_SIZE,  
         # batch_size=len(train_dataset),
-        num_workers=64,  # 64
-        # num_workers=5,
+        num_workers=NUM_WORKERS,
         shuffle=True,
         # drop_last=True,
         collate_fn=flatten_then_collate
@@ -206,10 +215,9 @@ if __name__ == "__main__":
 
     val_dataloader = DataLoader(
         val_dataset,
-        batch_size=500,  # 500
+        batch_size=BATCH_SIZE,
         # batch_size=len(val_dataset),
-        # num_workers=cpu_count(),
-        num_workers=64,  # 64
+        num_workers=NUM_WORKERS, 
         shuffle=True,
         # drop_last=True,
         collate_fn=flatten_then_collate
@@ -217,10 +225,9 @@ if __name__ == "__main__":
 
     # test_dataloader = DataLoader(
     #     test_dataset,
-    #     batch_size=5, #500
+    #     batch_size=BATCH_SIZE,
     #     # batch_size=len(test_dataset),
-    #     # num_workers=cpu_count(),
-    #     num_workers=0, #64
+    #     num_workers=NUM_WORKERS, 
     #     shuffle=True,
     #     #    drop_last=True,
     #     collate_fn = flatten_then_collate
@@ -238,7 +245,6 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # Train CNN model
     print('\n\n----------TRAINING----------\n')
-    num_epochs = 500
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
@@ -248,12 +254,12 @@ if __name__ == "__main__":
     early_stop = False
 
     best_model_state = None
-    for epoch in range(num_epochs):
+    for epoch in range(MAX_EPOCHS):
         model.train()
         running_loss = 0.0
         num_batches = 0
 
-        print(f'\nEpoch {epoch}\n')
+        print(f'\nEpoch {epoch+1}\n')
 
         for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
 
@@ -278,7 +284,7 @@ if __name__ == "__main__":
             print(f'Actual num_batches is {num_batches}')
 
         avg_loss = running_loss / num_batches
-        # print(f"Epoch [{epoch+1}/{num_epochs}], Average Loss: {avg_loss:.4f}")
+        # print(f"Epoch [{epoch+1}/{MAX_EPOCHS}], Average Loss: {avg_loss:.4f}")
 
         # Validation phase & Early stopping check
 
@@ -298,14 +304,14 @@ if __name__ == "__main__":
                 val_batches += len(y_val)
 
         avg_val_loss = val_running_loss / val_batches
-        print(f"Epoch [{epoch+1}/{num_epochs}], Average Loss: {avg_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
+        print(f"Epoch [{epoch+1}/{MAX_EPOCHS}], Average Loss: {avg_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
 
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             best_model_state = model.state_dict()  # Save best model state
-            os.makedirs("cnn_model_debug/", exist_ok=True)
-            torch.save(best_model_state, "cnn_model_debug/best_model.pt")
+            # os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+            torch.save(best_model_state, OUTPUT_FOLDER + "best_model.pt")
         else:
             epochs_no_improve += 1
             print(f"No improvement for {epochs_no_improve} epochs.")
