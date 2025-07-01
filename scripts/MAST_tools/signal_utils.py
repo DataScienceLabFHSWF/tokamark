@@ -290,6 +290,12 @@ class MASTSignalManager:
 # ----------------------------------------------------------------------------------------------------------------------
 def test():
 
+    TESTS_TO_RUN = {  # noqa
+        "signal_values_from_store": True,
+        "signal_values_from_shot_info": True,
+        "signal_times_from_shot_info": True
+    }
+
     signal_manager = MASTSignalManager()
     # print(type(signal_manager.store_manager))
 
@@ -301,25 +307,43 @@ def test():
 
     # ..................................................................................................................
     # Get signal values from store
-    store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=shot_info)
-    signal_values = signal_manager.get_signal_values(
-        signal_name=signal_name,
-        data_origin=store_from_shot_info,
-        source_name=source_name
-    )
+    if TESTS_TO_RUN["signal_values_from_store"]:
 
-    print(f"Signal values: {signal_values}\n")
+        store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=shot_info)
+        signal_values = signal_manager.get_signal_values(
+            signal_name=signal_name,
+            data_origin=store_from_shot_info,
+            source_name=source_name
+        )
+
+        print(f"Signal values: {signal_values}\n")
 
     # ..................................................................................................................
-    # Get signal values from shot ID
+    # Get signal values from shot info
 
-    signal_values = signal_manager.get_signal_values(
-        signal_name=signal_name,
-        data_origin=shot_info,
-        source_name=source_name
-    )
+    if TESTS_TO_RUN["signal_values_from_shot_info"]:
 
-    print(f"Signal values: {signal_values}\n")
+        signal_values = signal_manager.get_signal_values(
+            signal_name=signal_name,
+            data_origin=shot_info,
+            source_name=source_name
+        )
+
+        print(f"Signal values: {signal_values}\n")
+
+    # ..................................................................................................................
+    # Get signal times from shot info
+
+    if TESTS_TO_RUN["signal_times_from_shot_info"]:
+
+        signal_times, signal_type = signal_manager.get_signal_times_and_time_type(
+            signal_name=signal_name,
+            data_origin=shot_info,
+            source_name=source_name
+        )
+
+        print(f"Signal type: '{signal_type}'\n")
+        print(f"Signal times: {signal_times}\n")
 
 
 # ======================================================================================================================

@@ -807,7 +807,7 @@ class MASTStorageManager:
 
 # ----------------------------------------------------------------------------------------------------------------------
 def main():
-    tests_to_run = {
+    TESTS_TO_RUN = {  # noqa
         "get_all_shot_ids": True,
         "get_all_sources": True,
         "get_all_signals": True,
@@ -822,7 +822,8 @@ def main():
     # ..................................................................................................................
     # List all shot IDs for the entire dataset, using different pipelines
 
-    if tests_to_run["get_all_shot_ids"]:
+    if TESTS_TO_RUN["get_all_shot_ids"]:
+
         t0_parquet = time.time()
         all_shots_ids_parquet = set(
             store_manager.list_all_shots(level=2, test_data=False, local=False, via_parquet=False)
@@ -854,7 +855,8 @@ def main():
     # ..................................................................................................................
     # List all sources
 
-    if tests_to_run["get_all_sources"]:
+    if TESTS_TO_RUN["get_all_sources"]:
+
         all_sources = store_manager.get_all_sources(
             shot_ids=[30471],  # Use None for entire dataset.
             level=2,
@@ -867,7 +869,8 @@ def main():
     # ..................................................................................................................
     # List all signals
 
-    if tests_to_run["get_all_signals"]:
+    if TESTS_TO_RUN["get_all_signals"]:
+
         all_signals = store_manager.get_all_signals(
             shot_ids=[30471],  # Use None for entire dataset.
             level=2,
@@ -883,7 +886,8 @@ def main():
     # Make group for a given shot
 
     # Via existing store object
-    if tests_to_run["make_group_from_store"]:
+    if TESTS_TO_RUN["make_group_from_store"]:
+
         store_ = store_manager.make_shot_store(
             shot_info={"shot_id": 30471, "level": 2, "test_data": False, "local": False, "via_parquet": False}
         )
@@ -891,7 +895,8 @@ def main():
         print(f"group_from_store.tree() (group from store): {group_from_store.tree()}\n")
 
     # Directly from shot_info
-    if tests_to_run["make_group_from_shot_info"]:
+    if TESTS_TO_RUN["make_group_from_shot_info"]:
+
         group_from_shot_id = store_manager.make_shot_group(
             data_origin={"shot_id": 30471, "level": 2, "test_data": False, "local": False, "via_parquet": False}
         )
@@ -900,7 +905,7 @@ def main():
     # ..................................................................................................................
     # List all shots IDs for given signal availability
 
-    if tests_to_run["check_signal_availability"]:
+    if TESTS_TO_RUN["check_signal_availability"]:
 
         signal_availability_file = "../../metadata/2025-04-17/data_level2_signal_availability.csv"
         dict_target_signals = {

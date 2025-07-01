@@ -5,6 +5,7 @@ scripts/pipelines/data/
 
 # Local supporting folder
 zz/
+*output/
 
 "python.analysis.useLibraryCodeForTypes": true,
 "python.analysis.autoSearchPaths": true,
