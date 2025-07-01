@@ -69,26 +69,6 @@ def get_train_test_val_shots(max_index=None):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def create_datasets():
-    pass
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def map_signal_transform(sources_and_signals, dict_mean_, dict_std_):
-    signal_tran_map = {var: ComposeTransforms([
-        ForwardFillImputerTransform(),
-        # SamplewiseNormalizeTransform(),
-        StdScalingTransform(dict_mean_[var], dict_std_[var]),
-        FillWithZerosImputerTransform(),
-        SamplingToReferenceTimeTransform(ref_freq),
-    ])
-        for var in [f'{source}-{signal}' for source, signal in sources_and_signals]
-    }
-
-    return signal_tran_map
-
-
-# ----------------------------------------------------------------------------------------------------------------------
 def fit_mean_and_std_for_signal_transform(output_sub_dir, verbose=False):
 
     if verbose:
@@ -112,7 +92,8 @@ def fit_mean_and_std_for_signal_transform(output_sub_dir, verbose=False):
 
     output_dir = os.path.join("output", output_sub_dir)
     os.makedirs(output_dir, exist_ok=True)
-    print(f"Output folder: {output_dir}")
+    if verbose:
+        print(f"Output folder to save fitted mean and std dicts: {output_dir}")
 
     with open(output_dir + 'dict_mean_shot.pkl', 'wb') as f:
         pickle.dump(dict_mean_, f)
@@ -132,6 +113,7 @@ def initialize_datasets(
         verbose=False
 
 ):
+
     datasets_ = {"train": None, "val": None, "test": None}
 
     # ..................................................................................................................
@@ -273,7 +255,7 @@ def loop_for_cnn_training(
         best_val_loss,
         loss_criterion,
         patience,
-        output_sub_dir=None,
+        output_sub_dir,
         verbose=False
 
 ):
@@ -281,9 +263,10 @@ def loop_for_cnn_training(
     if verbose:
         print('\n\n----------CNN TRAINING----------\n')
 
-    output_dir = None
-    if output_sub_dir:
-        output_dir = os.path.join("output", output_sub_dir)
+    output_dir = os.path.join("output", output_sub_dir)
+    os.makedirs(output_dir, exist_ok=True)
+    if verbose:
+        print(f"Output folder to save trained model: {output_dir}")
 
     optimizer = torch.optim.Adam(base_cnn_model.parameters(), lr=lr)
 
@@ -354,8 +337,8 @@ def loop_for_cnn_training(
             best_model_state_ = base_cnn_model.state_dict()
 
             # Save best model state
-            if output_dir:
-                torch.save(best_model_state_, output_dir + "best_model.pt")
+            torch.save(best_model_state_, output_dir + "best_model.pt")
+
         else:
             epochs_no_improve += 1
             if verbose:
@@ -388,7 +371,8 @@ if __name__ == "__main__":
     NUM_WORKERS = 0  # 64
     MAX_EPOCHS = 500
 
-    ref_freq = 0.005
+    REF_FREQ = 0.005
+
     source_signal_list = [
         ('magnetics', 'flux_loop_flux'),
         ('magnetics', 'b_field_pol_probe_ccbv_field'),
@@ -468,12 +452,16 @@ if __name__ == "__main__":
         verbose=True
     )
 
-    # Get map signal transform
-    signal_transform_map = map_signal_transform(
-        sources_and_signals=source_signal_list,
-        dict_mean_=dict_mean,
-        dict_std_=dict_std
-    )
+    # Get the user-defined composite signal transform map
+    signal_transform_map = {var: ComposeTransforms([
+        ForwardFillImputerTransform(),
+        # SamplewiseNormalizeTransform(),
+        StdScalingTransform(dict_mean[var], dict_std[var]),
+        FillWithZerosImputerTransform(),
+        SamplingToReferenceTimeTransform(REF_FREQ),
+    ])
+        for var in [f'{source}-{signal}' for source, signal in source_signal_list]
+    }
 
     # ..................................................................................................................
     # For CNN pipeline
@@ -525,7 +513,7 @@ if __name__ == "__main__":
         best_val_loss=BEST_VALUE_LOSS,
         loss_criterion=LOSS_CRITERION,
         patience=PATIENCE,
-        output_sub_dir=OUTPUT_SUB_FOLDER,  # <- If 'output_sub_dir' is not provided, best model is not saved.
+        output_sub_dir=OUTPUT_SUB_FOLDER,
         verbose=True
     )
 
