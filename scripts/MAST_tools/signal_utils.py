@@ -211,7 +211,7 @@ class MASTSignalManager:
             verbose: bool = False
     ):
         """
-        Get signal values from a given data origin.
+        Get signal profile from a given data origin.
 
         Parameters
         ----------
