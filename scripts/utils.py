@@ -6,12 +6,14 @@ import sys
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
-sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
+sys.path.append(os.path.abspath(os.path.join(mother_dir, "MAST_tools")))
 sys.path.append(mother_dir)
 
-from signal_utils import MASTSignalManager  
+from signal_utils import MASTSignalManager
 from store_utils import MASTStorageManager
 
+
+# ----------------------------------------------------------------------------------------------------------------------
 def is_finite_numeric_array(arr):
     # Check if array is numeric
     if not np.issubdtype(arr.dtype, np.number):
@@ -20,14 +22,13 @@ def is_finite_numeric_array(arr):
     return np.isfinite(arr).all()
 
 
-def read_signals(filepath: str)->dict[str:int]:
+# ----------------------------------------------------------------------------------------------------------------------
+def read_signals(filepath: str) -> dict[str:int]:
     """
-    filepath: path to file containing all 
-    signal names and their multeplicity (nr. of channels)
+    filepath: path to file containing all signal names and their multiplicity (nr. of channels)
 
-    Output: Dictionary with signal names as keys and 
-    number of traces as values. Empty dictionary if
-    exception raised during reading.
+    Output: Dictionary with signal names as keys and number of traces as values. Empty dictionary if exception raised
+     during reading.
     """
 
     signals = dict()
@@ -44,30 +45,28 @@ def read_signals(filepath: str)->dict[str:int]:
     return signals
 
 
+# ----------------------------------------------------------------------------------------------------------------------
 def shuffle_shot_ids(shot_ids, seed=None):
     random.seed(seed)
     random.shuffle(shot_ids)
     return shot_ids
 
-def make_dataframe_from_shot_ids(store_manager : MASTSignalManager, 
-                    shot_ids: list[int], 
-                    group : str, 
-                    signal_name: str,
-                    local=True):
-    """Return a dataFrame from concateneted signals
 
-    Parameters
-    ----------
-    ...
-    local : bool, optional
-        get data from local storage
-    """
+# ----------------------------------------------------------------------------------------------------------------------
+def make_dataframe_from_shot_ids(
+        store_manager: MASTSignalManager,
+        shot_ids: list[int],
+        group: str,
+        signal_name: str,
+        local=True
+):
+    """Return a dataFrame from concatenated signals"""
 
     channels = None
     shot_list = []
     for shot_id in shot_ids:
         
-        store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
+        store = store_manager.make_shot_store(shot_info={"shot_id": shot_id, "local": local})
         sig = MASTSignalManager()
 
         sig_values = sig.get_signal_values(
@@ -76,7 +75,7 @@ def make_dataframe_from_shot_ids(store_manager : MASTSignalManager,
             signal_name=signal_name
         )
 
-        if channels == None:
+        if channels is None:
             channels = list(sig.get_channel_names(store, group, signal_name))
 
         df = pd.DataFrame(sig_values.T, columns=channels)

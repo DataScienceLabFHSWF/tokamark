@@ -10,6 +10,7 @@ optuna_results.png
 
 # Local supporting folder
 zz/
+*output/
 
 "python.analysis.useLibraryCodeForTypes": true,
 "python.analysis.autoSearchPaths": true,

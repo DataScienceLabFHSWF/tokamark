@@ -1,0 +1,67 @@
+import os
+import pandas as pd
+from torch.utils.data._utils.collate import default_collate  # noqa
+
+# Compute project root relative to this file
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
+                                         else os.getcwd(), "..", "..", ".."))
+# print(REPO_ROOT)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
+    """Read the csv file containing the lists of shot IDs for
+    training, validation and testing.
+    """
+    full_path = os.path.join(REPO_ROOT, csv_path)
+    print(full_path)
+
+    if not os.path.exists(full_path):
+        raise FileNotFoundError(f"CSV not found at: {full_path}")
+
+    df = pd.read_csv(full_path)
+
+    shot_ids_for_train = df[df['train'] == True]['shot_id'].tolist()  # noqa
+    shot_ids_for_test = df[df['test'] == True]['shot_id'].tolist()  # noqa
+    shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist()  # noqa
+
+    return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def flatten_then_collate(batch):
+
+    print(f"Collating batch of size {len(batch)}")
+    
+    # Flatten the batch of lists into a single list
+
+    flattened_batch = None
+    if isinstance(batch[0], list):
+        flattened_batch = [item for sublist in batch for item in sublist]
+        print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
+
+    # Use the default collate function
+    return default_collate(flattened_batch)
+
+
+# ======================================================================================================================
+class ComposeTransforms(object):
+    """Compose transforms and apply them in series checking for None return values
+
+    Parameters
+    ----------
+    transforms : list[callable[tuple]]
+        List containing the names of the transforms
+    """
+
+    # ----------------------------------------------------------------------------------------------------------------------
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    # ----------------------------------------------------------------------------------------------------------------------
+    def __call__(self, sample):
+        for transform in self.transforms:
+            if sample is None:
+                return None
+            sample = transform(sample)
+        return sample
