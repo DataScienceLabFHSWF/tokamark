@@ -25,6 +25,7 @@ class SamplingToReferenceTimeTransform:
         # Upsample or subsample by picking the closest value in time to the ref_time
         idx = np.searchsorted(time, ref_time)  # reformat to be on the same scale as ref_time
         idx = np. clip(idx, 1, len(time) - 1)
+        # print(values.shape)
         values_rescaled = values[:, idx]
         # print('\nAfter time rescaling', values_rescaled.shape[-1] )
 
