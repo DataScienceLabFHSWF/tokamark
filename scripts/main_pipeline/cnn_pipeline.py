@@ -1,5 +1,6 @@
 import os
 import sys
+import csv
 
 import pickle
 import torch
@@ -11,39 +12,45 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__'
                                          else os.getcwd(), "..", ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
-print(f"REPO_ROOT: {REPO_ROOT}")
+# print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.main_pipeline.utils.utils import read_data_split_csv, flatten_then_collate
 from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 from scripts.main_pipeline.utils.utils import ComposeTransforms
-from scripts.main_pipeline.transformers.signal_level_transformers.fill_with_zeros_imputer_transform import (
+from scripts.main_pipeline.transforms.signal_level_transformers.fill_with_zeros_imputer_transform import (
     FillWithZerosImputerTransform
 )
-from scripts.main_pipeline.transformers.signal_level_transformers.forward_fill_imputer_transform import (
+from scripts.main_pipeline.transforms.signal_level_transformers.forward_fill_imputer_transform import (
     ForwardFillImputerTransform
 )
-from scripts.main_pipeline.transformers.signal_level_transformers.sample_wise_normalize_transform import (
+from scripts.main_pipeline.transforms.signal_level_transformers.sample_wise_normalize_transform import (
     SamplewiseNormalizeTransform
 )
-from scripts.main_pipeline.transformers.signal_level_transformers.pretrained_stdscale_normalize_transform import(
+from scripts.main_pipeline.transforms.signal_level_transformers.pretrained_stdscale_normalize_transform import(
     StdScalingTransform
 )
-from scripts.main_pipeline.transformers.signal_level_transformers.sampling_reference_time_transform import (
+from scripts.main_pipeline.transforms.signal_level_transformers.sampling_reference_time_transform import (
     SamplingToReferenceTimeTransform
 )
-from scripts.main_pipeline.transformers.shot_level_transformers.truncation_transform import (
+from scripts.main_pipeline.transforms.shot_level_transformers.truncation_transform import (
     TruncationTransform
 )
-from scripts.main_pipeline.transformers.shot_level_transformers.window_segmenter_transform import (
+from scripts.main_pipeline.transforms.shot_level_transformers.window_segmenter_transform import (
     WindowSegmenterTransform
 )
-from scripts.main_pipeline.transformers.shot_level_transformers.cnn_transform import CNNTransform
+from scripts.main_pipeline.transforms.shot_level_transformers.drop_sample_with_nans import (
+    DropSampleWithNans
+)
+from scripts.main_pipeline.transforms.signal_level_transformers.fill_profile_with_zeros_imputer_transform import (
+    FillProfileWithZerosTransform
+)
+from scripts.main_pipeline.transforms.shot_level_transformers.cnn_transform import CNNTransform
 from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
 from multiprocessing import cpu_count
 
-print(f"\nNumber of Cores: {cpu_count()}\n")
+# print(f"\nNumber of Cores: {cpu_count()}\n")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
@@ -359,16 +366,16 @@ if __name__ == "__main__":
     # GENERAL SETTINGS
     # ------------------------------------------------------------------------------------------------------------------
 
-    LOCAL_FLAG = False
+    LOCAL_FLAG = True
     mp.set_start_method("spawn", force=True)
 
     # ..................................................................................................................
     # For common pipeline
 
-    SUBSET_OF_SHOTS = 25  # <- This can be None for the entire dataset, or a small integer.
+    SUBSET_OF_SHOTS = None  # <- This can be None for the entire dataset, or a small integer.
     OUTPUT_SUB_FOLDER = 'cnn_output/'  # <- Sub-folder within /output/
-    BATCH_SIZE = 5  # 500
-    NUM_WORKERS = 0  # 64
+    BATCH_SIZE = 500  # 500
+    NUM_WORKERS = 64  # 64
     MAX_EPOCHS = 500
 
     REF_FREQ = 0.005
@@ -432,7 +439,7 @@ if __name__ == "__main__":
     LEARNING_RATE = 1e-4
     BEST_VALUE_LOSS = float('inf')
     PATIENCE = 5  # <- Maximum number of admissible epochs without improvement
-    RUN_EVALUATION = False
+    RUN_EVALUATION = True
 
     # ------------------------------------------------------------------------------------------------------------------
     # PRELIMINARY TASKS
@@ -454,10 +461,11 @@ if __name__ == "__main__":
 
     # Get the user-defined composite signal transform map
     signal_transform_map = {var: ComposeTransforms([
-        ForwardFillImputerTransform(),
+        # ForwardFillImputerTransform(),
         # SamplewiseNormalizeTransform(),
+        FillProfileWithZerosTransform(),
         StdScalingTransform(dict_mean[var], dict_std[var]),
-        FillWithZerosImputerTransform(),
+        # FillWithZerosImputerTransform(),
         SamplingToReferenceTimeTransform(REF_FREQ),
     ])
         for var in [f'{source}-{signal}' for source, signal in source_signal_list]
@@ -469,6 +477,7 @@ if __name__ == "__main__":
     shot_transform = ComposeTransforms([  # shape-consistent transform
         TruncationTransform(),
         WindowSegmenterTransform(**PARAMETERS_WINDOWS_SEGMENTER),  # shape-modifying transform
+        DropSampleWithNans(),
         CNNTransform()  # shape-modifying transform
         ])
 
@@ -492,7 +501,7 @@ if __name__ == "__main__":
     )
     train_dataloader = dataloaders_train_val_test["train"]
     val_dataloader = dataloaders_train_val_test["val"]
-    test_dataloader = dataloaders_train_val_test["test"]
+    # test_dataloader = dataloaders_train_val_test["test"]
 
     # Create CNN architecture
     cnn_model = create_cnn_architecture(
@@ -520,6 +529,8 @@ if __name__ == "__main__":
     # ..................................................................................................................
     # Evaluation
 
+    output_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
+
     if RUN_EVALUATION:
 
         if best_model_state is not None:
@@ -530,23 +541,57 @@ if __name__ == "__main__":
             # Set the model to evaluation mode
             cnn_model.eval()
 
-            # Set evaluation parameters
-            test_loss = 0.0
-            test_batches = 0
-            criterion = torch.nn.MSELoss()  # or whatever you used during training
+            # Evaluation per shot
 
-            with torch.no_grad():  # Disable gradient calculation for efficiency
-                for x_test, y_test in test_dataloader:
-                    x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-                    y_test = y_test[0].to(torch.float32).to(device)
+            with open(output_dir + 'test_loss_per_var.csv', 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['shot_id', f"MSE for {PARAMETERS_WINDOWS_SEGMENTER['y_keys']}"])  # Header
 
-                    outputs = cnn_model(*x_test).squeeze()
-                    loss = criterion(outputs, y_test)
-                    test_loss += loss.item()
+                for shot_id in test_shots:
+                    print(f'Evaluating shot {shot_id}')
+                
+                    test_shot_dataset = MastDataset(
+                            local=LOCAL_FLAG,
+                            shots_list=[shot_id],
+                            source_signal_list=source_signal_list,
+                            signal_level_transform_map=signal_transform_map,
+                            shot_level_transform=shot_transform
+                        )
+                    
+                    test_shot_dataloader = DataLoader( dataset=test_shot_dataset,
+                            batch_size=1,
+                            num_workers=16,
+                            shuffle=True,
+                            drop_last=False,
+                            collate_fn=flatten_then_collate
+                        )
+                
+                    if len(test_shot_dataloader.dataset[0]) >0 : # i.e. if this is a valid shot with windows 
 
-                    test_batches += len(y_test)
+                        test_loss_per_var = torch.tensor( [0 for i in range(test_shot_dataloader.dataset[0][0][1][0].shape[0])] ).to(device)
+                    
+                        test_batches = 0
 
-            avg_test_loss = test_loss / test_batches
-            print(f"Test Loss: {avg_test_loss:.4f}")
+                        with torch.no_grad():  # Disable gradient calculation for efficiency
+                            for x_test, y_test in test_shot_dataloader:
+                                x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+                                y_test = y_test[0].to(torch.float32).to(device)
+
+                                outputs = cnn_model(*x_test).squeeze()
+
+                                loss_per_var = torch.nn.MSELoss(reduction='none')(outputs, y_test).mean(dim=0)
+                                test_loss_per_var = test_loss_per_var + loss_per_var
+
+                                test_batches += len(y_test)
+
+                        avg_test_loss = test_loss_per_var / test_batches
+                        print(f"Test Loss: {avg_test_loss}")
+
+                        writer.writerow([shot_id, avg_test_loss.cpu().tolist()])
+                        f.flush()
+                    
+                    else :
+                        print(f"Shot {shot_id} not run properly, likely empty slice")
+                        continue
 
     # ------------------------------------------------------------------------------------------------------------------

@@ -10,9 +10,17 @@ def get_mean_shot(dataset):
         for var, data_var in data.items():
             # print(var)
             if data_var['values'] is not None:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    dict_mean_list[var].append(np.nanmean(data_var['values'], axis=-1))
+                if len(dict_mean_list[var]) != 0 :
+                    with warnings.catch_warnings():
+                        if dict_mean_list[var][0].shape == np.nanmean(data_var['values'], axis=-1).shape :
+                            warnings.simplefilter("ignore", category=RuntimeWarning)
+                            dict_mean_list[var].append(np.nanmean(data_var['values'], axis=-1))
+                        else:
+                            print(f'Shape different for variable "{var}" of one shot! Skipping')
+                else : 
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        dict_mean_list[var].append(np.nanmean(data_var['values'], axis=-1))
     
     dict_mean = {}
     for var, list_ in dict_mean_list.items():
@@ -32,9 +40,19 @@ def get_std_shot(dataset):
         for var, data_var in data.items():
             # print(var)
             if data_var['values'] is not None:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    dict_std_list[var].append(np.nanstd(data_var['values'], axis=-1))
+                if len(dict_std_list[var]) != 0 :
+                    with warnings.catch_warnings():
+                        print(dict_std_list[var][0].shape)
+                        print(np.nanstd(data_var['values'], axis=-1).shape)
+                        if dict_std_list[var][0].shape == np.nanstd(data_var['values'], axis=-1).shape :
+                            warnings.simplefilter("ignore", category=RuntimeWarning)
+                            dict_std_list[var].append(np.nanstd(data_var['values'], axis=-1))
+                        else:
+                            print(f'Shape different for variable "{var}" of one shot! Skipping')
+                else : 
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        dict_std_list[var].append(np.nanstd(data_var['values'], axis=-1))
     
     dict_std = {}
     for var, list_ in dict_std_list.items():
