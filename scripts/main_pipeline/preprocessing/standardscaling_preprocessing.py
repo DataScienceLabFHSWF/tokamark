@@ -13,12 +13,12 @@ def get_mean_shot(dataset):
             for var, data_var in data.items():
                 # print(var)
                 if data_var['values'] is not None:
-                    if len(dict_mean_list[var]) != 0 :
-                        if dict_mean_list[var][0].shape == np.nanmean(data_var['values'], axis=-1).shape :
+                    if len(dict_mean_list[var]) != 0:
+                        if dict_mean_list[var][0].shape == np.nanmean(data_var['values'], axis=-1).shape:
                             dict_mean_list[var].append(np.nanmean(data_var['values'], axis=-1))
                         else:
-                                print(f'Shape different for variable "{var}" of one shot! Skipping')
-                    else : 
+                            print(f'Shape different for variable "{var}" of one shot! Skipping')
+                    else:
                         
                         dict_mean_list[var].append(np.nanmean(data_var['values'], axis=-1))
         
@@ -41,14 +41,14 @@ def get_std_shot(dataset):
             for var, data_var in data.items():
                 # print(var)
                 if data_var['values'] is not None:
-                    if len(dict_std_list[var]) != 0 :
+                    if len(dict_std_list[var]) != 0:
                         # print(dict_std_list[var][0].shape)
                         # print(np.nanstd(data_var['values'], axis=-1).shape)
-                        if dict_std_list[var][0].shape == np.nanstd(data_var['values'], axis=-1).shape :
+                        if dict_std_list[var][0].shape == np.nanstd(data_var['values'], axis=-1).shape:
                             dict_std_list[var].append(np.nanstd(data_var['values'], axis=-1))
                         else:
                             print(f'Shape different for variable "{var}" of one shot! Skipping')
-                    else : 
+                    else:
                         dict_std_list[var].append(np.nanstd(data_var['values'], axis=-1))
         
         dict_std = {}
