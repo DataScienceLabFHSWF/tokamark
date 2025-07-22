@@ -1,32 +1,26 @@
 import os
 import sys
+import csv
 
 import pickle
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
+from multiprocessing import cpu_count
 
 # Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
                                          else os.getcwd(), "..", ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
-print(f"REPO_ROOT: {REPO_ROOT}")
+# print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.main_pipeline.utils.utils import read_data_split_csv, flatten_then_collate
 from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 from scripts.main_pipeline.utils.utils import ComposeTransforms
-from scripts.main_pipeline.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
-    FillWithZerosImputerTransform
-)
-from scripts.main_pipeline.transforms.signal_level_transforms.forward_fill_imputer_transform import (
-    ForwardFillImputerTransform
-)
-from scripts.main_pipeline.transforms.signal_level_transforms.sample_wise_normalize_transform import (
-    SamplewiseNormalizeTransform
-)
+
 from scripts.main_pipeline.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import(
     StdScalingTransform
 )
@@ -39,11 +33,16 @@ from scripts.main_pipeline.transforms.shot_level_transforms.truncation_transform
 from scripts.main_pipeline.transforms.shot_level_transforms.window_segmenter_transform import (
     WindowSegmenterTransform
 )
+from scripts.main_pipeline.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
+    FillProfileWithZerosTransform
+)
+from scripts.main_pipeline.transforms.shot_level_transforms.drop_sample_with_nans import (
+    DropSampleWithNans
+)
 from scripts.main_pipeline.transforms.shot_level_transforms.cnn_transform import CNNTransform
-from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
-from multiprocessing import cpu_count
 
-print(f"\nNumber of Cores: {cpu_count()}\n")
+from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
@@ -86,19 +85,23 @@ def fit_mean_and_std_for_signal_transform(output_sub_dir, verbose=False):
         print(f"len(preprocessing_train_dataset): {len(preprocessing_train_dataset)}")
 
     dict_mean_ = get_mean_shot(preprocessing_train_dataset)
+    if verbose: 
+        print(f"dict_mean_ is {dict_mean_}")
     dict_std_ = get_std_shot(preprocessing_train_dataset)
+    if verbose: 
+        print(f"dict_std_ is {dict_std_}")
 
     # Save dict_mean and dict_std used!
 
-    output_dir = os.path.join("output", output_sub_dir)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir_ = os.path.join("output", output_sub_dir)
+    os.makedirs(output_dir_, exist_ok=True)
     if verbose:
-        print(f"Output folder to save fitted mean and std dicts: {output_dir}")
+        print(f"Output folder to save fitted mean and std dicts: {output_dir_}")
 
-    with open(output_dir + 'dict_mean_shot.pkl', 'wb') as f:
-        pickle.dump(dict_mean_, f)
-    with open(output_dir + 'dict_std_shot.pkl', 'wb') as f:
-        pickle.dump(dict_std_, f)
+    with open(output_dir_ + 'dict_mean_shot.pkl', 'wb') as f_:
+        pickle.dump(dict_mean_, f_)
+    with open(output_dir_ + 'dict_std_shot.pkl', 'wb') as f_:
+        pickle.dump(dict_std_, f_)
 
     return dict_mean_, dict_std_
 
@@ -263,10 +266,10 @@ def loop_for_cnn_training(
     if verbose:
         print('\n\n----------CNN TRAINING----------\n')
 
-    output_dir = os.path.join("output", output_sub_dir)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir_ = os.path.join("output", output_sub_dir)
+    os.makedirs(output_dir_, exist_ok=True)
     if verbose:
-        print(f"Output folder to save trained model: {output_dir}")
+        print(f"Output folder to save trained model: {output_dir_}")
 
     optimizer = torch.optim.Adam(base_cnn_model.parameters(), lr=lr)
 
@@ -337,7 +340,7 @@ def loop_for_cnn_training(
             best_model_state_ = base_cnn_model.state_dict()
 
             # Save best model state
-            torch.save(best_model_state_, output_dir + "best_model.pt")
+            torch.save(best_model_state_, output_dir_ + "best_model.pt")
 
         else:
             epochs_no_improve += 1
@@ -355,6 +358,8 @@ def loop_for_cnn_training(
 # ======================================================================================================================
 if __name__ == "__main__":
 
+    print(f"\nNumber of available cores: {cpu_count()}\n")
+
     # ------------------------------------------------------------------------------------------------------------------
     # GENERAL SETTINGS
     # ------------------------------------------------------------------------------------------------------------------
@@ -365,11 +370,11 @@ if __name__ == "__main__":
     # ..................................................................................................................
     # For common pipeline
 
-    SUBSET_OF_SHOTS = 25  # <- This can be None for the entire dataset, or a small integer.
+    SUBSET_OF_SHOTS = 4  # <- This can be None for the entire dataset, or a small integer.
     OUTPUT_SUB_FOLDER = 'cnn_output/'  # <- Sub-folder within /output/
-    BATCH_SIZE = 5  # 500
-    NUM_WORKERS = 0  # 64
-    MAX_EPOCHS = 500
+    BATCH_SIZE = 2  # 500
+    NUM_WORKERS = 2  # 64
+    MAX_EPOCHS = 3  # 500
 
     REF_FREQ = 0.005
 
@@ -432,7 +437,7 @@ if __name__ == "__main__":
     LEARNING_RATE = 1e-4
     BEST_VALUE_LOSS = float('inf')
     PATIENCE = 5  # <- Maximum number of admissible epochs without improvement
-    RUN_EVALUATION = False
+    RUN_EVALUATION = True
 
     # ------------------------------------------------------------------------------------------------------------------
     # PRELIMINARY TASKS
@@ -454,10 +459,11 @@ if __name__ == "__main__":
 
     # Get the user-defined composite signal transform map
     signal_transform_map = {var: ComposeTransforms([
-        ForwardFillImputerTransform(),
+        # ForwardFillImputerTransform(),
         # SamplewiseNormalizeTransform(),
+        FillProfileWithZerosTransform(),
         StdScalingTransform(dict_mean[var], dict_std[var]),
-        FillWithZerosImputerTransform(),
+        # FillWithZerosImputerTransform(),
         SamplingToReferenceTimeTransform(REF_FREQ),
     ])
         for var in [f'{source}-{signal}' for source, signal in source_signal_list]
@@ -469,6 +475,7 @@ if __name__ == "__main__":
     shot_transform = ComposeTransforms([  # shape-consistent transform
         TruncationTransform(),
         WindowSegmenterTransform(**PARAMETERS_WINDOWS_SEGMENTER),  # shape-modifying transform
+        DropSampleWithNans(),
         CNNTransform()  # shape-modifying transform
         ])
 
@@ -492,7 +499,7 @@ if __name__ == "__main__":
     )
     train_dataloader = dataloaders_train_val_test["train"]
     val_dataloader = dataloaders_train_val_test["val"]
-    test_dataloader = dataloaders_train_val_test["test"]
+    # test_dataloader = dataloaders_train_val_test["test"]
 
     # Create CNN architecture
     cnn_model = create_cnn_architecture(
@@ -520,6 +527,8 @@ if __name__ == "__main__":
     # ..................................................................................................................
     # Evaluation
 
+    output_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
+
     if RUN_EVALUATION:
 
         if best_model_state is not None:
@@ -530,23 +539,60 @@ if __name__ == "__main__":
             # Set the model to evaluation mode
             cnn_model.eval()
 
-            # Set evaluation parameters
-            test_loss = 0.0
-            test_batches = 0
-            criterion = torch.nn.MSELoss()  # or whatever you used during training
+            # Evaluation per shot
 
-            with torch.no_grad():  # Disable gradient calculation for efficiency
-                for x_test, y_test in test_dataloader:
-                    x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-                    y_test = y_test[0].to(torch.float32).to(device)
+            with open(output_dir + 'test_loss_per_var.csv', 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['shot_id', f"MSE for {PARAMETERS_WINDOWS_SEGMENTER['y_keys']}"])  # Header
 
-                    outputs = cnn_model(*x_test).squeeze()
-                    loss = criterion(outputs, y_test)
-                    test_loss += loss.item()
+                for shot_id in test_shots:
+                    print(f'Evaluating shot {shot_id}')
+                
+                    test_shot_dataset = MastDataset(
+                        local=LOCAL_FLAG,
+                        shots_list=[shot_id],
+                        source_signal_list=source_signal_list,
+                        signal_level_transform_map=signal_transform_map,
+                        shot_level_transform=shot_transform
+                    )
+                    
+                    test_shot_dataloader = DataLoader(
+                        dataset=test_shot_dataset,
+                        batch_size=1,
+                        num_workers=16,
+                        shuffle=True,
+                        drop_last=False,
+                        collate_fn=flatten_then_collate
+                    )
+                
+                    if len(test_shot_dataloader.dataset[0]) > 0:  # I.e. if this is a valid shot with windows
 
-                    test_batches += len(y_test)
+                        test_loss_per_var = torch.tensor(
+                            [0 for i in range(test_shot_dataloader.dataset[0][0][1][0].shape[0])]
+                        ).to(device)
+                    
+                        test_batches = 0
 
-            avg_test_loss = test_loss / test_batches
-            print(f"Test Loss: {avg_test_loss:.4f}")
+                        with torch.no_grad():  # Disable gradient calculation for efficiency
+                            for x_test, y_test in test_shot_dataloader:
+                                x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+                                y_test = y_test[0].to(torch.float32).to(device)
+
+                                outputs = cnn_model(*x_test).squeeze()
+
+                                loss_per_var = torch.nn.MSELoss(reduction='none')(outputs, y_test).mean(dim=0)
+                                test_loss_per_var = test_loss_per_var + loss_per_var
+
+                                test_batches += len(y_test)
+
+                        avg_test_loss = test_loss_per_var / test_batches
+                        print(f"Test Loss: {avg_test_loss}")
+
+                        writer.writerow([shot_id, avg_test_loss.cpu().tolist()])
+                        f.flush()
+                    
+                    else:
+                        print(f"Shot {shot_id} not run properly, likely empty slice")
+                        continue
 
     # ------------------------------------------------------------------------------------------------------------------
