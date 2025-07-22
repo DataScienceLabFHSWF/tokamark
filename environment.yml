@@ -21,3 +21,7 @@ dependencies:
     - torchvision
     - numpy
     - scikit-learn
+    - tensordict
+    - tensorboard
+    - optuna
+    - seaborn

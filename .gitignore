@@ -1,7 +1,12 @@
 # Pipelines demo data and model files
 imputer.joblib
 pca_model.joblib
+scaler_model.joblib
 scripts/pipelines/data/
+scripts/pipelines/runs/
+scripts/pipelines/best_model.pth
+prediction_evolution_example_0.gif
+optuna_results.png
 
 # Local supporting folder
 zz/
