@@ -19,15 +19,7 @@ from scripts.main_pipeline.utils.utils import read_data_split_csv, flatten_then_
 from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 from scripts.main_pipeline.utils.utils import ComposeTransforms
-from scripts.main_pipeline.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
-    FillWithZerosImputerTransform
-)
-from scripts.main_pipeline.transforms.signal_level_transforms.forward_fill_imputer_transform import (
-    ForwardFillImputerTransform
-)
-from scripts.main_pipeline.transforms.signal_level_transforms.sample_wise_normalize_transform import (
-    SamplewiseNormalizeTransform
-)
+
 from scripts.main_pipeline.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import(
     StdScalingTransform
 )
@@ -40,12 +32,12 @@ from scripts.main_pipeline.transforms.shot_level_transforms.truncation_transform
 from scripts.main_pipeline.transforms.shot_level_transforms.window_segmenter_transform import (
     WindowSegmenterTransform
 )
-# from scripts.main_pipeline.transforms.shot_level_transforms.drop_sample_with_nans import (
-#     DropSampleWithNans
-# )
-# from scripts.main_pipeline.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
-#     FillProfileWithZerosTransform
-# )
+from scripts.main_pipeline.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
+    FillProfileWithZerosTransform
+)
+from scripts.main_pipeline.transforms.shot_level_transforms.drop_sample_with_nans import (
+    DropSampleWithNans
+)
 from scripts.main_pipeline.transforms.shot_level_transforms.cnn_transform import CNNTransform
 
 from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
@@ -94,7 +86,11 @@ def fit_mean_and_std_for_signal_transform(output_sub_dir, verbose=False):
         print(f"len(preprocessing_train_dataset): {len(preprocessing_train_dataset)}")
 
     dict_mean_ = get_mean_shot(preprocessing_train_dataset)
+    if verbose: 
+        print("dict_mean_ is", dict_mean_)
     dict_std_ = get_std_shot(preprocessing_train_dataset)
+    if verbose: 
+        print("dict_std_ is", dict_std_)
 
     # Save dict_mean and dict_std used!
 
@@ -367,16 +363,16 @@ if __name__ == "__main__":
     # GENERAL SETTINGS
     # ------------------------------------------------------------------------------------------------------------------
 
-    LOCAL_FLAG = True
+    LOCAL_FLAG = False
     mp.set_start_method("spawn", force=True)
 
     # ..................................................................................................................
     # For common pipeline
 
-    SUBSET_OF_SHOTS = None  # <- This can be None for the entire dataset, or a small integer.
+    SUBSET_OF_SHOTS = 10  # <- This can be None for the entire dataset, or a small integer.
     OUTPUT_SUB_FOLDER = 'cnn_output/'  # <- Sub-folder within /output/
-    BATCH_SIZE = 500  # 500
-    NUM_WORKERS = 64  # 64
+    BATCH_SIZE = 5  # 500
+    NUM_WORKERS = 2  # 64
     MAX_EPOCHS = 500
 
     REF_FREQ = 0.005
