@@ -41,7 +41,7 @@ def flatten_then_collate(batch):
         print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
 
     # Use the default collate function
-    return default_collate(flattened_batch)
+    return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
 
 # ======================================================================================================================
