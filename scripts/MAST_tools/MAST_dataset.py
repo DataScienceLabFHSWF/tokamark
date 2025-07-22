@@ -77,14 +77,8 @@ class MastDataset(Dataset):
                 except AttributeError:
                     shot_time = None
                 try:
-<<<<<<< HEAD
-                    shot_vals = ( np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim ==1 
-                                 else shot_profile.values )
-                    # print('MAST', shot_vals.shape)
-=======
                     shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
                                  else shot_profile.values)
->>>>>>> origin/main
                 except AttributeError:
                     shot_vals = None
             else:
