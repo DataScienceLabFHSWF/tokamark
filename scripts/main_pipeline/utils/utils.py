@@ -1,3 +1,4 @@
+import joblib
 import os
 import pandas as pd
 from torch.utils.data._utils.collate import default_collate  # noqa
@@ -9,7 +10,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__'
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
+def read_data_split_csv_old(csv_path="metadata/2025-05-12/data_splits.csv"):
     """Read the csv file containing the lists of shot IDs for
     training, validation and testing.
     """
@@ -26,7 +27,28 @@ def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
     shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist()  # noqa
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
+def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
+    """Read the csv file containing the lists of shot IDs for 
+    training, validation and testing.
 
+    Parameters
+    ----------
+    csv_path : str, optional
+        by default "metadata/2025-05-12/data_splits.csv"
+
+    Returns
+    -------
+    Three lists containing shot IDs for training, validation and testing sets
+    """
+
+    df = pd.read_csv(csv_path)
+
+    # Filter rows where the 'train' column is True
+    shot_ids_for_train = df[df['train'] == True]['shot_id'].tolist() 
+    shot_ids_for_test = df[df['test'] == True]['shot_id'].tolist() 
+    shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist() 
+
+    return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
 
 # ----------------------------------------------------------------------------------------------------------------------
 def flatten_then_collate(batch):
@@ -42,7 +64,6 @@ def flatten_then_collate(batch):
 
     # Use the default collate function
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
-
 
 # ======================================================================================================================
 class ComposeTransforms(object):
@@ -65,3 +86,29 @@ class ComposeTransforms(object):
                 return None
             sample = transform(sample)
         return sample
+
+# ======================================================================================================================
+def load_models(data_names, data_dir):
+    """Load the PCA and imputer models for the given data names.
+
+    Parameters
+    ----------
+    data_names : list[str]
+        List of data names to load models for.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the loaded PCA and imputer models.
+    """
+    pca_models = {}
+    imputer_models = {}
+
+    for data_name in data_names:
+        source_name, signal_name = data_name.split("-")
+        pca_model_path = f"{data_dir}pca_{signal_name}.joblib"
+        imputer_model_path = f"{data_dir}imputer_{signal_name}.joblib"
+        pca_models[data_name] = joblib.load(pca_model_path)
+        imputer_models[data_name] = joblib.load(imputer_model_path)
+
+    return {"pca": pca_models, "imputer": imputer_models}
