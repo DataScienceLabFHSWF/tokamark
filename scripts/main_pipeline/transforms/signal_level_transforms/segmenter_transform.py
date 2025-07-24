@@ -313,7 +313,7 @@ if __name__ == "__main__":
     import sys
     
     sys.path.append("./scripts/MAST_tools")
-    from MAST_dataset import MastDataset
+    from MAST_dataset import MastDataset_test as MastDataset
   
     shot = MastDataset(
         local=False,

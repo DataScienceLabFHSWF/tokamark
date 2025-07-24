@@ -18,7 +18,7 @@ mother_dir = os.path.dirname(cwd) + os.sep
 sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
 sys.path.append(mother_dir)
 
-from MAST_dataset import MastDataset
+from MAST_dataset import MastDataset_test as MastDataset
 from signal_utils import MASTSignalManager  
 from store_utils import MASTStorageManager
 
