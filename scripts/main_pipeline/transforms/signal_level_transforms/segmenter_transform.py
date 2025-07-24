@@ -1,18 +1,6 @@
 
 from collections import defaultdict
-import numpy as np
-import os
-import pandas as pd
-import sys
-
-cwd = os.path.dirname(os.path.abspath(__file__))
-mother_dir = os.path.dirname(cwd) + os.sep
-sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
-sys.path.append(mother_dir)
-
-from signal_utils import MASTSignalManager  
-from store_utils import MASTStorageManager
-
+import torch
 
 class SegmenterTransform(object):
     
@@ -89,20 +77,26 @@ class SegmenterTransform(object):
     
     
 def segment_data_in_time_windows(
-    base_dataset,
+    base_shot,
+    data_names,
+    target_names,
     time_window, 
     time_step,
     offset=0.0
     ):
-    """Segment the "values" and "times" Torch tensors contained in a base_dataset.
+    """Segment the "values" and "times" Torch tensors contained in a base_shot.
        into smaller tensors each containing a segment of the original data in a
        given time window.
 
 
     Parameters
     ----------
-    base_dataset : tuple
-        A sample (x,y) where both x and y are dictionaries (or None) returned by __getitem__.
+    base_shot : tuple
+        A sample returned by __getitem__.
+    data_names : list[str]
+        List of data names to segment for the data part of the sample.
+    target_names : list[str]
+        List of data names to segment for the target part of the sample.
     time_window : float
         The length of the time window in seconds to segment the x and y values.
     time_step : float
@@ -117,13 +111,17 @@ def segment_data_in_time_windows(
     
     assert time_window >= time_step, \
         "Time window must be greater than time step."   
-        
-    x, y = base_dataset
 
-    def split_in_time_segments(item, time_window, time_step, offset):
-        for signal in item["source_name-signal_name"]:
-            values = signal["values"]  # shape: (n_features, time_steps)
-            times = signal["time"]     # shape: (time_steps,)
+    def split_in_time_segments(shot, names, time_window, time_step, offset):
+        for signal_name, signal_data in shot.items():
+            
+            source_signal_names = signal_data.get("source-signal")
+            if source_signal_names not in names:
+                continue
+            
+            breakpoint()
+            values = torch.tensor(signal_data["values"],dtype=torch.float32)  # shape: (n_features, time_steps)
+            times = torch.from_numpy(signal_data["time"])    # shape: (time_steps,)
 
             start_time = times[-1].item() - time_window - offset
             segments_v = []
@@ -151,19 +149,25 @@ def segment_data_in_time_windows(
 
                 start_time -=  time_step
 
-            signal["values"] = segments_v
-            signal["time"] = segments_t
-
-        return item
-        
-    x = split_in_time_segments(x, time_window, time_step, offset)
-    y = split_in_time_segments(y, offset, time_step, offset=0.0)
+            shot[source_signal_names]["values"] = segments_v
+            shot[source_signal_names]["time"] = segments_t
     
-    return x, y
+        return shot
+    breakpoint()   
+    base_shot = split_in_time_segments(base_shot, data_names, time_window, time_step, offset)
+    base_shot = split_in_time_segments(base_shot, target_names, offset, time_step, offset=0.0)
+    
+    return base_shot
 
-def segment_sample(sample, time_window_sec, time_step, offset):
-    """Segment the x,y dictionaries contained in sample into smaller 
-       dictionaries each containing a segment of the original x, y values.
+def segment_sample(
+    shot, 
+    data_names, 
+    target_names, 
+    time_window_sec, 
+    time_step, 
+    offset):
+    """Segment the dictionaries contained in sample into smaller 
+       dictionaries each containing a segment of the original values.
        
        These segments are created by sliding a time window of length
        time_window_sec over the x and y values with a step of time_step. This algorithm is
@@ -175,8 +179,12 @@ def segment_sample(sample, time_window_sec, time_step, offset):
 
     Parameters
     ----------
-    sample : tuple
-        A sample (x,y) where both x and y are dictionaries (or None) returned by __getitem__
+    shot : dict
+        An item from the MastDataset
+    data_names : list[str]
+        List of data names to segment for the data part of the sample.
+    target_names : list[str]
+        List of data names to segment for the target part of the sample.
     time_window_sec : int
         The length of the time window in seconds to segment the x and y values.
     time_step : int
@@ -206,13 +214,15 @@ def segment_sample(sample, time_window_sec, time_step, offset):
         all structures { ... } correspond to the first time segment
         of the original x and y values.
     """
-    if sample is None:
+    if shot is None:
         return None, None
 
     # Segmet "values" and "times" in x and y
     try:
-        x,y = segment_data_in_time_windows(
-            sample, 
+        shot = segment_data_in_time_windows(
+            shot, 
+            data_names,
+            target_names,
             time_window_sec, 
             time_step, 
             offset
@@ -223,13 +233,15 @@ def segment_sample(sample, time_window_sec, time_step, offset):
     
     # Create indexed map that contains mini-dictionaries, one per segment in
     # values and times
-    def create_map(data):
+    def create_map(shot, names):
         data_map = defaultdict(list)
     
         # For each signal in the base dictionary
-        for signal in data["source_name-signal_name"]:
-            values = signal["values"] # list of segments
-            times = signal["time"] # list of segments
+        for signal_name, signal_data in shot.items():
+            if signal_data.get("source-signal") not in names:
+                continue
+            values = signal_data["values"] # list of segments
+            times = signa_data["time"] # list of segments
             
             # segment_data_in_time_windows return a list of time segments of fizxed length
             # However, the last segment may be shorter than the others is the signal is not long enough
@@ -243,15 +255,15 @@ def segment_sample(sample, time_window_sec, time_step, offset):
                     continue    # Skip last segment, since this might be shorter than the others, see explanation above
                 
                 data_map[idx].append({
-                    "signal_name": signal["names"], 
+                    "signal_name": signal_name, 
                     "values": values_segment, 
                     "time": time_segment
                 })
                 
         return data_map
 
-    x_map = create_map(x)
-    y_map = create_map(y)
+    x_map = create_map(shot, data_names)
+    y_map = create_map(shot, target_names)
               
 
     # Create a list of new mini dictionaries x and y, one for each temporal segment
@@ -279,52 +291,12 @@ def segment_sample(sample, time_window_sec, time_step, offset):
         
     return x_list, y_list
 
-
-def roll_time_window_backward(
-    time_window_length: float,
-    start: float, 
-    step: float, 
-    stop: float):
-    """Rolls a time window backward from a start time to a stop time with a given step.
-
-    Parameters
-    ----------
-    time_window_length : float
-        The length of the time window in seconds.
-    start : float
-        The start time in seconds from which to roll the time window backward.
-    step : float
-        The step in seconds to roll the time window backward.
-    stop : float
-        The stop time in seconds until which to roll the time window backward.
-
-    Returns
-    -------
-        list[list]
-        A list of time windows, each represented as a list of two floats [start, stop].
-        Each time window is of length `time_window_length` and rolled backward by `step`
-        seconds until the `stop` time is reached.
-    """
     
-    assert stop < start and step > 0, \
-        "stop < start and step > 0 not verified"
-    
-    time_windows = []
-    t = start
-    while t >= stop:
-        time_windows.append([t,t-time_window_length])
-        t -= step
-    return time_windows
-
-def adjust_time_windows(time_windows:list[list], offest:float):
-        new_time_windows = []
-        for time_interval in time_windows:
-            new_time_windows.append([time_interval[1],time_interval[1]+offset])
-        return new_time_windows
-    
-def test_2(shots, time_window_length, step, offset):
+def test_2(shot, data_names, target_names, time_window_length, step, offset):
     list_x, list_y = segment_sample(
-        shots[0], 
+        shot, 
+        data_names, 
+        target_names,
         time_window_length,
         step,
         offset
@@ -337,16 +309,20 @@ if __name__ == "__main__":
     data_names =["magnetics-flux_loop_flux"]
     target_names =["magnetics-flux_loop_flux"]
 
-    from MAST_pytorch_training import MASTDataset, PCATransform,  ImputerTransform
+    import os
+    import sys
     
-    shots = MASTDataset(
-        True,
-        train_shots, 
-        data_names=data_names, 
-        target_names=target_names,
-        transform_data = None,
-        transform_target = None
-        )
+    sys.path.append("./scripts/MAST_tools")
+    from MAST_dataset import MastDataset
+  
+    shot = MastDataset(
+        local=False,
+        shots_list=train_shots,
+        source_signal_list=data_names + target_names,
+        signal_level_transform_map=None,
+        shot_level_transform=None
+    )
+    
     
     time_window_length =  0.01
     step = 0.005
@@ -358,7 +334,14 @@ if __name__ == "__main__":
     }
 
     # Working
-    list_x, list_y = test_2(shots, time_window_length, step, offset)
+    list_x, list_y = test_2(
+        shot[0], 
+        data_names, 
+        target_names, 
+        time_window_length, 
+        step, 
+        offset
+        )
     
     # Printing the first two segments of x and y
     x0=list_x[-1]

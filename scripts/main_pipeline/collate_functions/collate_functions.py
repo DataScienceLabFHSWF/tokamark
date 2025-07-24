@@ -1,4 +1,4 @@
-from transforms.signal_level_transforms import segmenter_transform
+from transforms.signal_level_transforms.segmenter_transform import SegmenterTransform
 
 """This file contains the collate functions for batching samples in a DataLoader. 
     

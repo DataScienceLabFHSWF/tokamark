@@ -37,7 +37,7 @@ class ImputerTransform(object):
         self.data = data
 
     def __call__(self, sample):
-        vals, time, source_signal = sample
+        vals, time, source_signal = sample["values"], sample["time"], sample["source-signal"]
         
         # Signal was empty 
         if vals.size == 0:
@@ -58,5 +58,5 @@ class ImputerTransform(object):
                 print(f"ValueError {e}")
                 return None
 
-        return (vals, time, source_signal)
+        return {"values":vals, "times":time, "source-signal":source_signal}
       

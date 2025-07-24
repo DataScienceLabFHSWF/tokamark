@@ -1,6 +1,5 @@
 import numpy as np
 from torch.utils.data import Dataset
-
 from signal_utils import MASTSignalManager
 
 
@@ -60,7 +59,8 @@ class MastDataset(Dataset):
         shot = {}
 
         # Collect variables (i.e. source-signal) of interest
-        for source, signal in self.source_signal_list:
+        for source_signal in self.source_signal_list:
+            source , signal = source_signal.split('-')
 
             shot_profile = self.sig.get_signal_profile(
                     data_origin=store,
@@ -89,10 +89,10 @@ class MastDataset(Dataset):
             # Apply variable-level transforms
             if self.signal_level_transform_map and (shot_vals is not None and shot_time is not None):
                 shot[f'{source}-{signal}'] = self.signal_level_transform_map[f'{source}-{signal}'](
-                    {"time": shot_time, "values": shot_vals}
+                    {"time": shot_time, "values": shot_vals, "source-signal": f"{source}-{signal}"}
                 )
             else:
-                shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals}
+                shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals, "source-signal": f"{source}-{signal}"}
             
         # Apply shot-level transforms to obtain a list of training objects
         if self.shot_level_transform:

@@ -27,7 +27,7 @@ from transforms.signal_level_transforms.pca_transform import PCATransform
 from transforms.signal_level_transforms.compose_transform import ComposeTransform
 from transforms.signal_level_transforms.segmenter_transform import SegmenterTransform
 
-from collate_functions import collate_functions
+from collate_functions.collate_functions import MiniBatchCollateFn
 
 from configs.config_setup import get_settings
 
@@ -414,6 +414,7 @@ if __name__== "__main__":
     if not os.path.exists(config_file_path):
         raise FileNotFoundError(f"Configuration file {config_file_path} not found.")       
     
+    # Initialize SETTINGS object
     SETTINGS = get_settings(config_file_path)
     
     # Load models from joblib files
@@ -450,7 +451,7 @@ if __name__== "__main__":
     #  Make a map of transforms to apply at shot level
     shot_level_transform = None # No shot level transform is applied
     
-    # Initialize the dataset
+    # Initialize Datasets for training and validation
     dataset_for_training = initialize_dataset(
         local=SETTINGS.DATA.local,
         shots_list=train_shots,
@@ -458,6 +459,7 @@ if __name__== "__main__":
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=shot_level_transform
     )
+    
     dataset_for_validation = initialize_dataset(
         local=SETTINGS.DATA.local,
         shots_list=val_shots,
@@ -466,44 +468,39 @@ if __name__== "__main__":
         shot_level_transform=shot_level_transform
     )
     
+    customised_collate_fn = MiniBatchCollateFn(
+                time_window_sec=SETTINGS.TIME_SEGMENTATION.time_window_sec, 
+                time_step=SETTINGS.TIME_SEGMENTATION.time_step, 
+                offset=SETTINGS.TIME_SEGMENTATION.offset,
+                )
     
-    # transforms_dictionary_data = {
-    #     "train": composed_transforms,
-    #     "val": composed_transforms,
-    #     "test": composed_transforms
-    # }
-    # transforms_dictionary_target = {
-    #     "train": composed_transforms,
-    #     "val": composed_transforms,
-    #     "test": composed_transforms
-    # }
+    # Initialize DataLoaders for training and validation
+    data_loader_for_training = initialize_dataloader(
+        dataset=dataset_for_training,
+        batch_size=SETTINGS.TRAINING.dataloader_batch_size,
+        num_workers=SETTINGS.TRAINING.num_workers,
+        shuffle=True,
+        collate_fn = customised_collate_fn
+    )
     
-    # train_dataloader, val_dataloader, test_dataloader = create_dataloaders(
-    #     time_window_sec,  
-    #     time_step,
-    #     offset,
-    #     train_shots, 
-    #     val_shots,
-    #     test_shots,
-    #     data_names,
-    #     target_names,
-    #     dataloader_batch_size,
-    #     num_workers,
-    #     local = local,
-    #     transform_data = transforms_dictionary_data,
-    #     transform_target = transforms_dictionary_target
-    # )
+    data_loader_for_validation = initialize_dataloader(
+        dataset=dataset_for_validation,
+        batch_size=SETTINGS.TRAINING.dataloader_batch_size,
+        num_workers=SETTINGS.TRAINING.num_workers,
+        shuffle=True,
+        collate_fn = customised_collate_fn
+    )
 
 
-    # # Determine device to train on
-    # if torch.backends.mps.is_available():
-    #     device = torch.device("mps")
-    # elif torch.cuda.is_available():
-    #     device = torch.device("cuda")
-    # else:
-    #     device = torch.device("cpu")
+    # Determine device to train on
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
-    # # Model definition
+    # Model definition
     # input_size, output_size = 0, 0
     # # Try to get input and output size from the first batch of data
     # # If it fails, it will raise a ValueError and we will print the error message
