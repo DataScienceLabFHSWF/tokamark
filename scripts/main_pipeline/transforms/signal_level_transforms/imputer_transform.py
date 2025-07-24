@@ -37,7 +37,16 @@ class ImputerTransform(object):
         self.data = data
 
     def __call__(self, sample):
-        vals, time, source_signal = sample["values"], sample["time"], sample["source-signal"]
+        try:
+            vals, time, source_signal = sample["values"], sample["time"], sample["source-signal"]
+        except KeyError as e:
+            print(f"KeyError: {e}. Sample is missing required keys.")
+            return None
+        
+        if vals is None or len(vals) == 0:
+            return None
+        if time is None or len(time) == 0:
+            return None
         
         # Signal was empty 
         if vals.size == 0:
@@ -58,5 +67,5 @@ class ImputerTransform(object):
                 print(f"ValueError {e}")
                 return None
 
-        return {"values":vals, "times":time, "source-signal":source_signal}
+        return {"values":vals, "time":time, "source-signal":source_signal}
       

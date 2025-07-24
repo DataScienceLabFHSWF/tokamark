@@ -165,7 +165,7 @@ class MastDataset_test(Dataset):
 
         # Collect variables (i.e. source-signal) of interest
         for source_signal in self.source_signal_list:
-            source , signal = source_signal.split('-')
+            source, signal = source_signal.split('-')
 
             shot_profile = self.sig.get_signal_profile(
                     data_origin=store,
@@ -175,12 +175,13 @@ class MastDataset_test(Dataset):
             
             if shot_profile is not None:
                 try:
-                    if not np.isnan(shot_profile.time.values).any():
-                        shot_time = shot_profile.time.values
-                    else:
-                        print(f"Nan in the timescale of shot {self.shots_list[idx]} ! ")
-                        shot_time = None
-                except AttributeError:
+                    shot_time, _ = self.sig.get_signal_times_and_time_type(
+                                signal,
+                                store,
+                                source
+                                )
+                except Exception as e:
+                    print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
                     shot_time = None
                 try:
                     shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1

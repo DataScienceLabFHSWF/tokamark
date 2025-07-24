@@ -14,9 +14,15 @@ class PCATransform(object):
         self.models = models
 
     def __call__(self, sample):
-        vals, time, source_signal = sample["values"], sample["time"], sample["source-signal"]
+        try:
+            vals, time, source_signal = sample["values"], sample["time"], sample["source-signal"]
+        except KeyError as e:
+            print(f"KeyError: {e}. Sample is missing required keys.")
+            return None
         
         if vals is None or len(vals) == 0:
+            return None
+        if time is None or len(time) == 0:
             return None
 
         # Select model type and signal from those available in the dictionary.
@@ -36,6 +42,6 @@ class PCATransform(object):
             vals = x_transform.T
            
             
-            return {"values":vals, "times":time, "source-signal":source_signal}
+            return {"values":vals, "time":time, "source-signal":source_signal}
         else:
             return None

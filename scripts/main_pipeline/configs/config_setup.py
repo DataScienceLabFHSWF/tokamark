@@ -62,7 +62,7 @@ class TrainingSettings():
             self.min_batch_size = config["training"]["min_batch_size"]
             self.num_workers = config["training"]["num_workers"]
             self.num_train_samples = config["training"]["num_train_samples"]
-            self.num_eval_samples = config["training"]["num_eval_samples"]
+            self.num_val_samples = config["training"]["num_val_samples"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
@@ -75,6 +75,7 @@ class LocalPaths():
             self.average_values_file_path = config["paths"]["average_values_file_path"]
             self.joblib_directory = config["paths"]["joblib_directory"]
             self.data_split_csv_path = config["paths"]["data_split_csv_path"]
+            self.data_output_directory = config["paths"]["data_output_directory"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise

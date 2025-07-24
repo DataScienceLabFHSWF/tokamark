@@ -4,7 +4,15 @@ import torch
 
 class SegmenterTransform(object):
     
-    def __init__(self, time_window_sec, time_step, offset):
+    def __init__(self,  
+                data_names,
+                target_names,
+                time_window_sec, 
+                time_step, 
+                offset):
+        
+        self.data_names = data_names
+        self.target_names = target_names
         self.time_intervals_checks= False
         if not (
                 time_window_sec > 0 and \
@@ -33,6 +41,8 @@ class SegmenterTransform(object):
 
             list_x, list_y = segment_sample(
                 sample, 
+                self.data_names,
+                self.target_names,
                 self.time_window_sec, 
                 self.time_step, 
                 self.offset
@@ -119,7 +129,7 @@ def segment_data_in_time_windows(
             if source_signal_names not in names:
                 continue
             
-            breakpoint()
+            # print(f"{signal_name}, {signal_data}, {type(signal_data['values'])}")
             values = torch.tensor(signal_data["values"],dtype=torch.float32)  # shape: (n_features, time_steps)
             times = torch.from_numpy(signal_data["time"])    # shape: (time_steps,)
 
@@ -153,7 +163,7 @@ def segment_data_in_time_windows(
             shot[source_signal_names]["time"] = segments_t
     
         return shot
-    breakpoint()   
+
     base_shot = split_in_time_segments(base_shot, data_names, time_window, time_step, offset)
     base_shot = split_in_time_segments(base_shot, target_names, offset, time_step, offset=0.0)
     
@@ -241,7 +251,7 @@ def segment_sample(
             if signal_data.get("source-signal") not in names:
                 continue
             values = signal_data["values"] # list of segments
-            times = signa_data["time"] # list of segments
+            times = signal_data["time"] # list of segments
             
             # segment_data_in_time_windows return a list of time segments of fizxed length
             # However, the last segment may be shorter than the others is the signal is not long enough
@@ -261,7 +271,6 @@ def segment_sample(
                 })
                 
         return data_map
-
     x_map = create_map(shot, data_names)
     y_map = create_map(shot, target_names)
               
@@ -271,14 +280,12 @@ def segment_sample(
     y_list = []
     for idx in range(len(x_map)):
         x_mini_dict = {
-            "shot_id": x["shot_id"],
             "source_name-signal_name": x_map[idx]
         }
         x_list.append(x_mini_dict)
         
     for idy in range(len(y_map)):
         y_mini_dict = {
-            "shot_id": y["shot_id"],
             "source_name-signal_name": y_map[idy]
         }
         y_list.append(y_mini_dict)
@@ -307,7 +314,7 @@ if __name__ == "__main__":
     
     train_shots = [30207]
     data_names =["magnetics-flux_loop_flux"]
-    target_names =["magnetics-flux_loop_flux"]
+    target_names =["magnetics-b_field_tor_probe_saddle_voltage"]
 
     import os
     import sys
@@ -322,7 +329,6 @@ if __name__ == "__main__":
         signal_level_transform_map=None,
         shot_level_transform=None
     )
-    
     
     time_window_length =  0.01
     step = 0.005

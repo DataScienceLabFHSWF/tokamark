@@ -264,12 +264,12 @@ if __name__ == "__main__":
     
     train_shots = [30207]
     data_names =["magnetics-flux_loop_flux"]
-    target_names =["magnetics-flux_loop_flux"]
+    target_names =["magnetics-b_field_tor_probe_saddle_voltage"]
 
     from MAST_pytorch_training import MASTDataset, PCATransform,  ImputerTransform
     
     shots = MASTDataset(
-        True,
+        False,
         train_shots, 
         data_names=data_names, 
         target_names=target_names,

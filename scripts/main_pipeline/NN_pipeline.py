@@ -186,7 +186,7 @@ def get_input_output_size(dataloader, device='cpu'):
     
 def compare_last_first_tensor_shapes(x_list,y_list):
     """ Check that the shape of the last element in the lists is coinsistent 
-    with the number of signals expected, e.g., the nr_signals found in the first batch
+    with the number of signals expected, e.g., the nr_signals found in the first element
 
     Parameters
     ----------
@@ -428,6 +428,8 @@ if __name__== "__main__":
     ########## INITIALIZATION SECTION ##########
     # Train, val, and test shots
     train_shots, test_shots, val_shots = read_data_split_csv(SETTINGS.LOCAL_PATHS.data_split_csv_path)
+    train_shots = train_shots[:SETTINGS.TRAINING.num_train_samples]  
+    val_shots = val_shots[:SETTINGS.TRAINING.num_val_samples] # For testing purposes, limit the number of validation shots
     
     # Define transform pipelines for data and target signals
     transforms_set_for_data = ComposeTransforms(
@@ -446,8 +448,8 @@ if __name__== "__main__":
     
     # Make a map of transforms to apply at signal level
     signal_transform_map = { var: transforms_set_for_data for var in SETTINGS.DATA.data_names}
-    signal_transform_map = { var: transforms_set_for_target for var in SETTINGS.DATA.target_names}
-    
+    signal_transform_map.update({ var: transforms_set_for_target for var in SETTINGS.DATA.target_names})
+
     #  Make a map of transforms to apply at shot level
     shot_level_transform = None # No shot level transform is applied
     
@@ -469,13 +471,15 @@ if __name__== "__main__":
     )
     
     customised_collate_fn = MiniBatchCollateFn(
+                data_names=SETTINGS.DATA.data_names,
+                target_names=SETTINGS.DATA.target_names,
                 time_window_sec=SETTINGS.TIME_SEGMENTATION.time_window_sec, 
                 time_step=SETTINGS.TIME_SEGMENTATION.time_step, 
                 offset=SETTINGS.TIME_SEGMENTATION.offset,
                 )
     
     # Initialize DataLoaders for training and validation
-    data_loader_for_training = initialize_dataloader(
+    train_dataloader = initialize_dataloader(
         dataset=dataset_for_training,
         batch_size=SETTINGS.TRAINING.dataloader_batch_size,
         num_workers=SETTINGS.TRAINING.num_workers,
@@ -483,7 +487,7 @@ if __name__== "__main__":
         collate_fn = customised_collate_fn
     )
     
-    data_loader_for_validation = initialize_dataloader(
+    val_dataloader = initialize_dataloader(
         dataset=dataset_for_validation,
         batch_size=SETTINGS.TRAINING.dataloader_batch_size,
         num_workers=SETTINGS.TRAINING.num_workers,
@@ -501,65 +505,66 @@ if __name__== "__main__":
         device = torch.device("cpu")
 
     # Model definition
-    # input_size, output_size = 0, 0
-    # # Try to get input and output size from the first batch of data
-    # # If it fails, it will raise a ValueError and we will print the error message
-    # try:
-    #     input_size, output_size =  get_input_output_size(train_dataloader)
-    # except ValueError as e:
-    #     print(f"Error getting input/output size: {e}")
-    #     sys.exit(1)
+    input_size, output_size = 0, 0
+    # Try to get input and output size from the first batch of data
+    # If it fails, it will raise a ValueError and we will print the error message
+    try:
+        input_size, output_size =  get_input_output_size(train_dataloader)
+    except ValueError as e:
+        print(f"Error getting input/output size: {e}")
+        sys.exit(1)
 
 
-    # model = NeuralNetwork(
-    #     input_size=input_size, 
-    #     output_size = output_size,
-    #     l1_size=l1_size,
-    #     l2_size=l2_size
-    #     ).to(device)
-    # criterion = nn.MSELoss() # Loss function to use, by default MSELoss.
-    # optimiser = torch.optim.Adam(model.parameters(), lr=lr)
+    model = NeuralNetwork(
+        input_size=input_size, 
+        output_size = output_size,
+        l1_size=SETTINGS.NEURALNET.l1_size,
+        l2_size=SETTINGS.NEURALNET.l2_size
+        ).to(device)
     
-    # output_filename=f"nn3Layer{('_'.join(data_names))}_Ntrain{num_train}_Nepochs{num_epochs}_lr{lr}.txt"
-    # train_loss, eval_loss = train_model(
-    #     model,
-    #     device,
-    #     train_dataloader,
-    #     val_dataloader,
-    #     train_batch_size,
-    #     min_batch_size,
-    #     num_epochs,
-    #     output_filename,
-    #     criterion,
-    #     optimiser
-    #     )
+    criterion = nn.MSELoss() # Loss function to use, by default MSELoss.
+    optimiser = torch.optim.Adam(model.parameters(), lr=SETTINGS.NEURALNET.lr)
+    
+    output_filename=SETTINGS.LOCAL_PATHS.data_output_directory + "NeuralNetwork.txt"
+    train_loss, eval_loss = train_model(
+        model,
+        device,
+        train_dataloader,
+        val_dataloader,
+        SETTINGS.TRAINING.train_batch_size,
+        SETTINGS.TRAINING.min_batch_size,
+        SETTINGS.TRAINING.num_epochs,
+        output_filename,
+        criterion,
+        optimiser
+        )
     
 
-    # print("Training completed successfully.")
-    # # Save the model
-    # torch.save({
-    #     'model_state_dict': model.state_dict(),
-    #     'hyperparameters': {
-    #         'input_size': input_size,
-    #         'output_size': output_size,
-    #         'l1_size': l1_size,
-    #         'l2_size': l2_size,
-    #         'num_epochs': num_epochs,
-    #         'learning_rate': lr,
-    #         'batch_size': train_batch_size,
-    #         'num_train_samples': num_train,
-    #         'num_eval_samples': val_shots,
-    #         'dataloader_batch_size': dataloader_batch_size,
-    #         'num_workers': num_workers,
-    #         'device': str(device),
-    #         'data_names': data_names,
-    #         'target_names': target_names,
-    #         'time_window_sec': time_window_sec,
-    #         'time_step': time_step,
-    #         'offset': offset,
-    #         'local': local,
-    #         'train_loss': train_loss,
-    #         'eval_loss': eval_loss
-    #     }
-    # }, f"model{lr}.pth")
+    print("Training completed successfully.")
+    # Save the model
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'hyperparameters': {
+            'input_size': input_size,
+            'output_size': output_size,
+            'l1_size': SETTINGS.NEURALNET.l1_size,
+            'l2_size': SETTINGS.NEURALNET.l2_size,
+            'num_epochs': SETTINGS.TRAINING.num_epochs,
+            'learning_rate': SETTINGS.NEURALNET.lr,
+            'batch_size': SETTINGS.TRAINING.train_batch_size,
+            'num_train_samples': SETTINGS.TRAINING.num_train_samples,
+            'num_eval_samples': SETTINGS.TRAINING.num_val_samples,
+            'dataloader_batch_size': SETTINGS.TRAINING.dataloader_batch_size,
+            'num_workers': SETTINGS.TRAINING.num_workers,
+            'device': str(device),
+            'data_names': SETTINGS.DATA.data_names,
+            'target_names': SETTINGS.DATA.target_names,
+            "time_window_sec": SETTINGS.TIME_SEGMENTATION.time_window_sec, 
+            "time_step": SETTINGS.TIME_SEGMENTATION.time_step, 
+            "offset": SETTINGS.TIME_SEGMENTATION.offset,
+            'local': SETTINGS.DATA.local,
+            'train_loss': train_loss,
+            'eval_loss': eval_loss
+        }
+    }, f"model{SETTINGS.NEURALNET.lr}.pth")
     

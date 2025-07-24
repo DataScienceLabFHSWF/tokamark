@@ -10,14 +10,21 @@ from transforms.signal_level_transforms.segmenter_transform import SegmenterTran
 class MiniBatchCollateFn:
     
     def __init__(self,
-                 time_window_sec,
-                 time_step,
-                 offset):
+                data_names,
+                target_names,
+                time_window_sec,
+                time_step,
+                offset):
         
+        self.data_names = data_names
+        self.target_names = target_names
         self.time_window_sec = time_window_sec
         self.time_step = time_step
         self.offset = offset
+        
         self.segmenter_transform = SegmenterTransform(
+            data_names=self.data_names,
+            target_names=self.target_names,
             time_window_sec=self.time_window_sec, 
             time_step=self.time_step, 
             offset=self.offset
