@@ -1,7 +1,0 @@
-{
-    "max_components": 10,
-    "group": "magnetics",
-    "signal_name": "b_field_tor_probe_saddle_voltage",
-    "nr_shots": 9259, 
-    "processes":16
-}
