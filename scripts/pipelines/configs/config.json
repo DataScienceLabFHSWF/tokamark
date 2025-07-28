@@ -1,7 +1,7 @@
 {
   "input": {
-    "data_names": ["magnetics-flux_loop_flux"],
-    "target_names": ["magnetics-b_field_tor_probe_saddle_voltage"],
+    "data_names": [["magnetics","flux_loop_flux"]],
+    "target_names": [["magnetics", "b_field_tor_probe_saddle_voltage"]],
     "time_window_sec": 0.025,
     "time_step": 0.010,
     "offset": 0.020

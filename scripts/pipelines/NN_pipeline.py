@@ -17,7 +17,7 @@ cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
 sys.path.append(mother_dir)
 
-from MAST_tools.MAST_dataset import MastDataset_test as MastDataset
+from MAST_tools.MAST_dataset import MastDataset
 from MAST_tools.signal_utils import MASTSignalManager  
 from MAST_tools.store_utils import MASTStorageManager
 
@@ -415,8 +415,9 @@ if __name__== "__main__":
     # Initialize SETTINGS object
     SETTINGS = get_settings(config_file_path)
     
+    all_source_signal_list = SETTINGS.DATA.data_names + SETTINGS.DATA.target_names
     # Load models from joblib files
-    model_dictionary = load_models(SETTINGS.DATA.all_source_signal_list, 
+    model_dictionary = load_models(all_source_signal_list, 
                                    SETTINGS.LOCAL_PATHS.joblib_directory)
     
     #============== END INPUT and SET-UP SECTION ==============#
@@ -443,10 +444,9 @@ if __name__== "__main__":
         ]
     )
     
-    
     # Make a map of transforms to apply at signal level
-    signal_transform_map = { var: transforms_set_for_data for var in SETTINGS.DATA.data_names}
-    signal_transform_map.update({ var: transforms_set_for_target for var in SETTINGS.DATA.target_names})
+    signal_transform_map = {f"{source}-{signal}": transforms_set_for_data for source, signal in SETTINGS.DATA.data_names}
+    signal_transform_map = {f"{source}-{signal}": transforms_set_for_target for source, signal in SETTINGS.DATA.target_names}
 
     #  Make a map of transforms to apply at shot level
     shot_level_transform = None # No shot level transform is applied
@@ -455,7 +455,7 @@ if __name__== "__main__":
     dataset_for_training = initialize_dataset(
         local=SETTINGS.DATA.local,
         shots_list=train_shots,
-        source_signal_list=SETTINGS.DATA.all_source_signal_list,
+        source_signal_list=all_source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=shot_level_transform
     )
@@ -463,7 +463,7 @@ if __name__== "__main__":
     dataset_for_validation = initialize_dataset(
         local=SETTINGS.DATA.local,
         shots_list=val_shots,
-        source_signal_list=SETTINGS.DATA.all_source_signal_list,
+        source_signal_list=all_source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=shot_level_transform
     )

@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 from  .signal_utils import MASTSignalManager
 
 # ======================================================================================================================
-class MastDataset(Dataset):
+class MastDataset_old(Dataset):
     """Dataset class for MAST data.
 
     MAST Dataset extending the base torch.utils.data.Dataset class. See __init__ below for details.
@@ -109,7 +109,7 @@ class MastDataset(Dataset):
 
 
 # ======================================================================================================================
-class MastDataset_test(Dataset):
+class MastDataset(Dataset):
     """Dataset class for MAST data.
 
     MAST Dataset extending the base torch.utils.data.Dataset class. See __init__ below for details.
@@ -164,8 +164,7 @@ class MastDataset_test(Dataset):
         shot = {}
 
         # Collect variables (i.e. source-signal) of interest
-        for source_signal in self.source_signal_list:
-            source, signal = source_signal.split('-')
+        for source, signal in self.source_signal_list:
 
             shot_profile = self.sig.get_signal_profile(
                     data_origin=store,
