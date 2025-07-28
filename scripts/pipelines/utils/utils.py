@@ -3,53 +3,6 @@ import os
 import pandas as pd
 from torch.utils.data._utils.collate import default_collate  # noqa
 
-# Compute project root relative to this file
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
-                                         else os.getcwd(), "..", "..", ".."))
-# print(REPO_ROOT)
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def read_data_split_csv_old(csv_path="metadata/2025-05-12/data_splits.csv"):
-    """Read the csv file containing the lists of shot IDs for
-    training, validation and testing.
-    """
-    full_path = os.path.join(REPO_ROOT, csv_path)
-    print(full_path)
-
-    if not os.path.exists(full_path):
-        raise FileNotFoundError(f"CSV not found at: {full_path}")
-
-    df = pd.read_csv(full_path)
-
-    shot_ids_for_train = df[df['train'] == True]['shot_id'].tolist()  # noqa
-    shot_ids_for_test = df[df['test'] == True]['shot_id'].tolist()  # noqa
-    shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist()  # noqa
-
-    return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
-def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
-    """Read the csv file containing the lists of shot IDs for 
-    training, validation and testing.
-
-    Parameters
-    ----------
-    csv_path : str, optional
-        by default "metadata/2025-05-12/data_splits.csv"
-
-    Returns
-    -------
-    Three lists containing shot IDs for training, validation and testing sets
-    """
-
-    df = pd.read_csv(csv_path)
-
-    # Filter rows where the 'train' column is True
-    shot_ids_for_train = df[df['train'] == True]['shot_id'].tolist() 
-    shot_ids_for_test = df[df['test'] == True]['shot_id'].tolist() 
-    shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist() 
-
-    return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
-
 # ----------------------------------------------------------------------------------------------------------------------
 def flatten_then_collate(batch):
 
@@ -112,3 +65,29 @@ def load_models(data_names, data_dir):
         imputer_models[data_name] = joblib.load(imputer_model_path)
 
     return {"pca": pca_models, "imputer": imputer_models}
+
+# ----------------------------------------------------------------------------------------------------------------------
+def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
+    """Read the csv file containing the lists of shot IDs for 
+    training, validation and testing.
+
+    Parameters
+    ----------
+    csv_path : str, optional
+        by default "metadata/2025-05-12/data_splits.csv"
+
+    Returns
+    -------
+    Three lists containing shot IDs for training, validation and testing sets
+    """
+    try:
+        df = pd.read_csv(csv_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"CSV file not found at: {csv_path}")
+
+    # Filter rows where the 'train' column is True
+    shot_ids_for_train = df[df['train'] == True]['shot_id'].tolist() 
+    shot_ids_for_test = df[df['test'] == True]['shot_id'].tolist() 
+    shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist() 
+
+    return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val

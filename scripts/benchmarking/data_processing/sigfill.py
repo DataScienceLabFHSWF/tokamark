@@ -19,12 +19,13 @@ sys.path.append(scripts_dir)
 
 from MAST_tools.signal_utils import MASTSignalManager  
 from MAST_tools.store_utils import MASTStorageManager
+
 from utils import (is_finite_numeric_array,
                     read_signals,
                     make_dataframe_from_shot_ids,
                     shuffle_shot_ids,
                     read_data_split_csv)
- 
+from config_files.config_setup import get_settings
 
 class SimpleFiller:
     def __init__(self, vals):
@@ -668,22 +669,25 @@ def fit_and_save_imputer(
     print(f"Imputer model saved to {model_path}")
 
 
-def main(shot_ids, signal_list_file, output_path, num_shots, local = True):
+def main(shot_ids, SETTINGS):
     """main funtion to do Imputation of NaN in MAST signals
 
     Parameters
     ----------
     shot_ids: list[int]
         List containing IDs of shots to process
-    signal_list_file : str
-       Path to file containing the list of signals to process
-    output_path: str
-        Path where output json files are saved
-    num_shots : int
-        Total nr of shots to process
-    local : bool, optional
-        by default True to access MAST data locally
+    SETTINGS: Settings
+        Settings object containing configuration parameters
     """
+    nr_shots = SETTINGS.GENERAL.nr_shots
+    signal_list_file = SETTINGS.LOCALPATHS.signal_list_file
+    output_path = SETTINGS.LOCLPATHS.output_path
+    data_split_file = SETTINGS.LOCALPATHS.data_split_file
+    local = SETTINGS.GENERAL.local
+    
+    shot_ids, _, _ = read_data_split_csv(csv_path = data_split_file)
+    shot_ids = shuffle_shot_ids(shot_ids)
+    shot_ids = shot_ids[:num_shots]
     
     store_manager = MASTStorageManager()
     shotids_not_fully_nan_signals(store_manager,
@@ -697,61 +701,10 @@ def main(shot_ids, signal_list_file, output_path, num_shots, local = True):
                                     signal_list_file,
                                     local,
                                     json_filename=output_path+"/averaged_arrays_N_"+str(len(shot_ids))+".json")
-    '''
-    #signal_name="b_field_tor_probe_saddle_voltage" #"flux_loop_flux"
-    signal_name="flux_loop_flux"
-    signal_name= "b_field_pol_probe_ccbv_field"
-    signal_name="coil_current"
-    with open(f"signal_shotids_not_fully_nan{num_shots}.json", "r") as f:
-        config_shot_ids = json.load(f)
-        if config_shot_ids:
-            shot_ids =  config_shot_ids["data"][signal_name]
-
-        else:
-            print("No shot id file found")
-            #return
-
-    fit_and_save_imputer(shot_ids,"magnetics", signal_name, True, f"imputer_{signal_name}.joblib")
-    '''
 
     
 if __name__ == "__main__":
 
     # Inputs
-    num_shots = 100
-    home = "/home/ir-lore2"
-    signal_list_file = home+"/fairmast-data-preprocessing/data/input/list_of_signals.txt"
-    output_path = home+"/fairmast-data-preprocessing/scripts/benchmarking/data_transform/data/output"
-    data_split_file = home+"/fairmast-data-preprocessing/metadata/2025-05-12/data_splits.csv"
-    shot_ids, _, _ = read_data_split_csv(csv_path = data_split_file)
-    shot_ids = shuffle_shot_ids(shot_ids)
-    shot_ids = shot_ids[:num_shots]
-    
-    
-    main(shot_ids, signal_list_file,output_path,num_shots)
-    
-    # signal_names = ["flux_loop_flux", 
-    #                 "b_field_pol_probe_ccbv_field",
-    #                 "b_field_pol_probe_obr_field",
-    #                 "b_field_tor_probe_saddle_voltage",
-    #                 "coil_current"]
-    # source_names = ["magnetics",
-    #                 "magnetics", 
-    #                 "magnetics", 
-    #                 "magnetics", 
-    #                 "pf_active"]
-    
-    # if len(signal_names) != len(source_names):
-    #     print(f"signal_names length: {len(signal_names)}")
-    #     print(f"source_names length: {len(source_names)}")
-    #     raise ValueError("Lengths of signal_names and source_names do not match.")
-    
-    
-    # for signal_name, source_name in zip(signal_names, source_names):
-    #     print(f"fit_and_save {signal_name}")
-    #     fit_and_save_imputer(
-    #         shot_ids, 
-    #         source_name, 
-    #         signal_name, 
-    #         True, 
-    #         f"{output_path}_{signal_name}.joblib")
+    SETTINGS = get_settings("config_files/config_setup.json")
+    main(shot_ids, SETTINGS)

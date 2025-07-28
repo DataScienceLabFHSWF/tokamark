@@ -1,6 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from  signal_utils import MASTSignalManager
+from  .signal_utils import MASTSignalManager
 
 # ======================================================================================================================
 class MastDataset(Dataset):

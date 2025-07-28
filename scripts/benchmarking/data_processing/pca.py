@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 import os
+from config_files.config_setup import get_settings
 
 import sys
 
@@ -26,7 +27,7 @@ from utils import (read_data_split_csv, shuffle_shot_ids)
 
 def process_single_shot_id( 
     shot_id:int,
-    group:str,
+    source:str,
     signal_name:str, 
     store_manager: MASTStorageManager,
     local: bool
@@ -37,8 +38,8 @@ def process_single_shot_id(
     ----------
     shot_id : int
         shot id to process
-    group : str
-        name of the group to which the signal belongs
+    source : str
+        name of the source to which the signal belongs
     signal_name : str
         name of the signal to process
     store_manager : MASTStorageManager
@@ -54,7 +55,7 @@ def process_single_shot_id(
     
     return run_simple_filler(
         shot_id,
-        group,
+        source,
         signal_name, 
         store_manager,
         local
@@ -68,89 +69,59 @@ def process_single_shot_id_star(args):
 class MASTpca:
     """PCAnalysis class for performing PCA on MAST data.
     """
-    def __init__(self, config_file_path):
-        self.config_file_path = config_file_path
-
-    
-    def _load_config(self):
-        try:
-            with open(self.config_file_path, "r") as f:
-                # Load json
-                config = json.load(f)
-
-                # Extract parameters from config file
-                config = {
-                    "max_components" : config.get("max_components"),
-                    "group" : config.get("group"),
-                    "signal_name" : config.get("signal_name"),
-                    "processes" : config.get("processes"),
-                    "nr_shots" : config.get("nr_shots")
-                    }
-
-                return config
-
-        except Exception as e:
-            print(f"Error {e}")
-            return None
-    
-
+    def __init__(self, SETTINGS):
+        self.signal_names = SETTINGS.PCASETTINGS.signal_names
+        self.sources = SETTINGS.PCASETTINGS.sources
+        self.max_components = SETTINGS.PCASETTINGS.max_components
+        self.processes = SETTINGS.GENERAL.processes
+        self.nr_shots = SETTINGS.GENERAL.nr_shots
+        self.local = SETTINGS.GENERAL.local
+        self.output_directory = SETTINGS.LOCALPATHS.output_path
+        self.store_manager = MASTStorageManager()
+        
     def fit_PCA(
         self,
-        local: bool,
         shot_ids: list[int],
-        output_directory
+        signal_name: str,
+        source: str,
         ):
         """Aply PCA 
 
         Parameters
         ----------
-        local : bool
-            True if accessing data locally
         shot_ids : list[int]
             List of shots to use for PCA analysis 
+        signal_name : str
+            Name of the signal to process
+        source : str
+            Name of the source to which the signal belongs
         """
-
-         # input
-        config = self._load_config()
-
-        if config is not None:
-            # Extract parameters from config file
-            max_components = config["max_components"]
-            group = config["group"]
-            signal_name = config["signal_name"]
-            processes = config["processes"]
-            nr_shots = config["nr_shots"]
-        else:
-            print("No configuration loaded")
-            return
-
+        
         # Use SLURM setting if available
         slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK")
 
         if slurm_cpus is not None:
-            processes = int(slurm_cpus)
+            self.processes = int(slurm_cpus)
         else:
             # Fallback to user-provided or safe default
-            if processes is not None and processes > 0:
+            if self.processes is not None and self.processes > 0:
                 # Cap to system CPU count
-                processes = min(processes, os.cpu_count() or 1)
+                self.processes = min(self.processes, os.cpu_count() or 1)
             else:
                 # Default to 1 if nothing was specified
-                processes = 1
+                self.processes = 1
                 
-        # Instantiate MASTStorageManager
-        store_manager = MASTStorageManager()
 
         # Process shot ids
-        if nr_shots < len(shot_ids):
-            shot_ids = shot_ids[:nr_shots]
+        if self.nr_shots < len(shot_ids):
+            shot_ids = shot_ids[:self.nr_shots]
        
-        with Pool(processes=processes) as pool:
+        with Pool(processes=self.processes) as pool:
             args_iterable = [(  shot_id, 
-                                group, 
+                                source, 
                                 signal_name, 
-                                store_manager,
-                                local) for shot_id in shot_ids]
+                                self.store_manager,
+                                self.local) for shot_id in shot_ids]
             
             filter_none_results_iterator = (
                 result for result in pool.imap(process_single_shot_id_star, args_iterable)
@@ -165,13 +136,14 @@ class MASTpca:
             data_array = np.concatenate([*results], axis=1).T
         else:
             print("Warning: No results to concatenate.")
+            return
 
         scaler = StandardScaler()
         scaled_data = scaler.fit_transform(data_array)
 
         # Determine the number of components to explain 
         # at least 99.7% of the variance
-        for n_components in range(1,max_components):
+        for n_components in range(1,self.max_components):
             pca = PCA(n_components)
             pca.fit(scaled_data)
 
@@ -181,41 +153,48 @@ class MASTpca:
                 break
         
         # Save pca model to output_dir 
-        os.makedirs(output_directory, exist_ok=True)
+        os.makedirs(self.output_directory, exist_ok=True)
         
-        my_pca_file_name = output_directory+f"/pca_{group}_{signal_name}.joblib"
+        my_pca_file_name = self.output_directory+f"/pca_{source}_{signal_name}.joblib"
+        print(f"Saving PCA model to {my_pca_file_name}")
+        
         joblib.dump({
             "pca": pca,
             "scaler": scaler,
-            "group": group,
+            "source": source,
             "signal_name": signal_name
              },
             my_pca_file_name) 
         
-    def __call__(self, local, shot_ids, output_directory):
-        self.fit_PCA(local, shot_ids, output_directory)
+    def __call__(self, shot_ids):
+        for source, signal_name in zip(self.sources, self.signal_names):
+            print(f"Processing PCA for source: {source}, signal: {signal_name}")
+            # Fit PCA for each source and signal name
+            self.fit_PCA(shot_ids, source, signal_name)
     
 
-def run_MASTpca(config_file, data_split_file, output_directory): 
+def run_MASTpca(SETTINGS): 
     
+    data_split_file = SETTINGS.LOCALPATHS.data_split_file
     
     # Instance of PCAnalysis
-    mast_pca = MASTpca(config_file)
+    mast_pca = MASTpca(SETTINGS)
     
     # Prepare sample of shot IDs
     shot_ids, _, _ = read_data_split_csv(csv_path = data_split_file)
     shot_ids = shuffle_shot_ids(shot_ids)
     
     # Fit pca to MAST shots
-    local = True
-    mast_pca(local, shot_ids, output_directory)
+    local = SETTINGS.GENERAL.local
+    output_directory = SETTINGS.LOCALPATHS.output_path
+    mast_pca(shot_ids)
    
     
 def test_reconstruction(
     shot_id, 
     local,
     pca_file_name,
-    group,
+    source,
     signal_name,  
     ):
     
@@ -229,7 +208,7 @@ def test_reconstruction(
 
     vals = process_single_shot_id(
         shot_id,
-        group,
+        source,
         signal_name, 
         store_manager,
         local
@@ -256,7 +235,7 @@ def test_reconstruction(
     p1 = axes[1].pcolorfast(reconstructed.T, vmin=vmin, vmax=vmax)
 
 
-    axes[0].set_title(r"$\bf{Original}$" + f" {group}/{signal_name} shot id = {shot_id}")
+    axes[0].set_title(r"$\bf{Original}$" + f" {source}/{signal_name} shot id = {shot_id}")
     fig.colorbar(p0, ax=axes[0])
 
     axes[1].set_title(r"$\bf{Reconstructed}$" + f" (RMS = {RMS:.4f})")
@@ -265,24 +244,16 @@ def test_reconstruction(
     plt.tight_layout()
 
 
-    fig.savefig(f"{group}_{signal_name}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{source}_{signal_name}.png", bbox_inches="tight", dpi=300)
     #plt.show() 
  
-def test_run():
-    # Input
-    home_directory = "/home/ir-lore2"
-    config_file = home_directory+"/fairmast-data-preprocessing/scripts/benchmarking/data_transform/config_files/config_pca_b_field_tor_probe_saddle_voltage.json"
-    data_split_file = home_directory+"/fairmast-data-preprocessing/metadata/2025-05-12/data_splits.csv"
-    output_directory = home_directory+"/fairmast-data-preprocessing/scripts/benchmarking/data_transform/data/output"
-    run_MASTpca(config_file, data_split_file, output_directory)  
-   
+  
 if __name__ == "__main__":
-    shot_id = 16092
-    local = True
-    pca_file_name = "/home/ir-lore2/fairmast-data-preprocessing/scripts/benchmarking/data_transform/data/output/pca_magnetics_flux_loop_flux.joblib"
-    group = "magnetics"
-    signal_name = "flux_loop_flux"
-    test_reconstruction(shot_id, local, pca_file_name, group, signal_name, )
+    # Load settings
+    SETTINGS = get_settings("scripts/benchmarking/data_processing/config_files/config.json")
+    
+    # Run PCA analysis
+    run_MASTpca(SETTINGS)
     
     
     

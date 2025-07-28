@@ -6,15 +6,14 @@ import sys
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
-sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
 sys.path.append(mother_dir)
 
 from .segmenter_transform import (segment_data_in_time_windows,
                                  segment_sample)
 
 
-from signal_utils import MASTSignalManager  
-from store_utils import MASTStorageManager
+from MAST_tools.signal_utils import MASTSignalManager  
+from MAST_tools.store_utils import MASTStorageManager
 
 
 class ImputerTransform(object):

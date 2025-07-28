@@ -15,26 +15,24 @@ from torch.utils.data.dataloader import default_collate
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
-sys.path.append(os.path.abspath(os.path.join(mother_dir , "MAST_tools")))
 sys.path.append(mother_dir)
 
-from MAST_dataset import MastDataset_test as MastDataset
-from signal_utils import MASTSignalManager  
-from store_utils import MASTStorageManager
+from MAST_tools.MAST_dataset import MastDataset_test as MastDataset
+from MAST_tools.signal_utils import MASTSignalManager  
+from MAST_tools.store_utils import MASTStorageManager
 
-from transforms.signal_level_transforms.imputer_transform import ImputerTransform
-from transforms.signal_level_transforms.pca_transform import PCATransform 
-from transforms.signal_level_transforms.compose_transform import ComposeTransform
-from transforms.signal_level_transforms.segmenter_transform import SegmenterTransform
+from pipelines.transforms.signal_level_transforms.imputer_transform import ImputerTransform
+from pipelines.transforms.signal_level_transforms.pca_transform import PCATransform 
+from pipelines.transforms.signal_level_transforms.compose_transform import ComposeTransform
+from pipelines.transforms.signal_level_transforms.segmenter_transform import SegmenterTransform
 
-from collate_functions.collate_functions import MiniBatchCollateFn
+from pipelines.collate_functions.collate_functions import MiniBatchCollateFn
 
-from configs.config_setup import get_settings
+from pipelines.configs.config_setup import get_settings
 
-from  utils.utils import (read_data_split_csv, 
-                          load_models,
-                          ComposeTransforms,)
-
+from  pipelines.utils.utils import ( load_models,
+                          ComposeTransforms,
+                          read_data_split_csv)
 
 #================================================================
         ##########    DATALOADER  ##########
