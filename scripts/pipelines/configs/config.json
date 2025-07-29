@@ -8,8 +8,8 @@
   },
   "training": {
     "num_epochs": 2,
-    "num_train_samples": 100,
-    "num_val_samples": 100,
+    "num_train_samples": 10,
+    "num_val_samples": 10,
     "dataloader_batch_size": 1,
     "training_batch_size":10,
     "min_batch_size": 4,
@@ -22,7 +22,7 @@
   },
   "paths": {
     "data_split_csv_path": "metadata/2025-05-12/data_splits.csv",
-    "joblib_directory": "scripts/pipelines/models_joblib/",
+    "joblib_directory": "scripts/pipelines/data/input/",
     "average_values_file_path": "scripts/pipelines/data/input/averaged_arrays_N_100.json",
     "data_output_directory": "scripts/pipelines/data/output/"
   },

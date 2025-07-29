@@ -1,6 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from  .signal_utils import MASTSignalManager
+from  signal_utils import MASTSignalManager
 
 """
 1- The method to get the time variable has been updated to use the MASTSignalManager's method.
@@ -203,7 +203,7 @@ class MastDataset(Dataset):
                 )
             else:
                 shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals, "source-signal": f"{source}-{signal}"}
-            
+
         # Apply shot-level transforms to obtain a list of training objects
         if self.shot_level_transform:
             if all(subval is not None

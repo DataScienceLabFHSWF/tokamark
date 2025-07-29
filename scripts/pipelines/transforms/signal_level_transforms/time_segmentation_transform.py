@@ -117,12 +117,9 @@ def create_map(shot):
             return None
         
         
-        # segment_data_in_time_windows return a list of time segments of fizxed length
+        # segment_data_in_time_windows return a list of time segments of fixed length.
         # However, the last segment may be shorter than the others is the signal is not long enough
         # to contain a full time window.
-        # We will use the first segment length to determine the length of the segments and compare to last segment.
-        # Since this could be true for one signal only we cannot get rid of one segment for it and keep 
-        # the same number of segments for all the other signals. This will not work when batching minibatches.
         # Therefore, we will always remove the last segment independentkly of its length.
         for idx, (values_segment, time_segment) in enumerate(zip(values, times)):
             if idx == len(times) - 1:
@@ -229,41 +226,73 @@ def segment_shot(
 if __name__ == "__main__":
     
     train_shots = [30207]
-    data_names =["magnetics-flux_loop_flux"]
-    target_names =["magnetics-b_field_tor_probe_saddle_voltage"]
+    data_names =[["magnetics","flux_loop_flux"]]
+    target_names =[["magnetics", "b_field_tor_probe_saddle_voltage"]]
 
     import os
     import sys
     
-    sys.path.append("./scripts/MAST_tools")
-    from MAST_dataset import MastDataset_test as MastDataset
-  
-    shot = MastDataset(
-        local=False,
-        shots_list=train_shots,
-        source_signal_list=data_names + target_names,
-        signal_level_transform_map=None,
-        shot_level_transform=None
-    )
+    sys.path.append("scripts/MAST_tools")
+    from MAST_dataset import MastDataset
+    from  signal_utils import MASTSignalManager
+    import numpy as np
     
-    time_window_length =  0.01
-    step = 0.005
+    sig = MASTSignalManager()
+    store_manager = sig.store_manager
+    store = store_manager.make_shot_store(
+        shot_info={
+                "shot_id": train_shots[0],
+                "local": False  # Add among attributes
+                }
+        )
+          
+    data_profile = sig.get_signal_profile(
+                    data_origin=store,
+                    source_name=data_names[0][0],
+                    signal_name=data_names[0][1]
+                    )  
+    target_profile = sig.get_signal_profile(
+                    data_origin=store,
+                    source_name=target_names[0][0],
+                    signal_name=target_names[0][1]
+                    )  
+    
+    def make_shot_dictionary(shot_profile, signal, store, source):
+       
+        try:
+            shot_time, _ = sig.get_signal_times_and_time_type(
+                                signal,
+                                store,
+                                source
+                                )
+        except Exception as e:
+            print("Error getting time for shot")
+            shot_time = None
+        
+        try:
+            shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
+                                 else shot_profile.values)
+        except AttributeError:
+            shot_vals = None
+            
+            
+        # Apply variable-level transforms
+        shot = {}
+        shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals, "source-signal": f"{source}-{signal}"}
+        
+        return shot
+
+    data_shot = {data_names[0]:{values}}
+    
+    time_window_sec =  0.01
+    time_step = 0.005
     offset = 0.003
     
-    time_settings = {
-        "time_window_length": time_window_length,
-        "step":step,
-    }
 
     # Working
-    list_x, list_y = test_2(
-        shot[0], 
-        data_names, 
-        target_names, 
-        time_window_length, 
-        step, 
-        offset
-        )
+    list_x = segment_shot(data_shot, time_window_sec, time_step, offset)
+    list_y = segment_shot(target_shot, time_window_sec, time_step, offset)
+       
     
     # Printing the first two segments of x and y
     x0=list_x[-1]

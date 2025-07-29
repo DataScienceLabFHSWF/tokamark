@@ -265,8 +265,8 @@ def rebatch_dict_of_lists(batch, batch_size, min_final_batch_size=10):
 def train_model(
     model,
     device, 
-    train_dataloader, 
-    val_dataloader,
+    data_loader_train,
+    target_loader_train,
     batch_size,
     min_batch_size,
     num_epochs, 
@@ -282,10 +282,10 @@ def train_model(
         The neural network model to train.
     device : torch.device
         The device to train the model on.
-    train_dataloader : DataLoader
+    data_loader_train, : DataLoader
         DataLoader for the training data.
-    val_dataloader : DataLoader
-        DataLoader for the validation data.
+    target_loader_train, : DataLoader
+        DataLoader for the training target.
     batch_size : int
         Number of batches in the training data.
     min_batch_size : int, optional
@@ -297,6 +297,8 @@ def train_model(
     optimiser : torch.optim.Optimizer, optional
         Optimiser to use for training, by default None. If None, Adam optimiser is used
     """
+    collator = TimeWindowSegmentationCollateFn()
+    
     eval_loss_vs_epoch = []
     training_loss_vs_epoch = []
     for epoch in range(num_epochs):
@@ -305,7 +307,9 @@ def train_model(
         running_loss = 0.0
 
         # Loop through base batches from the DataLoader
-        for batch_idx, base_batch in enumerate(train_dataloader):
+        for data_list, target_list in zip(data_loader_train, target_loader_train):
+            base_batch = collator(data_list, target_list)
+            
             if batch_size is not None and min_batch_size is not None:
                 batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
             else:
@@ -340,46 +344,46 @@ def train_model(
 
                     running_loss += loss.item()
                     
-        print(f"Train loss: {running_loss/len(train_dataloader):.2e}")
-        training_loss_vs_epoch.append(running_loss/len(train_dataloader))
+        print(f"Train loss: {running_loss/len(data_loader_train):.2e}")
+        training_loss_vs_epoch.append(running_loss/len(data_loader_train))
         
-        # STARTING EVALUATION
-        model.eval()
-        running_loss = 0.0
+        # # STARTING EVALUATION
+        # model.eval()
+        # running_loss = 0.0
         
-        for batch_idx, base_batch in enumerate(val_dataloader):
-            if batch_size is not None and min_batch_size is not None:
-                batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
-            else:
-                batches = [base_batch]
+        # for batch_idx, base_batch in enumerate(val_dataloader):
+        #     if batch_size is not None and min_batch_size is not None:
+        #         batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
+        #     else:
+        #         batches = [base_batch]
                 
-            for batch in batches:
-                x_batch = batch['x']
-                y_batch = batch['y']
+        #     for batch in batches:
+        #         x_batch = batch['x']
+        #         y_batch = batch['y']
                 
-                x_tensor_list = []
-                y_tensor_list = []
-                for x_signals, y_signals in zip(x_batch, y_batch):
-                    x_flat = torch.cat([sig.flatten() for sig in x_signals], dim=0)
-                    y_flat = torch.cat([sig.flatten() for sig in y_signals], dim=0)
-                    x_tensor_list.append(x_flat)
-                    y_tensor_list.append(y_flat)
+        #         x_tensor_list = []
+        #         y_tensor_list = []
+        #         for x_signals, y_signals in zip(x_batch, y_batch):
+        #             x_flat = torch.cat([sig.flatten() for sig in x_signals], dim=0)
+        #             y_flat = torch.cat([sig.flatten() for sig in y_signals], dim=0)
+        #             x_tensor_list.append(x_flat)
+        #             y_tensor_list.append(y_flat)
 
-                    # Stack into batch tensors
-                    x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
-                    y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
+        #             # Stack into batch tensors
+        #             x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
+        #             y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
                     
-                    x_tensor = x_tensor.to(device)
-                    y_tensor = y_tensor.to(device)
+        #             x_tensor = x_tensor.to(device)
+        #             y_tensor = y_tensor.to(device)
                     
-                    optimiser.zero_grad()
-                    outputs = model(x_tensor)
+        #             optimiser.zero_grad()
+        #             outputs = model(x_tensor)
 
-                    loss = criterion(outputs, y_tensor)
+        #             loss = criterion(outputs, y_tensor)
 
-                    running_loss += loss.item()
-        print(f"Val loss: {running_loss/len(val_dataloader):.2e}")
-        eval_loss_vs_epoch.append(running_loss/len(val_dataloader))
+        #             running_loss += loss.item()
+        # print(f"Val loss: {running_loss/len(val_dataloader):.2e}")
+        # eval_loss_vs_epoch.append(running_loss/len(val_dataloader))
         
     return training_loss_vs_epoch, eval_loss_vs_epoch  
 
@@ -530,18 +534,18 @@ if __name__== "__main__":
     optimiser = torch.optim.Adam(model.parameters(), lr=SETTINGS.NEURALNET.lr)
     
     output_filename=SETTINGS.LOCAL_PATHS.data_output_directory + "NeuralNetwork.txt"
-    # train_loss, eval_loss = train_model(
-    #     model,
-    #     device,
-    #     train_dataloader,
-    #     val_dataloader,
-    #     SETTINGS.TRAINING.train_batch_size,
-    #     SETTINGS.TRAINING.min_batch_size,
-    #     SETTINGS.TRAINING.num_epochs,
-    #     output_filename,
-    #     criterion,
-    #     optimiser
-    #     )
+    train_loss, eval_loss = train_model(
+        model,
+        device,
+        data_loader_train,
+        target_loader_train,
+        SETTINGS.TRAINING.train_batch_size,
+        SETTINGS.TRAINING.min_batch_size,
+        SETTINGS.TRAINING.num_epochs,
+        output_filename,
+        criterion,
+        optimiser
+        )
     
 
     # print("Training completed successfully.")

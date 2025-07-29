@@ -39,10 +39,10 @@ class MiniBatchCollateFn:
     
     
 class TimeWindowSegmentationCollateFn:
-    def __call__(self, x_list, y_list):
+    def __call__(self, list_x, list_y):
         all_x_segments = []
         all_y_segments = []
-
+        breakpoint()
         if list_x is None or list_y is None:
             print("Warning: problem with data lengths after segmentation: list_x or list_y is None")
             return None
