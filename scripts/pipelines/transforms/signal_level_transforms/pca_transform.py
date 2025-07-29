@@ -41,7 +41,6 @@ class PCATransform(object):
             #vals = scaler.inverse_transform(x_transform).T
             vals = x_transform.T
            
-            
             return {"values":vals, "time":time, "source-signal":source_signal}
         else:
             return None

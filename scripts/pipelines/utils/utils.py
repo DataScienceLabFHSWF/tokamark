@@ -60,8 +60,8 @@ def load_models(data_names, data_dir):
     for source_name, signal_name in data_names:
         pca_model_path = f"{data_dir}pca_{signal_name}.joblib"
         imputer_model_path = f"{data_dir}imputer_{signal_name}.joblib"
-        pca_models[data_name] = joblib.load(pca_model_path)
-        imputer_models[data_name] = joblib.load(imputer_model_path)
+        pca_models[f"{source_name}-{signal_name}"] = joblib.load(pca_model_path)
+        imputer_models[f"{source_name}-{signal_name}"] = joblib.load(imputer_model_path)
 
     return {"pca": pca_models, "imputer": imputer_models}
 
