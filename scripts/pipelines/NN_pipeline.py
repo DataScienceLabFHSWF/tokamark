@@ -23,10 +23,8 @@ from MAST_tools.store_utils import MASTStorageManager
 
 from pipelines.transforms.signal_level_transforms.imputer_transform import ImputerTransform
 from pipelines.transforms.signal_level_transforms.pca_transform import PCATransform 
-from pipelines.transforms.signal_level_transforms.compose_transform import ComposeTransform
-from pipelines.transforms.signal_level_transforms.segmenter_transform import SegmenterTransform
-
-from pipelines.collate_functions.collate_functions import MiniBatchCollateFn
+from pipelines.transforms.signal_level_transforms.time_segmentation_transform import SegmenterTransform
+from pipelines.collate_functions.collate_functions import (first_item, TimeWindowSegmentationCollateFn)
 
 from pipelines.configs.config_setup import get_settings
 
@@ -138,49 +136,45 @@ class NeuralNetwork(nn.Module):
         x = self.fc3(x)
         return x
 
-
-def get_input_output_size(dataloader, device='cpu'):
-    """
-    Infers the input and output dimensions of the model from the first batch
-    after flattening signals.
-
-    Parameters
-    ----------
-    dataloader : torch.utils.data.DataLoader
-        The training dataloader.
-    device : str or torch.device
-        The device to load the tensors on.
-
-    Returns
-    -------
-    tuple[int, int]
-        input_dim, output_dim
-    """
-    for batch in dataloader:
-        x_batch = batch['x'] # List of lists 
-        y_batch = batch['y'] # List of lists
-        
-        x_tensor_list = []
-        y_tensor_list = []
-
-        x_signals = x_batch[0]
-        y_signals = y_batch[0]
     
+def get_input_output_size(data_loader, target_loader, device='cpu'):
+    """
+    Get the flattened input/output size from the first batch of data.
+    Assumes both loaders are zipped and aligned, and return a list of segments.
+    Each segment is a dict with "sources_signals" key.
+    """
+    
+    for x_segments, y_segments in zip(data_loader, target_loader):
+        if not x_segments or not y_segments:
+            raise ValueError("x_segments or y_segments is empty.")
+
+        # Take the first time window segment
+        x_segment = x_segments[0]
+        y_segment = y_segments[0]
+
+        x_signals = x_segment["sources_signals"]
+        y_signals = y_segment["sources_signals"]
+
         if not x_signals or not y_signals:
-            raise ValueError("First segment in x_batch or y_batch is empty.")
-        
+            raise ValueError("First segment in x_batch or y_batch is missing 'sources_signals'.")
+
         try:
-            x_flat = torch.cat([sig.to(device).flatten() for sig in x_signals], dim=0)
-            y_flat = torch.cat([sig.to(device).flatten() for sig in y_signals], dim=0)
+            x_tensor_list = [signal_dict["values"].to(device).flatten() for signal_dict in x_signals]
+            y_tensor_list = [signal_dict["values"].to(device).flatten() for signal_dict in y_signals]
+
+            x_flat = torch.cat(x_tensor_list, dim=0)
+            y_flat = torch.cat(y_tensor_list, dim=0)
         except Exception as e:
             raise ValueError(f"Failed to concatenate tensors: {e}")
-        
+
         input_dim = x_flat.shape[0]
         output_dim = y_flat.shape[0]
-        print(f"NN size:  input_dim = {input_dim}, output_dim = {output_dim }")
 
+        print(f"NN size: input_dim = {input_dim}, output_dim = {output_dim}")
         return input_dim, output_dim
-   
+
+    raise RuntimeError("No data found in loaders.")
+
     
 def compare_last_first_tensor_shapes(x_list,y_list):
     """ Check that the shape of the last element in the lists is coinsistent 
@@ -271,8 +265,8 @@ def rebatch_dict_of_lists(batch, batch_size, min_final_batch_size=10):
 def train_model(
     model,
     device, 
-    train_dataloader, 
-    val_dataloader,
+    data_loader_train,
+    target_loader_train,
     batch_size,
     min_batch_size,
     num_epochs, 
@@ -288,10 +282,10 @@ def train_model(
         The neural network model to train.
     device : torch.device
         The device to train the model on.
-    train_dataloader : DataLoader
+    data_loader_train, : DataLoader
         DataLoader for the training data.
-    val_dataloader : DataLoader
-        DataLoader for the validation data.
+    target_loader_train, : DataLoader
+        DataLoader for the training target.
     batch_size : int
         Number of batches in the training data.
     min_batch_size : int, optional
@@ -303,6 +297,8 @@ def train_model(
     optimiser : torch.optim.Optimizer, optional
         Optimiser to use for training, by default None. If None, Adam optimiser is used
     """
+    collator = TimeWindowSegmentationCollateFn()
+    
     eval_loss_vs_epoch = []
     training_loss_vs_epoch = []
     for epoch in range(num_epochs):
@@ -311,7 +307,9 @@ def train_model(
         running_loss = 0.0
 
         # Loop through base batches from the DataLoader
-        for batch_idx, base_batch in enumerate(train_dataloader):
+        for data_list, target_list in zip(data_loader_train, target_loader_train):
+            base_batch = collator(data_list, target_list)
+            
             if batch_size is not None and min_batch_size is not None:
                 batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
             else:
@@ -346,46 +344,46 @@ def train_model(
 
                     running_loss += loss.item()
                     
-        print(f"Train loss: {running_loss/len(train_dataloader):.2e}")
-        training_loss_vs_epoch.append(running_loss/len(train_dataloader))
+        print(f"Train loss: {running_loss/len(data_loader_train):.2e}")
+        training_loss_vs_epoch.append(running_loss/len(data_loader_train))
         
-        # STARTING EVALUATION
-        model.eval()
-        running_loss = 0.0
+        # # STARTING EVALUATION
+        # model.eval()
+        # running_loss = 0.0
         
-        for batch_idx, base_batch in enumerate(val_dataloader):
-            if batch_size is not None and min_batch_size is not None:
-                batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
-            else:
-                batches = [base_batch]
+        # for batch_idx, base_batch in enumerate(val_dataloader):
+        #     if batch_size is not None and min_batch_size is not None:
+        #         batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
+        #     else:
+        #         batches = [base_batch]
                 
-            for batch in batches:
-                x_batch = batch['x']
-                y_batch = batch['y']
+        #     for batch in batches:
+        #         x_batch = batch['x']
+        #         y_batch = batch['y']
                 
-                x_tensor_list = []
-                y_tensor_list = []
-                for x_signals, y_signals in zip(x_batch, y_batch):
-                    x_flat = torch.cat([sig.flatten() for sig in x_signals], dim=0)
-                    y_flat = torch.cat([sig.flatten() for sig in y_signals], dim=0)
-                    x_tensor_list.append(x_flat)
-                    y_tensor_list.append(y_flat)
+        #         x_tensor_list = []
+        #         y_tensor_list = []
+        #         for x_signals, y_signals in zip(x_batch, y_batch):
+        #             x_flat = torch.cat([sig.flatten() for sig in x_signals], dim=0)
+        #             y_flat = torch.cat([sig.flatten() for sig in y_signals], dim=0)
+        #             x_tensor_list.append(x_flat)
+        #             y_tensor_list.append(y_flat)
 
-                    # Stack into batch tensors
-                    x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
-                    y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
+        #             # Stack into batch tensors
+        #             x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
+        #             y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
                     
-                    x_tensor = x_tensor.to(device)
-                    y_tensor = y_tensor.to(device)
+        #             x_tensor = x_tensor.to(device)
+        #             y_tensor = y_tensor.to(device)
                     
-                    optimiser.zero_grad()
-                    outputs = model(x_tensor)
+        #             optimiser.zero_grad()
+        #             outputs = model(x_tensor)
 
-                    loss = criterion(outputs, y_tensor)
+        #             loss = criterion(outputs, y_tensor)
 
-                    running_loss += loss.item()
-        print(f"Val loss: {running_loss/len(val_dataloader):.2e}")
-        eval_loss_vs_epoch.append(running_loss/len(val_dataloader))
+        #             running_loss += loss.item()
+        # print(f"Val loss: {running_loss/len(val_dataloader):.2e}")
+        # eval_loss_vs_epoch.append(running_loss/len(val_dataloader))
         
     return training_loss_vs_epoch, eval_loss_vs_epoch  
 
@@ -425,72 +423,79 @@ if __name__== "__main__":
     
     
     ########## INITIALIZATION SECTION ##########
-    # Train, val, and test shots
     train_shots, test_shots, val_shots = read_data_split_csv(SETTINGS.LOCAL_PATHS.data_split_csv_path)
     train_shots = train_shots[:SETTINGS.TRAINING.num_train_samples]  
     val_shots = val_shots[:SETTINGS.TRAINING.num_val_samples] # For testing purposes, limit the number of validation shots
     
     # Define transform pipelines for data and target signals
-    transforms_set_for_data = ComposeTransforms(
-        [
-            ImputerTransform(model_dictionary,SETTINGS.LOCAL_PATHS.average_values_file_path),
-            PCATransform(model_dictionary)
-        ]
-    )
-    transforms_set_for_target = ComposeTransforms(
+    transforms_data_signal_level = ComposeTransforms(
         [
             ImputerTransform(model_dictionary,SETTINGS.LOCAL_PATHS.average_values_file_path),
             PCATransform(model_dictionary)
         ]
     )
     
-    # Make a map of transforms to apply at signal level
-    signal_transform_map = {f"{source}-{signal}": transforms_set_for_data for source, signal in SETTINGS.DATA.data_names}
-    signal_transform_map.update({f"{source}-{signal}": transforms_set_for_target for source, signal in SETTINGS.DATA.target_names})
- 
-    #  Make a map of transforms to apply at shot level
-    shot_level_transform = None # No shot level transform is applied
+    transforms_target_signal_level = ComposeTransforms(
+        [
+            ImputerTransform(model_dictionary,SETTINGS.LOCAL_PATHS.average_values_file_path),
+            PCATransform(model_dictionary)
+        ]
+    )
     
-    # Initialize Datasets for training and validation
-    dataset_for_training = initialize_dataset(
+    transforms_data_shot_level = ComposeTransforms([
+                SegmenterTransform(
+                    SETTINGS.TIME_SEGMENTATION.time_window_sec, 
+                    SETTINGS.TIME_SEGMENTATION.time_step,
+                    SETTINGS.TIME_SEGMENTATION.offset)
+            ]
+        )
+                                                    
+    
+    transforms_target_shot_level = ComposeTransforms([
+                SegmenterTransform(
+                    SETTINGS.TIME_SEGMENTATION.offset,
+                    SETTINGS.TIME_SEGMENTATION.time_step,
+                    offset=0.0)
+            ]
+        )
+    
+    # Make maps of transforms to apply at signal and shot level
+    data_map_signal_level = {f"{source}-{signal}": transforms_data_signal_level for source, signal in SETTINGS.DATA.data_names}
+    target_map_signal_level = {f"{source}-{signal}": transforms_target_signal_level for source, signal in SETTINGS.DATA.target_names}
+  
+    # Initialize Datasets for training
+    data_training_dataset = initialize_dataset(
         local=SETTINGS.DATA.local,
         shots_list=train_shots,
-        source_signal_list=all_source_signal_list,
-        signal_level_transform_map=signal_transform_map,
-        shot_level_transform=shot_level_transform
+        source_signal_list=SETTINGS.DATA.data_names,
+        signal_level_transform_map= data_map_signal_level,
+        shot_level_transform= transforms_data_shot_level
     )
     
-    dataset_for_validation = initialize_dataset(
+    target_training_dataset = initialize_dataset(
         local=SETTINGS.DATA.local,
-        shots_list=val_shots,
-        source_signal_list=all_source_signal_list,
-        signal_level_transform_map=signal_transform_map,
-        shot_level_transform=shot_level_transform
+        shots_list=train_shots,
+        source_signal_list=SETTINGS.DATA.target_names,
+        signal_level_transform_map=target_map_signal_level,
+        shot_level_transform=transforms_target_shot_level
     )
     
-    customised_collate_fn = MiniBatchCollateFn(
-                data_names=SETTINGS.DATA.data_names,
-                target_names=SETTINGS.DATA.target_names,
-                time_window_sec=SETTINGS.TIME_SEGMENTATION.time_window_sec, 
-                time_step=SETTINGS.TIME_SEGMENTATION.time_step, 
-                offset=SETTINGS.TIME_SEGMENTATION.offset,
-                )
     
     # Initialize DataLoaders for training and validation
-    train_dataloader = initialize_dataloader(
-        dataset=dataset_for_training,
+    data_loader_train = initialize_dataloader(
+        dataset = data_training_dataset,
         batch_size=SETTINGS.TRAINING.dataloader_batch_size,
         num_workers=SETTINGS.TRAINING.num_workers,
         shuffle=True,
-        collate_fn = customised_collate_fn
+        collate_fn=first_item # otherwise pytorch will wrap automatically an item of MastDataset into a list. 
     )
     
-    val_dataloader = initialize_dataloader(
-        dataset=dataset_for_validation,
+    target_loader_train = initialize_dataloader(
+        dataset = target_training_dataset,
         batch_size=SETTINGS.TRAINING.dataloader_batch_size,
         num_workers=SETTINGS.TRAINING.num_workers,
         shuffle=True,
-        collate_fn = customised_collate_fn
+        collate_fn=first_item # otherwise pytorch will wrap automatically an item of MastDataset into a list. 
     )
 
 
@@ -502,12 +507,16 @@ if __name__== "__main__":
     else:
         device = torch.device("cpu")
 
+    
     # Model definition
     input_size, output_size = 0, 0
-    # Try to get input and output size from the first batch of data
-    # If it fails, it will raise a ValueError and we will print the error message
+    # Get input and output size from the first batch of data
     try:
-        input_size, output_size =  get_input_output_size(train_dataloader)
+        input_size, output_size =  get_input_output_size(
+            data_loader_train, 
+            target_loader_train,
+            device=device)
+        print(f"Input size: {input_size}, Output size: {output_size}")
     except ValueError as e:
         print(f"Error getting input/output size: {e}")
         sys.exit(1)
@@ -527,8 +536,8 @@ if __name__== "__main__":
     train_loss, eval_loss = train_model(
         model,
         device,
-        train_dataloader,
-        val_dataloader,
+        data_loader_train,
+        target_loader_train,
         SETTINGS.TRAINING.train_batch_size,
         SETTINGS.TRAINING.min_batch_size,
         SETTINGS.TRAINING.num_epochs,

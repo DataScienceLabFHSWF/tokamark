@@ -1,6 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from  signal_utils import MASTSignalManager
+from  .signal_utils import MASTSignalManager
 
 """
 1- The method to get the time variable has been updated to use the MASTSignalManager's method.

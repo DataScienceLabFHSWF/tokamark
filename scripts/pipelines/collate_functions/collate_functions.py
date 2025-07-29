@@ -42,21 +42,25 @@ class TimeWindowSegmentationCollateFn:
     def __call__(self, list_x, list_y):
         all_x_segments = []
         all_y_segments = []
-        breakpoint()
-        if list_x is None or list_y is None:
+        
+        len_x, len_y = len(list_x), len(list_y)
+        
+        if len_x is None or len_y is None:
             print("Warning: problem with data lengths after segmentation: list_x or list_y is None")
             return None
-        
-        if len(list_x) != len(list_y):
-            print("Warning: problem with data lengths after segmentation: lengths of list_x and list_y differ")
-            print(f"Lengths of lists: len(list_y) = {len(list_y)}, len(list_x) = {len(list_x)}")
-            return None
 
-        if len(list_y) == 0 or len(list_x) == 0:
+        if len_y == 0 or len_x == 0:
             print("Warning: problem with data lengths after segmentation")
             print(f"Lengths of lists: len(list_y) = {len(list_y)}, len(list_x) = {len(list_x)}")
             return None
-                    
+        
+        # If the lengths of the lists are not equal, we truncate them removing 
+        if len_x != len_y:
+            if len_x > len_y:
+                list_x = list_x[len_x - len_y:]
+            elif len_y > len_x:
+                list_y = list_y[len_y - len_x:]
+            
         for x_segment, y_segment in zip(list_x, list_y):
             # Extract x values
             x_values = [

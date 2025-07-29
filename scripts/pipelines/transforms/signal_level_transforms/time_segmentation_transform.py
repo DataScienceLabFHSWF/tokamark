@@ -65,9 +65,6 @@ def segment_data_in_time_windows(
     -------
         Two lists one for "values" and one for "times" containing segments.
     """
-    
-    assert time_window >= time_step, \
-        "Time window must be greater than time step."   
 
     values = torch.tensor(values,dtype=torch.float32)  # shape: (n_features, time_steps)
     times = torch.from_numpy(times)    # shape: (time_steps,)
@@ -282,7 +279,8 @@ if __name__ == "__main__":
         
         return shot
 
-    data_shot = {data_names[0]:{values}}
+    data_shot = make_shot_dictionary(data_profile, data_names[0][1], store, data_names[0][0])
+    target_shot = make_shot_dictionary(target_profile, target_names[0][1], store, target_names[0][0])
     
     time_window_sec =  0.01
     time_step = 0.005
@@ -291,7 +289,7 @@ if __name__ == "__main__":
 
     # Working
     list_x = segment_shot(data_shot, time_window_sec, time_step, offset)
-    list_y = segment_shot(target_shot, time_window_sec, time_step, offset)
+    list_y = segment_shot(target_shot, offset, time_step, offset=00)
        
     
     # Printing the first two segments of x and y
@@ -301,7 +299,7 @@ if __name__ == "__main__":
     x1=list_x[-2]
     y1=list_y[-2]
     
-    print(f"x0 times: {x0['source_name-signal_name'][0]['time']}")
-    print(f"x1 times: {x1['source_name-signal_name'][0]['time']}")
-    print(f"y0 times: {y0['source_name-signal_name'][0]['time']}")
-    print(f"y1 times: {y1['source_name-signal_name'][0]['time']}")
+    print(f"x0 times: {x0['sources_signals'][0]['time']}")
+    print(f"x1 times: {x1['sources_signals'][0]['time']}")
+    print(f"y0 times: {y0['sources_signals'][0]['time']}")
+    print(f"y1 times: {y1['sources_signals'][0]['time']}")
