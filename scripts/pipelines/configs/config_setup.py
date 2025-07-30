@@ -22,6 +22,7 @@ def get_settings(config_file_path):
 class Settings():
     def __init__(self, config):
         # Set up individual settings classes
+        self.config = config
         self.NEURALNET = NNSettings(config)
         self.TIME_SEGMENTATION = TimeSettings(config)
         self.TRAINING = TrainingSettings(config)

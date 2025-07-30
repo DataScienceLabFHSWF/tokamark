@@ -35,80 +35,72 @@ from  pipelines.utils.utils import ( load_models,
 #================================================================
         ##########    DATALOADER  ##########
 #================================================================
-def initialize_dataset(
-    local: bool,
+def initialize_pipeline(
+    SETTINGS,
     shots_list: list[int],
-    source_signal_list: list[tuple[str, str]],
-    signal_level_transform_map: dict = None,
-    shot_level_transform: callable = None
-):
-    """Initialize the MASTDataset.
-    Parameters
-    ----------
-    local : bool
-        If True, use local MAST database, otherwise use remote S3 bucket
-    shots_list : list[int]
-        List of shot IDs to load data for.
-    source_signal_list : list[tuple[str, str]]
-        List of data names to load, format: ('source', 'signal')
-    signal_level_transform_map : dict, optional
-        dict map of pipeline of transforms to apply at signal level, by default None
-    shot_level_transform : callable, optional
-        pipeline of transforms to apply at shot level, by default None
-    Returns
-    -------
-    MASTDataset
-        Initialized MASTDataset object.
-    """
-    
-    dataset = MastDataset(
-        local=local,
-        shots_list=shots_list,
-        source_signal_list=source_signal_list,
-        signal_level_transform_map=signal_level_transform_map,
-        shot_level_transform=shot_level_transform
-    )
-    
-    return dataset
-
-def initialize_dataloader(
-    dataset: MastDataset,
-    batch_size: int,
-    num_workers: int,
-    shuffle: bool = True,
-    collate_fn: callable = None
+    data_map_signal_level: dict,
+    target_map_signal_level: dict,
+    transforms_data_shot_level: callable,
+    transforms_target_shot_level: callable  
 ):
     """Initialize the DataLoader for the MASTDataset.
     
     Parameters
     ----------
-    dataset : MASTDataset
-        The dataset to load.
-    batch_size : int
-        Size of the batch.
-    num_workers : int
-        Number of workers for DataLoader.
-    shuffle : bool, optional
-        Whether to shuffle the data, by default True
-    collate_fn : callable, optional
-        Custom collate function, by default None
-    
+    SETTINGS : object
+        Configuration settings for the pipeline.
+    shots_list : list[int]
+        List of shot IDs to load data for.
+    data_map_signal_level : dict
+        Map of signal-level transforms for data signals.
+    target_map_signal_level : dict
+        Map of signal-level transforms for target signals.
+    transforms_data_shot_level : callable
+        Transform to apply at shot level for data signals.
+    transforms_target_shot_level : callable
+        Transform to apply at shot level for target signals.
     Returns
     -------
     DataLoader
         Initialized DataLoader object.
     """
     
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=shuffle,
-        collate_fn=collate_fn
+    # Initialize Datasets for training
+    data_dataset = MastDataset(
+        local=SETTINGS.DATA.local,
+        shots_list=shots_list,
+        source_signal_list=SETTINGS.DATA.data_names,
+        signal_level_transform_map= data_map_signal_level,
+        shot_level_transform= transforms_data_shot_level
     )
     
-    return dataloader
-
+    target_dataset = MastDataset(
+        local=SETTINGS.DATA.local,
+        shots_list=shots_list,
+        source_signal_list=SETTINGS.DATA.target_names,
+        signal_level_transform_map=target_map_signal_level,
+        shot_level_transform=transforms_target_shot_level
+    )
+    
+    
+    # Initialize DataLoaders for training and validation
+    data_loader = DataLoader(
+        dataset = data_dataset,
+        batch_size=SETTINGS.TRAINING.dataloader_batch_size,
+        num_workers=SETTINGS.TRAINING.num_workers,
+        shuffle=True,
+        collate_fn=first_item # otherwise pytorch will wrap automatically an item of MastDataset into a list. 
+    )
+  
+    
+    target_loader = DataLoader(
+        dataset = target_dataset,
+        batch_size=SETTINGS.TRAINING.dataloader_batch_size,
+        num_workers=SETTINGS.TRAINING.num_workers,
+        shuffle=True,
+        collate_fn=first_item # otherwise pytorch will wrap automatically an item of MastDataset into a list. 
+    )
+    return data_loader, target_loader
 
 #================================================================
     ########## Model Definition and Training ##########
@@ -135,8 +127,7 @@ class NeuralNetwork(nn.Module):
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-
-    
+ 
 def get_input_output_size(data_loader, target_loader, device='cpu'):
     """
     Get the flattened input/output size from the first batch of data.
@@ -174,8 +165,7 @@ def get_input_output_size(data_loader, target_loader, device='cpu'):
         return input_dim, output_dim
 
     raise RuntimeError("No data found in loaders.")
-
-    
+  
 def compare_last_first_tensor_shapes(x_list,y_list):
     """ Check that the shape of the last element in the lists is coinsistent 
     with the number of signals expected, e.g., the nr_signals found in the first element
@@ -216,7 +206,6 @@ def compare_last_first_tensor_shapes(x_list,y_list):
         y_list = y_list[:-1]
     
     return x_list, y_list
-    
     
 # Manual batch splitting inside the training loop.
 def rebatch_dict_of_lists(batch, batch_size, min_final_batch_size=10):
@@ -262,15 +251,15 @@ def rebatch_dict_of_lists(batch, batch_size, min_final_batch_size=10):
             
     return batches
 
-def train_model(
+def run_model(
     model,
     device, 
-    data_loader_train,
-    target_loader_train,
+    data_loader,
+    target_loader,
     batch_size,
     min_batch_size,
     num_epochs, 
-    output_filename,
+    current_process="training",
     criterion=nn.MSELoss(),
     optimiser=None):
     """
@@ -298,16 +287,21 @@ def train_model(
         Optimiser to use for training, by default None. If None, Adam optimiser is used
     """
     collator = TimeWindowSegmentationCollateFn()
-    
-    eval_loss_vs_epoch = []
-    training_loss_vs_epoch = []
-    for epoch in range(num_epochs):
-        print(f"Epoch: {epoch}")
-        model.train()
-        running_loss = 0.0
 
+    loss_vs_epoch = []
+    for epoch in range(num_epochs):
+        
+        print(f"{current_process} epoch: {epoch}")
+        
+        if current_process == "training":
+            model.train()
+        else:
+            model.eval()
+            torch.set_grad_enabled(False)
+            
         # Loop through base batches from the DataLoader
-        for data_list, target_list in zip(data_loader_train, target_loader_train):
+        running_loss = 0.0
+        for data_list, target_list in zip(data_loader, target_loader):
             base_batch = collator(data_list, target_list)
             
             if batch_size is not None and min_batch_size is not None:
@@ -327,73 +321,44 @@ def train_model(
                     x_tensor_list.append(x_flat)
                     y_tensor_list.append(y_flat)
 
-                    # Stack into batch tensors
-                    x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
-                    y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
-                    
-                    x_tensor = x_tensor.to(device)
-                    y_tensor = y_tensor.to(device)
-                    
+                # Stack into batch tensors
+                x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
+                y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
+                
+                x_tensor = x_tensor.to(device)
+                y_tensor = y_tensor.to(device)
+                 
+                outputs = model(x_tensor)
+                loss = criterion(outputs, y_tensor)
+
+                if current_process == "training":
                     optimiser.zero_grad()
-                    outputs = model(x_tensor)
-
-                    loss = criterion(outputs, y_tensor)
-
                     loss.backward()
                     optimiser.step()
 
-                    running_loss += loss.item()
+                running_loss += loss.item()
                     
-        print(f"Train loss: {running_loss/len(data_loader_train):.2e}")
-        training_loss_vs_epoch.append(running_loss/len(data_loader_train))
+        print(f"Loss: {running_loss/len(data_loader):.2e}")
+        loss_vs_epoch.append(running_loss/len(data_loader))    
         
-        # # STARTING EVALUATION
-        # model.eval()
-        # running_loss = 0.0
-        
-        # for batch_idx, base_batch in enumerate(val_dataloader):
-        #     if batch_size is not None and min_batch_size is not None:
-        #         batches = rebatch_dict_of_lists(base_batch, batch_size, min_batch_size)
-        #     else:
-        #         batches = [base_batch]
-                
-        #     for batch in batches:
-        #         x_batch = batch['x']
-        #         y_batch = batch['y']
-                
-        #         x_tensor_list = []
-        #         y_tensor_list = []
-        #         for x_signals, y_signals in zip(x_batch, y_batch):
-        #             x_flat = torch.cat([sig.flatten() for sig in x_signals], dim=0)
-        #             y_flat = torch.cat([sig.flatten() for sig in y_signals], dim=0)
-        #             x_tensor_list.append(x_flat)
-        #             y_tensor_list.append(y_flat)
+    return loss_vs_epoch
 
-        #             # Stack into batch tensors
-        #             x_tensor = torch.stack(x_tensor_list)  # [batch_size, input_dim]
-        #             y_tensor = torch.stack(y_tensor_list)  # [batch_size, target_dim]
-                    
-        #             x_tensor = x_tensor.to(device)
-        #             y_tensor = y_tensor.to(device)
-                    
-        #             optimiser.zero_grad()
-        #             outputs = model(x_tensor)
 
-        #             loss = criterion(outputs, y_tensor)
-
-        #             running_loss += loss.item()
-        # print(f"Val loss: {running_loss/len(val_dataloader):.2e}")
-        # eval_loss_vs_epoch.append(running_loss/len(val_dataloader))
-        
-    return training_loss_vs_epoch, eval_loss_vs_epoch  
-
-        
 #================================================================
     ########## END of Model Definition and Training ##########
 #================================================================
 
 if __name__== "__main__":
     
+    # Determine device to train on
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+        
+        
     #============== INPUT and SET-UP SECTION ==============#
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -462,53 +427,28 @@ if __name__== "__main__":
     # Make maps of transforms to apply at signal and shot level
     data_map_signal_level = {f"{source}-{signal}": transforms_data_signal_level for source, signal in SETTINGS.DATA.data_names}
     target_map_signal_level = {f"{source}-{signal}": transforms_target_signal_level for source, signal in SETTINGS.DATA.target_names}
-  
-    # Initialize Datasets for training
-    data_training_dataset = initialize_dataset(
-        local=SETTINGS.DATA.local,
-        shots_list=train_shots,
-        source_signal_list=SETTINGS.DATA.data_names,
-        signal_level_transform_map= data_map_signal_level,
-        shot_level_transform= transforms_data_shot_level
-    )
-    
-    target_training_dataset = initialize_dataset(
-        local=SETTINGS.DATA.local,
-        shots_list=train_shots,
-        source_signal_list=SETTINGS.DATA.target_names,
-        signal_level_transform_map=target_map_signal_level,
-        shot_level_transform=transforms_target_shot_level
-    )
-    
-    
-    # Initialize DataLoaders for training and validation
-    data_loader_train = initialize_dataloader(
-        dataset = data_training_dataset,
-        batch_size=SETTINGS.TRAINING.dataloader_batch_size,
-        num_workers=SETTINGS.TRAINING.num_workers,
-        shuffle=True,
-        collate_fn=first_item # otherwise pytorch will wrap automatically an item of MastDataset into a list. 
-    )
-    
-    target_loader_train = initialize_dataloader(
-        dataset = target_training_dataset,
-        batch_size=SETTINGS.TRAINING.dataloader_batch_size,
-        num_workers=SETTINGS.TRAINING.num_workers,
-        shuffle=True,
-        collate_fn=first_item # otherwise pytorch will wrap automatically an item of MastDataset into a list. 
-    )
 
-
-    # Determine device to train on
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
-
+    data_loader_train, target_loader_train = initialize_pipeline(
+        SETTINGS,
+        train_shots,
+        data_map_signal_level,
+        target_map_signal_level,
+        transforms_data_shot_level,
+        transforms_target_shot_level
+    )
     
-    # Model definition
+    data_loader_validation, target_loader_validation = initialize_pipeline(
+        SETTINGS,
+        val_shots,
+        data_map_signal_level,
+        target_map_signal_level,
+        transforms_data_shot_level,
+        transforms_target_shot_level
+    )
+    ########## END INITIALIZATION SECTION ##########
+     
+     
+    ########## MODEL DEFINITION ##########
     input_size, output_size = 0, 0
     # Get input and output size from the first batch of data
     try:
@@ -531,9 +471,12 @@ if __name__== "__main__":
     
     criterion = nn.MSELoss() # Loss function to use, by default MSELoss.
     optimiser = torch.optim.Adam(model.parameters(), lr=SETTINGS.NEURALNET.lr)
+    ########## END MODEL DEFINITION ########## 
     
+    ########## MODEL TRAINING & VALIDATION ##########
     output_filename=SETTINGS.LOCAL_PATHS.data_output_directory + "NeuralNetwork.txt"
-    train_loss, eval_loss = train_model(
+    current_process = "training"
+    train_loss = run_model(
         model,
         device,
         data_loader_train,
@@ -541,7 +484,21 @@ if __name__== "__main__":
         SETTINGS.TRAINING.train_batch_size,
         SETTINGS.TRAINING.min_batch_size,
         SETTINGS.TRAINING.num_epochs,
-        output_filename,
+        current_process,
+        criterion,
+        optimiser
+        )
+    
+    current_process = "validating"
+    eval_loss = run_model(
+        model,
+        device,
+        data_loader_validation,
+        target_loader_validation,
+        SETTINGS.TRAINING.train_batch_size,
+        SETTINGS.TRAINING.min_batch_size,
+        SETTINGS.TRAINING.num_epochs,
+        current_process,
         criterion,
         optimiser
         )
@@ -551,27 +508,21 @@ if __name__== "__main__":
     # Save the model
     torch.save({
         'model_state_dict': model.state_dict(),
-        'hyperparameters': {
-            'input_size': input_size,
-            'output_size': output_size,
-            'l1_size': SETTINGS.NEURALNET.l1_size,
-            'l2_size': SETTINGS.NEURALNET.l2_size,
+        'SETTINGS': SETTINGS.config,
+        'model_hyperparameters': {
+        'input_size': input_size,
+        'output_size': output_size,
+        'l1_size': SETTINGS.NEURALNET.l1_size,
+        'l2_size': SETTINGS.NEURALNET.l2_size,
+        'learning_rate': SETTINGS.NEURALNET.lr
+        },
+        'training_hyperparameters': {
             'num_epochs': SETTINGS.TRAINING.num_epochs,
-            'learning_rate': SETTINGS.NEURALNET.lr,
             'batch_size': SETTINGS.TRAINING.train_batch_size,
-            'num_train_samples': SETTINGS.TRAINING.num_train_samples,
-            'num_eval_samples': SETTINGS.TRAINING.num_val_samples,
-            'dataloader_batch_size': SETTINGS.TRAINING.dataloader_batch_size,
-            'num_workers': SETTINGS.TRAINING.num_workers,
-            'device': str(device),
-            'data_names': SETTINGS.DATA.data_names,
-            'target_names': SETTINGS.DATA.target_names,
-            "time_window_sec": SETTINGS.TIME_SEGMENTATION.time_window_sec, 
-            "time_step": SETTINGS.TIME_SEGMENTATION.time_step, 
-            "offset": SETTINGS.TIME_SEGMENTATION.offset,
-            'local': SETTINGS.DATA.local,
+            'device': str(device)
+        },
+        'metrics': {
             'train_loss': train_loss,
             'eval_loss': eval_loss
-        }
-    }, f"model{SETTINGS.NEURALNET.lr}.pth")
-    
+        }}, f"model{SETTINGS.NEURALNET.lr}.pth")
+
