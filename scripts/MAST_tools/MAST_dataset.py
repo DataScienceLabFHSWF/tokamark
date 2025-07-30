@@ -1,14 +1,10 @@
 import numpy as np
 from torch.utils.data import Dataset
-from  .signal_utils import MASTSignalManager
+from scripts.MAST_tools.signal_utils import MASTSignalManager
 
-"""
-1- The method to get the time variable has been updated to use the MASTSignalManager's method.
-2- The dictionary "shot" contains one extra key needed for my transform pipeline: 'time', 'values', and 'source-signal'.
-If you are happy with these changes, deltete these comments and the MastDataset_old class.
-"""
+
 # ======================================================================================================================
-class MastDataset_old(Dataset):
+class MastDataset(Dataset):
     """Dataset class for MAST data.
 
     MAST Dataset extending the base torch.utils.data.Dataset class. See __init__ below for details.
