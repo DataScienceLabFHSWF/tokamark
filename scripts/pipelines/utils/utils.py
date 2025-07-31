@@ -1,3 +1,4 @@
+import joblib
 import os
 import pandas as pd
 from torch.utils.data._utils.collate import default_collate  # noqa
@@ -65,3 +66,28 @@ class ComposeTransforms(object):
                 return None
             sample = transform(sample)
         return sample
+
+# ======================================================================================================================
+def load_models(data_names, data_dir):
+    """Load the PCA and imputer models for the given data names.
+
+    Parameters
+    ----------
+    data_names : list[str]
+        List of data names to load models for.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the loaded PCA and imputer models.
+    """
+    pca_models = {}
+    imputer_models = {}
+
+    for source_name, signal_name in data_names:
+        pca_model_path = f"{data_dir}pca_{signal_name}.joblib"
+        imputer_model_path = f"{data_dir}imputer_{signal_name}.joblib"
+        pca_models[f"{source_name}-{signal_name}"] = joblib.load(pca_model_path)
+        imputer_models[f"{source_name}-{signal_name}"] = joblib.load(imputer_model_path)
+
+    return {"pca": pca_models, "imputer": imputer_models}

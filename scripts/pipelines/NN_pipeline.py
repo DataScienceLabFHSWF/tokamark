@@ -1,6 +1,4 @@
 import argparse
-import joblib
-import json
 import numpy as np
 import os
 import pandas as pd
@@ -8,9 +6,8 @@ import sys
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
-from torch.utils.data.dataloader import default_collate
+from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 
 cwd = os.path.dirname(os.path.abspath(__file__))
@@ -18,12 +15,10 @@ mother_dir = os.path.dirname(cwd) + os.sep
 sys.path.append(mother_dir)
 
 from MAST_tools.MAST_dataset import MastDataset
-from MAST_tools.signal_utils import MASTSignalManager  
-from MAST_tools.store_utils import MASTStorageManager
 
 from pipelines.transforms.signal_level_transforms.imputer_transform import ImputerTransform
 from pipelines.transforms.signal_level_transforms.pca_transform import PCATransform 
-from pipelines.transforms.signal_level_transforms.time_segmentation_transform import SegmenterTransform
+from pipelines.transforms.shot_level_transforms.time_segmentation_transform import SegmenterTransform
 from pipelines.collate_functions.collate_functions import (first_item, TimeWindowSegmentationCollateFn)
 
 from pipelines.configs.config_setup import get_settings
@@ -251,6 +246,35 @@ def rebatch_dict_of_lists(batch, batch_size, min_final_batch_size=10):
             
     return batches
 
+def get_loss_per_signal(output, y_batch, y_tensor, log_file=None):
+    y_signals_shape = [signal.shape for signal in y_batch[0]]
+    signal_sizes = [torch.tensor(shape).prod().item() for shape in y_signals_shape]
+    
+    # Store per-signal MSEs across the batch
+    per_signal_diffs = [[] for _ in signal_sizes]
+
+    for i in range(output.shape[0]):  # output.shape[0] is the number of batches
+        out_i = output[i]
+        tgt_i = y_tensor[i]
+        
+        # Split based on signal sizes
+        out_signals = torch.split(out_i, signal_sizes)
+        tgt_signals = torch.split(tgt_i, signal_sizes)
+        
+        for j, (o_sig, t_sig) in enumerate(zip(out_signals, tgt_signals)):
+            mse = F.mse_loss(o_sig, t_sig, reduction='mean').item()
+            per_signal_diffs[j].append(mse)
+
+    # Now per_signal_diffs[j] is a list of MSEs for signal j across the batch
+    # You can print or log average per-signal error:
+    avg_signal_errors = [sum(diffs) / len(diffs) for diffs in per_signal_diffs]
+    if log_file:
+        with open(log_file, 'a') as f:
+            f.write(f"Avg MSE per signal: {['%.2e' % e for e in avg_signal_errors]}\n")
+    else:
+        print(f"Avg MSE per signal: {['%.2e' % e for e in avg_signal_errors]}")
+    
+    
 def run_model(
     model,
     device, 
@@ -261,7 +285,8 @@ def run_model(
     num_epochs, 
     current_process="training",
     criterion=nn.MSELoss(),
-    optimiser=None):
+    optimiser=None,
+    log_file=None):
     """
     Train the NeuralNetwork model.
 
@@ -315,6 +340,7 @@ def run_model(
 
                 x_tensor_list = []
                 y_tensor_list = []
+                    
                 for x_signals, y_signals in zip(x_batch, y_batch):
                     x_flat = torch.cat([sig.flatten() for sig in x_signals], dim=0)
                     y_flat = torch.cat([sig.flatten() for sig in y_signals], dim=0)
@@ -328,9 +354,12 @@ def run_model(
                 x_tensor = x_tensor.to(device)
                 y_tensor = y_tensor.to(device)
                  
-                outputs = model(x_tensor)
-                loss = criterion(outputs, y_tensor)
-
+                output = model(x_tensor)
+                loss = criterion(output, y_tensor)
+                
+                if current_process == "testing":
+                    get_loss_per_signal(output, y_batch, y_tensor, log_file)
+                    
                 if current_process == "training":
                     optimiser.zero_grad()
                     loss.backward()
@@ -486,10 +515,26 @@ if __name__== "__main__":
         SETTINGS.TRAINING.num_epochs,
         current_process,
         criterion,
-        optimiser
+        optimiser,
+        log_file=None
         )
     
-    current_process = "validating"
+    # current_process = "validating"
+    # eval_loss = run_model(
+    #     model,
+    #     device,
+    #     data_loader_validation,
+    #     target_loader_validation,
+    #     SETTINGS.TRAINING.train_batch_size,
+    #     SETTINGS.TRAINING.min_batch_size,
+    #     SETTINGS.TRAINING.num_epochs,
+    #     current_process,
+    #     criterion,
+    #     optimiser,
+    #     log_file=None
+    #     )
+    
+    current_process = "testing"
     eval_loss = run_model(
         model,
         device,
@@ -500,7 +545,8 @@ if __name__== "__main__":
         SETTINGS.TRAINING.num_epochs,
         current_process,
         criterion,
-        optimiser
+        optimiser,
+        log_file=None
         )
     
 

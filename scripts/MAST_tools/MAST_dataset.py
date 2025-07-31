@@ -1,10 +1,10 @@
 import numpy as np
 from torch.utils.data import Dataset
-from scripts.MAST_tools.signal_utils import MASTSignalManager
+from .signal_utils import MASTSignalManager
 
 
 # ======================================================================================================================
-class MastDataset(Dataset):
+class MastDatasetOld(Dataset):
     """Dataset class for MAST data.
 
     MAST Dataset extending the base torch.utils.data.Dataset class. See __init__ below for details.

@@ -1,4 +1,3 @@
-from transforms.signal_level_transforms.segmenter_transform import SegmenterTransform
 
 """This file contains the collate functions for batching samples in a DataLoader. 
     
@@ -10,33 +9,6 @@ from transforms.signal_level_transforms.segmenter_transform import SegmenterTran
 
 def first_item(batch):
     return batch[0]
-
-class MiniBatchCollateFn:
-    
-    def __init__(self,
-                data_names,
-                target_names,
-                time_window_sec,
-                time_step,
-                offset):
-        
-        self.data_names = data_names
-        self.target_names = target_names
-        self.time_window_sec = time_window_sec
-        self.time_step = time_step
-        self.offset = offset
-        
-        self.segmenter_transform = SegmenterTransform(
-            data_names=self.data_names,
-            target_names=self.target_names,
-            time_window_sec=self.time_window_sec, 
-            time_step=self.time_step, 
-            offset=self.offset
-        )
-
-    def __call__(self, batch):
-        return self.segmenter_transform(batch)
-    
     
 class TimeWindowSegmentationCollateFn:
     def __call__(self, list_x, list_y):

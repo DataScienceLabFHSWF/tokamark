@@ -8,13 +8,6 @@ cwd = os.path.dirname(os.path.abspath(__file__))
 mother_dir = os.path.dirname(cwd) + os.sep
 sys.path.append(mother_dir)
 
-from .segmenter_transform import (segment_data_in_time_windows,
-                                 segment_sample)
-
-
-from MAST_tools.signal_utils import MASTSignalManager  
-from MAST_tools.store_utils import MASTStorageManager
-
 
 class ImputerTransform(object):
     """Use a pre-fitted mean imputer to transform input data.
@@ -41,7 +34,7 @@ class ImputerTransform(object):
         except KeyError as e:
             print(f"KeyError: {e}. Sample is missing required keys.")
             return None
-        
+
         if vals is None or len(vals) == 0:
             return None
         if time is None or len(time) == 0:
