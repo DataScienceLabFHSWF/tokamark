@@ -18,35 +18,35 @@ if REPO_ROOT not in sys.path:
 print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.pipelines.utils.utils import read_data_split_csv
-from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from scripts.pipelines.preprocessing.standardscaling_preprocessing import (
+from scripts.main_pipeline.utils.utils import read_data_split_csv
+from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
+from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import (
     get_mean_shot,
     get_std_shot,
 )
-from scripts.pipelines.utils.utils import ComposeTransforms
-from scripts.pipelines.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
+from scripts.main_pipeline.utils.utils import ComposeTransforms
+from scripts.main_pipeline.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
     FillWithZerosImputerTransform,
 )
-from scripts.pipelines.transforms.signal_level_transforms.forward_fill_imputer_transform import (
+from scripts.main_pipeline.transforms.signal_level_transforms.forward_fill_imputer_transform import (
     ForwardFillImputerTransform,
 )
-from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
+from scripts.main_pipeline.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform,
 )
-from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
+from scripts.main_pipeline.transforms.signal_level_transforms.sampling_reference_time_transform import (
     SamplingToReferenceTimeTransform,
 )
-from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
+from scripts.main_pipeline.transforms.shot_level_transforms.truncation_transform import (
     TruncationTransform,
 )
-from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
+from scripts.main_pipeline.transforms.shot_level_transforms.window_segmenter_transform import (
     WindowSegmenterTransform,
 )
-from scripts.pipelines.transforms.shot_level_transforms.beta_vae_transform import (
+from scripts.main_pipeline.transforms.shot_level_transforms.beta_vae_transform import (
     BetaVAETransform,
 )
-from scripts.pipelines.models.beta_vae_model import BetaVAE
+from scripts.main_pipeline.models.beta_vae_model import BetaVAE
 from multiprocessing import cpu_count
 
 print(f"\nNumber of Cores: {cpu_count()}\n")
