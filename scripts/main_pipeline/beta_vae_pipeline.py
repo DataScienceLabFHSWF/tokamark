@@ -314,6 +314,18 @@ def train_beta_vae_models(
     # Training tracking
     best_losses = {signal_name: float("inf") for signal_name in models.keys()}
     best_model_states = {}
+    
+    # Loss tracking
+    loss_curves = {}
+    for signal_name in models.keys():
+        loss_curves[signal_name] = {
+            'train_total': [],
+            'train_recon': [],
+            'train_kl': [],
+            'val_total': [],
+            'val_recon': [],
+            'val_kl': []
+        }
 
     for epoch in range(MAX_EPOCHS):
         if verbose:
@@ -324,9 +336,16 @@ def train_beta_vae_models(
             model.train()
 
         train_losses = defaultdict(float)
+        train_recon_losses = defaultdict(float)
+        train_kl_losses = defaultdict(float)
         train_counts = defaultdict(int)
 
+        if verbose:
+            print("Training phase")
+
         for batch_idx, batch_signals in enumerate(train_dataloader):
+            if verbose:
+                print(f"Batch idx: {batch_idx}")
             if verbose and batch_idx == 0:
                 print(f"Available signals in batch: {list(batch_signals.keys())}")
 
@@ -355,17 +374,26 @@ def train_beta_vae_models(
                 optimizer.step()
 
                 train_losses[signal_name] += total_loss.item()
+                train_recon_losses[signal_name] += recon_loss.item()
+                train_kl_losses[signal_name] += kl_loss.item()
                 train_counts[signal_name] += x.size(0)
 
         # Validation phase
         val_losses = defaultdict(float)
+        val_recon_losses = defaultdict(float)
+        val_kl_losses = defaultdict(float)
         val_counts = defaultdict(int)
 
         for signal_name, model in models.items():
             model.eval()
 
+        if verbose:
+            print("\nValidation phase")
+
         with torch.no_grad():
-            for batch_signals in val_dataloader:
+            for batch_idx, batch_signals in enumerate(val_dataloader):
+                if verbose:
+                    print(f"Batch idx: {batch_idx}")
                 for signal_name, signal_data in batch_signals.items():
                     if signal_name not in models:
                         continue
@@ -385,17 +413,40 @@ def train_beta_vae_models(
                     )
 
                     val_losses[signal_name] += total_loss.item()
+                    val_recon_losses[signal_name] += recon_loss.item()
+                    val_kl_losses[signal_name] += kl_loss.item()
                     val_counts[signal_name] += x.size(0)
 
-        # Print epoch results and save best models
+        # Store loss curves and print epoch results
         for signal_name in models.keys():
             if train_counts[signal_name] > 0:
                 avg_train_loss = train_losses[signal_name] / train_counts[signal_name]
+                avg_train_recon = train_recon_losses[signal_name] / train_counts[signal_name]
+                avg_train_kl = train_kl_losses[signal_name] / train_counts[signal_name]
+                
                 avg_val_loss = (
                     val_losses[signal_name] / val_counts[signal_name]
                     if val_counts[signal_name] > 0
                     else float("inf")
                 )
+                avg_val_recon = (
+                    val_recon_losses[signal_name] / val_counts[signal_name]
+                    if val_counts[signal_name] > 0
+                    else float("inf")
+                )
+                avg_val_kl = (
+                    val_kl_losses[signal_name] / val_counts[signal_name]
+                    if val_counts[signal_name] > 0
+                    else float("inf")
+                )
+
+                # Store loss curves
+                loss_curves[signal_name]['train_total'].append(avg_train_loss)
+                loss_curves[signal_name]['train_recon'].append(avg_train_recon)
+                loss_curves[signal_name]['train_kl'].append(avg_train_kl)
+                loss_curves[signal_name]['val_total'].append(avg_val_loss)
+                loss_curves[signal_name]['val_recon'].append(avg_val_recon)
+                loss_curves[signal_name]['val_kl'].append(avg_val_kl)
 
                 if verbose:
                     print(
@@ -413,11 +464,11 @@ def train_beta_vae_models(
                     )
                     torch.save(best_model_states[signal_name], model_path)
 
-    return best_model_states
+    return best_model_states, loss_curves
 
 
 def visualize_beta_vae_results(
-    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False
+    models, train_dataloader, val_dataloader, output_sub_dir, loss_curves, verbose=False
 ):
     """Create visualizations for all trained β-VAE models"""
     if verbose:
@@ -580,31 +631,39 @@ def visualize_beta_vae_results(
             ax7.legend()
             ax7.grid(True, alpha=0.3)
             
-            # 8. Model statistics text
+            # 8. Training Loss Curves
             ax8 = axes[1, 3]
-            ax8.axis('off')
-            stats_text = f"""
-Model Statistics:
-Input Length: {model.input_length}
-Latent Dimension: {model.latent_dim}
-Compression Ratio: {model.input_length/model.latent_dim:.1f}:1
-Beta Parameter: {model.beta}
-
-Current Losses:
-Train Total: {train_loss.item():.4f}
-Train Recon: {train_recon_loss.item():.4f}
-Train KL: {train_kl_loss.item():.4f}
-
-Val Total: {val_loss.item():.4f}
-Val Recon: {val_recon_loss.item():.4f}
-Val KL: {val_kl_loss.item():.4f}
-
-Data Shapes:
-Train samples: {train_x.shape[0]}
-Val samples: {val_x.shape[0]}
-            """
-            ax8.text(0.1, 0.9, stats_text, transform=ax8.transAxes, 
-                    fontsize=10, verticalalignment='top', fontfamily='monospace')
+            if signal_name in loss_curves and len(loss_curves[signal_name]['train_total']) > 0:
+                epochs = range(1, len(loss_curves[signal_name]['train_total']) + 1)
+                
+                # Plot total loss
+                ax8.plot(epochs, loss_curves[signal_name]['train_total'], 'b-', 
+                        label='Train Total', linewidth=2)
+                ax8.plot(epochs, loss_curves[signal_name]['val_total'], 'b--', 
+                        label='Val Total', linewidth=2)
+                
+                # Plot reconstruction loss
+                ax8.plot(epochs, loss_curves[signal_name]['train_recon'], 'g-', 
+                        label='Train Recon', alpha=0.7)
+                ax8.plot(epochs, loss_curves[signal_name]['val_recon'], 'g--', 
+                        label='Val Recon', alpha=0.7)
+                
+                # Plot KL loss
+                ax8.plot(epochs, loss_curves[signal_name]['train_kl'], 'r-', 
+                        label='Train KL', alpha=0.7)
+                ax8.plot(epochs, loss_curves[signal_name]['val_kl'], 'r--', 
+                        label='Val KL', alpha=0.7)
+                
+                ax8.set_xlabel('Epoch')
+                ax8.set_ylabel('Loss Value')
+                ax8.set_title('Training Loss Curves')
+                ax8.legend(fontsize='small')
+                ax8.grid(True, alpha=0.3)
+                ax8.set_yscale('log')
+            else:
+                ax8.text(0.5, 0.5, 'No loss curves available', 
+                        transform=ax8.transAxes, ha='center', va='center')
+                ax8.set_title('Training Loss Curves')
             
             fig.tight_layout()
             
@@ -735,7 +794,7 @@ if __name__ == "__main__":
     OUTPUT_SUB_FOLDER = "beta_vae_output/"
     BATCH_SIZE = 5
     NUM_WORKERS = 0
-    MAX_EPOCHS = 2
+    MAX_EPOCHS = 20
     REF_FREQ = 0.001
     USE_EXISTING_FITTED_PARAMS = True  # Set to True to load existing fitted parameters
 
@@ -831,7 +890,7 @@ if __name__ == "__main__":
         train_dataloader_=train_dataloader, verbose=True
     )
 
-    best_model_states = train_beta_vae_models(
+    best_model_states, training_loss_curves = train_beta_vae_models(
         models=beta_vae_models,
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
@@ -844,6 +903,7 @@ if __name__ == "__main__":
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
         output_sub_dir=OUTPUT_SUB_FOLDER,
+        loss_curves=training_loss_curves,
         verbose=True,
     )
 
