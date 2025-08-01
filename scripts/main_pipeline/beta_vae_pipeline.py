@@ -2,6 +2,8 @@ import os
 import sys
 import pickle
 from multiprocessing import cpu_count
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
@@ -414,6 +416,315 @@ def train_beta_vae_models(
     return best_model_states
 
 
+def visualize_beta_vae_results(
+    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False
+):
+    """Create visualizations for all trained β-VAE models"""
+    if verbose:
+        print("\n\n----------β-VAE VISUALIZATION----------\n")
+    
+    output_dir = os.path.join("output", output_sub_dir)
+    viz_dir = os.path.join(output_dir, "visualizations")
+    os.makedirs(viz_dir, exist_ok=True)
+    
+    for model in models.values():
+        model.eval()
+    
+    with torch.no_grad():
+        # Get sample batches for visualization
+        train_batch = next(iter(train_dataloader))
+        val_batch = next(iter(val_dataloader)) if val_dataloader else train_batch
+        
+        for signal_name, model in models.items():
+            if verbose:
+                print(f"Creating visualizations for signal: {signal_name}")
+            
+            # Get signal data from both train and validation
+            train_signal_data = train_batch.get(signal_name)
+            val_signal_data = val_batch.get(signal_name)
+            
+            if train_signal_data is None:
+                if verbose:
+                    print(f"No data found for signal {signal_name}, skipping")
+                continue
+            
+            # Prepare data (flatten if needed)
+            if train_signal_data.dim() == 2:
+                train_x = train_signal_data.to(device)
+            else:
+                train_x = train_signal_data.view(-1, train_signal_data.size(-1)).to(device)
+            
+            if val_signal_data is not None:
+                if val_signal_data.dim() == 2:
+                    val_x = val_signal_data.to(device)
+                else:
+                    val_x = val_signal_data.view(-1, val_signal_data.size(-1)).to(device)
+            else:
+                val_x = train_x
+            
+            # Get reconstructions and latent representations
+            train_recon, train_mu, train_logvar, train_z = model(train_x)
+            val_recon, val_mu, val_logvar, val_z = model(val_x)
+            
+            # Calculate losses for display
+            train_loss, train_recon_loss, train_kl_loss = model.loss_function(
+                train_recon, train_x, train_mu, train_logvar
+            )
+            val_loss, val_recon_loss, val_kl_loss = model.loss_function(
+                val_recon, val_x, val_mu, val_logvar
+            )
+            
+            # Create figure with multiple subplots
+            fig, axes = plt.subplots(2, 4, figsize=(20, 12))
+            
+            # 1. Original vs Reconstructed signals (training data)
+            ax1 = axes[0, 0]
+            n_samples_to_show = min(5, train_x.shape[0])
+            for i in range(n_samples_to_show):
+                offset = i * 2
+                ax1.plot(train_x[i].cpu().numpy() + offset, 'b-', alpha=0.7,
+                        label='Original' if i == 0 else '')
+                ax1.plot(train_recon[i].cpu().numpy() + offset, 'r--', alpha=0.7,
+                        label='Reconstructed' if i == 0 else '')
+            ax1.set_xlabel('Time Steps')
+            ax1.set_ylabel('Amplitude (offset)')
+            ax1.set_title(f'Train: Original vs Reconstructed\n{signal_name}')
+            ax1.legend()
+            ax1.grid(True, alpha=0.3)
+            
+            # 2. Original vs Reconstructed signals (validation data)
+            ax2 = axes[0, 1]
+            n_samples_to_show = min(5, val_x.shape[0])
+            for i in range(n_samples_to_show):
+                offset = i * 2
+                ax2.plot(val_x[i].cpu().numpy() + offset, 'b-', alpha=0.7,
+                        label='Original' if i == 0 else '')
+                ax2.plot(val_recon[i].cpu().numpy() + offset, 'r--', alpha=0.7,
+                        label='Reconstructed' if i == 0 else '')
+            ax2.set_xlabel('Time Steps')
+            ax2.set_ylabel('Amplitude (offset)')
+            ax2.set_title(f'Val: Original vs Reconstructed\n{signal_name}')
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+            
+            # 3. Reconstruction error distribution
+            ax3 = axes[0, 2]
+            train_error = torch.abs(train_recon - train_x).cpu().numpy().flatten()
+            val_error = torch.abs(val_recon - val_x).cpu().numpy().flatten()
+            ax3.hist(train_error, bins=50, alpha=0.7, label='Train Error', density=True)
+            ax3.hist(val_error, bins=50, alpha=0.7, label='Val Error', density=True)
+            ax3.set_xlabel('Absolute Error')
+            ax3.set_ylabel('Density')
+            ax3.set_title('Reconstruction Error Distribution')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            
+            # 4. Latent space visualization (first 2 dimensions)
+            ax4 = axes[0, 3]
+            ax4.scatter(train_mu[:, 0].cpu().numpy(), train_mu[:, 1].cpu().numpy(),
+                       alpha=0.6, s=20, label='Train', c='blue')
+            ax4.scatter(val_mu[:, 0].cpu().numpy(), val_mu[:, 1].cpu().numpy(),
+                       alpha=0.6, s=20, label='Val', c='red')
+            ax4.set_xlabel('Latent Dim 0')
+            ax4.set_ylabel('Latent Dim 1')
+            ax4.set_title('Latent Space (2D Projection)')
+            ax4.legend()
+            ax4.grid(True, alpha=0.3)
+            
+            # 5. Latent space variance (all dimensions)
+            ax5 = axes[1, 0]
+            latent_var_train = torch.var(train_z, dim=0).cpu().numpy()
+            latent_var_val = torch.var(val_z, dim=0).cpu().numpy()
+            dims = np.arange(len(latent_var_train))
+            ax5.bar(dims - 0.2, latent_var_train, 0.4, label='Train', alpha=0.7)
+            ax5.bar(dims + 0.2, latent_var_val, 0.4, label='Val', alpha=0.7)
+            ax5.set_xlabel('Latent Dimension')
+            ax5.set_ylabel('Variance')
+            ax5.set_title('Latent Space Variance per Dimension')
+            ax5.legend()
+            ax5.grid(True, alpha=0.3)
+            
+            # 6. Generated samples from random latent codes
+            ax6 = axes[1, 1]
+            random_z = torch.randn(5, model.latent_dim).to(device)
+            generated_samples = model.decode(random_z)
+            for i in range(5):
+                ax6.plot(generated_samples[i].cpu().numpy() + i * 1.5,
+                        label=f'Generated {i+1}')
+            ax6.set_xlabel('Time Steps')
+            ax6.set_ylabel('Amplitude (offset)')
+            ax6.set_title('Samples from Random Latent Codes')
+            ax6.legend()
+            ax6.grid(True, alpha=0.3)
+            
+            # 7. Loss components comparison
+            ax7 = axes[1, 2]
+            loss_data = {
+                'Total Loss': [train_loss.item(), val_loss.item()],
+                'Recon Loss': [train_recon_loss.item(), val_recon_loss.item()],
+                'KL Loss': [train_kl_loss.item(), val_kl_loss.item()]
+            }
+            x_pos = np.arange(len(loss_data))
+            width = 0.35
+            
+            train_losses = [loss_data[key][0] for key in loss_data.keys()]
+            val_losses = [loss_data[key][1] for key in loss_data.keys()]
+            
+            ax7.bar(x_pos - width/2, train_losses, width, label='Train', alpha=0.7)
+            ax7.bar(x_pos + width/2, val_losses, width, label='Val', alpha=0.7)
+            ax7.set_xlabel('Loss Type')
+            ax7.set_ylabel('Loss Value')
+            ax7.set_title('Loss Components Comparison')
+            ax7.set_xticks(x_pos)
+            ax7.set_xticklabels(loss_data.keys(), rotation=45)
+            ax7.legend()
+            ax7.grid(True, alpha=0.3)
+            
+            # 8. Model statistics text
+            ax8 = axes[1, 3]
+            ax8.axis('off')
+            stats_text = f"""
+Model Statistics:
+Input Length: {model.input_length}
+Latent Dimension: {model.latent_dim}
+Compression Ratio: {model.input_length/model.latent_dim:.1f}:1
+Beta Parameter: {model.beta}
+
+Current Losses:
+Train Total: {train_loss.item():.4f}
+Train Recon: {train_recon_loss.item():.4f}
+Train KL: {train_kl_loss.item():.4f}
+
+Val Total: {val_loss.item():.4f}
+Val Recon: {val_recon_loss.item():.4f}
+Val KL: {val_kl_loss.item():.4f}
+
+Data Shapes:
+Train samples: {train_x.shape[0]}
+Val samples: {val_x.shape[0]}
+            """
+            ax8.text(0.1, 0.9, stats_text, transform=ax8.transAxes, 
+                    fontsize=10, verticalalignment='top', fontfamily='monospace')
+            
+            fig.tight_layout()
+            
+            # Save figure
+            safe_signal_name = signal_name.replace('/', '_').replace('-', '_')
+            fig_path = os.path.join(viz_dir, f'beta_vae_results_{safe_signal_name}.png')
+            fig.savefig(fig_path, dpi=300, bbox_inches='tight')
+            plt.close(fig)
+            
+            if verbose:
+                print(f"Saved figure: {fig_path}")
+        
+        # Create a summary figure for all signals
+        if len(models) > 1:
+            create_multi_signal_summary(models, train_batch, val_batch, viz_dir, verbose)
+
+
+def create_multi_signal_summary(models, train_batch, val_batch, viz_dir, verbose=False):
+    """Create a summary visualization comparing all signals"""
+    if verbose:
+        print("Creating multi-signal summary visualization")
+    
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12), constrained_layout=True)
+    
+    signal_names = []
+    compression_ratios = []
+    latent_dims = []
+    train_losses = []
+    val_losses = []
+    
+    with torch.no_grad():
+        for signal_name, model in models.items():
+            if signal_name not in train_batch:
+                continue
+                
+            signal_names.append(signal_name)
+            compression_ratios.append(model.input_length / model.latent_dim)
+            latent_dims.append(model.latent_dim)
+            
+            # Get sample data and compute losses
+            train_data = train_batch[signal_name]
+            val_data = val_batch.get(signal_name, train_data)
+            
+            if train_data.dim() > 2:
+                train_data = train_data.view(-1, train_data.size(-1))
+            if val_data.dim() > 2:
+                val_data = val_data.view(-1, val_data.size(-1))
+                
+            train_data = train_data.to(device)
+            val_data = val_data.to(device)
+            
+            train_recon, train_mu, train_logvar, _ = model(train_data)
+            val_recon, val_mu, val_logvar, _ = model(val_data)
+            
+            train_loss, _, _ = model.loss_function(train_recon, train_data, train_mu, train_logvar)
+            val_loss, _, _ = model.loss_function(val_recon, val_data, val_mu, val_logvar)
+            
+            train_losses.append(train_loss.item())
+            val_losses.append(val_loss.item())
+    
+    # 1. Compression ratios comparison
+    axes[0, 0].bar(range(len(signal_names)), compression_ratios, alpha=0.7)
+    axes[0, 0].set_xlabel('Signal')
+    axes[0, 0].set_ylabel('Compression Ratio')
+    axes[0, 0].set_title('Compression Ratios by Signal')
+    axes[0, 0].set_xticks(range(len(signal_names)))
+    axes[0, 0].set_xticklabels([name.split('-')[-1][:10] for name in signal_names], 
+                               rotation=45, ha='right')
+    axes[0, 0].grid(True, alpha=0.3)
+    
+    # 2. Latent dimensions comparison
+    axes[0, 1].bar(range(len(signal_names)), latent_dims, alpha=0.7, color='orange')
+    axes[0, 1].set_xlabel('Signal')
+    axes[0, 1].set_ylabel('Latent Dimension')
+    axes[0, 1].set_title('Latent Dimensions by Signal')
+    axes[0, 1].set_xticks(range(len(signal_names)))
+    axes[0, 1].set_xticklabels([name.split('-')[-1][:10] for name in signal_names], 
+                               rotation=45, ha='right')
+    axes[0, 1].grid(True, alpha=0.3)
+    
+    # 3. Loss comparison
+    x_pos = np.arange(len(signal_names))
+    width = 0.35
+    axes[1, 0].bar(x_pos - width/2, train_losses, width, label='Train Loss', alpha=0.7)
+    axes[1, 0].bar(x_pos + width/2, val_losses, width, label='Val Loss', alpha=0.7)
+    axes[1, 0].set_xlabel('Signal')
+    axes[1, 0].set_ylabel('Loss Value')
+    axes[1, 0].set_title('Final Losses by Signal')
+    axes[1, 0].set_xticks(x_pos)
+    axes[1, 0].set_xticklabels([name.split('-')[-1][:10] for name in signal_names], 
+                               rotation=45, ha='right')
+    axes[1, 0].legend()
+    axes[1, 0].grid(True, alpha=0.3)
+    
+    # 4. Summary statistics
+    axes[1, 1].axis('off')
+    summary_text = f"""
+β-VAE Training Summary:
+
+Number of Signals: {len(signal_names)}
+Average Compression Ratio: {np.mean(compression_ratios):.1f}:1
+Average Latent Dimension: {np.mean(latent_dims):.1f}
+
+Signal List:
+"""
+    for i, name in enumerate(signal_names):
+        summary_text += f"• {name.split('-')[-1][:20]}\n"
+    
+    axes[1, 1].text(0.1, 0.9, summary_text, transform=axes[1, 1].transAxes, 
+                    fontsize=12, verticalalignment='top', fontfamily='monospace')
+    
+    # Save summary figure
+    summary_path = os.path.join(viz_dir, 'beta_vae_multi_signal_summary.png')
+    fig.savefig(summary_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    if verbose:
+        print(f"Saved multi-signal summary: {summary_path}")
+
+
 if __name__ == "__main__":
 
     LOCAL_FLAG = False
@@ -424,12 +735,12 @@ if __name__ == "__main__":
     OUTPUT_SUB_FOLDER = "beta_vae_output/"
     BATCH_SIZE = 5
     NUM_WORKERS = 0
-    MAX_EPOCHS = 100
+    MAX_EPOCHS = 2
     REF_FREQ = 0.001
     USE_EXISTING_FITTED_PARAMS = True  # Set to True to load existing fitted parameters
 
     # For β-VAE specific settings
-    LATENT_DIM = 32  # Dimensionality of latent space
+    LATENT_DIM = 32
     BETA = 1.0  # β parameter for KL divergence weighting
     LEARNING_RATE = 1e-3
 
@@ -521,6 +832,14 @@ if __name__ == "__main__":
     )
 
     best_model_states = train_beta_vae_models(
+        models=beta_vae_models,
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
+        output_sub_dir=OUTPUT_SUB_FOLDER,
+        verbose=True,
+    )
+
+    visualize_beta_vae_results(
         models=beta_vae_models,
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
