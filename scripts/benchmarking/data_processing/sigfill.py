@@ -19,12 +19,11 @@ sys.path.append(scripts_dir)
 
 from MAST_tools.signal_utils import MASTSignalManager  
 from MAST_tools.store_utils import MASTStorageManager
-
 from utils import (is_finite_numeric_array,
                     read_signals,
                     make_dataframe_from_shot_ids,
-                    shuffle_shot_ids,
-                    read_data_split_csv)
+                    shuffle_shot_ids)
+from pipelines.utils.utils import read_data_split_csv
 from config_files.config_setup import get_settings
 
 class SimpleFiller:
@@ -372,7 +371,6 @@ def signals_average_across_shots_v1(store_manager : MASTStorageManager,
     
     # Loop through shots
     for nr,shot_id in enumerate(shot_ids):
-
         store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
 
         for key, value in data_set.items():
@@ -507,8 +505,10 @@ def shotids_not_fully_nan_signals(store_manager : MASTStorageManager,
                 print(f"shape of vals is {np.shape(vals)}")
 
     json_data = {"data":data_set_idx}
+
     with open(json_filename, "w") as f:
         json.dump(json_data, f, indent=4)
+
 
 def test_signals_average_across_shots(data_path="data/list_of_signals.txt",num_shots=100):
 
@@ -669,7 +669,7 @@ def fit_and_save_imputer(
     print(f"Imputer model saved to {model_path}")
 
 
-def main(shot_ids, SETTINGS):
+def main(SETTINGS):
     """main funtion to do Imputation of NaN in MAST signals
 
     Parameters
@@ -681,30 +681,30 @@ def main(shot_ids, SETTINGS):
     """
     nr_shots = SETTINGS.GENERAL.nr_shots
     signal_list_file = SETTINGS.LOCALPATHS.signal_list_file
-    output_path = SETTINGS.LOCLPATHS.output_path
+    output_path = SETTINGS.LOCALPATHS.output_path
     data_split_file = SETTINGS.LOCALPATHS.data_split_file
     local = SETTINGS.GENERAL.local
     
     shot_ids, _, _ = read_data_split_csv(csv_path = data_split_file)
     shot_ids = shuffle_shot_ids(shot_ids)
-    shot_ids = shot_ids[:num_shots]
+    shot_ids = shot_ids[:nr_shots]
     
     store_manager = MASTStorageManager()
-    shotids_not_fully_nan_signals(store_manager,
-                                    shot_ids,
-                                    signal_list_file,
-                                    local,
-                                    json_filename=output_path+"/signal_shotids_not_fully_nan"+str(len(shot_ids))+".json")
+    # shotids_not_fully_nan_signals(store_manager,
+    #                                 shot_ids,
+    #                                 signal_list_file,
+    #                                 local,
+    #                                 json_filename=output_path+"signal_shotids_not_fully_nan"+str(len(shot_ids))+".json")
 
     signals_average_across_shots_v1(store_manager,
                                     shot_ids,
                                     signal_list_file,
                                     local,
-                                    json_filename=output_path+"/averaged_arrays_N_"+str(len(shot_ids))+".json")
+                                    json_filename=output_path+"averaged_arrays_N_"+str(len(shot_ids))+".json")
 
     
 if __name__ == "__main__":
-
+    
     # Inputs
-    SETTINGS = get_settings("config_files/config_setup.json")
-    main(shot_ids, SETTINGS)
+    SETTINGS = get_settings("scripts/benchmarking/data_processing/config_files/config.json")
+    main(SETTINGS)

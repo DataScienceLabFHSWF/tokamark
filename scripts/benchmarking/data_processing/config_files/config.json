@@ -1,7 +1,7 @@
 {   
     "general":
     {
-        "nr_shots": 10, 
+        "nr_shots": 2, 
         "processes":2,
         "local": false
     },
@@ -20,8 +20,8 @@
     "paths":
     {
         "home": "/home/ir-lore2",
-        "signal list_file": "data/input/list_of_signals.txt",
-        "output_path": "scripts/benchmarking/data_transform/data/output/",
+        "signal list_file": "scripts/benchmarking/data_processing/data/input/list_of_signals.txt",
+        "output_path": "scripts/benchmarking/data_processing/data/output/",
         "data_split_file": "metadata/2025-05-12/data_splits.csv"
     }
 }
