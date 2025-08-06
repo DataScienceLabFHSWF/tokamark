@@ -147,9 +147,9 @@ class WindowSegmenterTransform:
             # if np.isnan(t).any():
             #     raise ValueError(f"[ERROR] Signal '{var}' contains NaN values in its 'time' array.")
 
-            if v.ndim == 1:
-                entry["values"] = v[None, :]
-            assert entry["values"].ndim == 2, f"Signal {var} must have shape (C, T)"
+            # if v.ndim == 1:
+            #     entry["values"] = v[None, :]
+            # assert entry["values"].ndim == 2, f"Signal {var} must have shape (C, T)"
 
         delta_ts = []
         for key in self.x_keys + self.y_keys:

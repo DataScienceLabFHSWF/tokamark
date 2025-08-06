@@ -2,8 +2,21 @@ import torch
 import torch.nn as nn
 
 
+
 # ======================================================================================================================
-class SmallCNNBranch(nn.Module):
+class Numerical0DBranch(nn.Module):
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __init__(self, input_len):
+        super().__init__()
+        self.bn = nn.BatchNorm1d(input_len)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def forward(self, x):
+        return self.bn(x)
+
+# ======================================================================================================================
+class Conv1DBranch(nn.Module):
 
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(self, input_len, D):
@@ -32,17 +45,35 @@ class SmallCNNBranch(nn.Module):
         x = self.fc(x)
         return x
 
-
-class NumericalBranch(nn.Module):
+# ======================================================================================================================
+class Conv2DBranch(nn.Module):
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(self, input_len):
+    def __init__(self, input_len, D):
         super().__init__()
-        self.bn = nn.BatchNorm1d(input_len)
+        self.cnn = nn.Sequential(
+            nn.BatchNorm2d(input_len),
+            nn.Conv2d(input_len, D, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(D),
+            nn.MaxPool2d(2),
+            nn.Conv2d(D, 2 * D, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(2 * D),
+            nn.MaxPool2d(2),
+            nn.Conv2d(2 * D, 4 * D, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(4 * D),
+        )
+        self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(4 * D, input_len)
 
     # ------------------------------------------------------------------------------------------------------------------
     def forward(self, x):
-        return self.bn(x)
+        x = self.cnn(x)
+        x = self.global_avg_pool(x).squeeze(-1).squeeze(-1)  # [B, C]
+        x = self.fc(x)
+        return x
 
 
 class MultiBranchCNNModel(nn.Module):
@@ -56,13 +87,17 @@ class MultiBranchCNNModel(nn.Module):
         merged_dim = 0
 
         for shape in input_shapes:
-            if len(shape) == 2:  # e.g., (1, 15)
+            if len(shape) == 3:  # e.g., (2, 15, 17)
                 input_len = shape[0]
-                branch = SmallCNNBranch(input_len, D)
+                branch = Conv2DBranch(input_len, D)
                 merged_dim += input_len
-            elif len(shape) == 1:  # e.g., (1,)
+            elif len(shape) == 2:  # e.g., (1, 15)
                 input_len = shape[0]
-                branch = NumericalBranch(input_len)
+                branch = Conv1DBranch(input_len, D)
+                merged_dim += input_len
+            elif len(shape) == 1:  # e.g., (7,)
+                input_len = shape[0]
+                branch = Numerical0DBranch(input_len)
                 merged_dim += shape[0]
             else:
                 raise ValueError(f"Unsupported input shape: {shape}")
@@ -70,14 +105,14 @@ class MultiBranchCNNModel(nn.Module):
 
         self.fc = nn.Sequential(
             nn.BatchNorm1d(merged_dim),
-            nn.Linear(merged_dim, 64),
+            nn.Linear(merged_dim, 4 * D),
             nn.ReLU(),
-            nn.BatchNorm1d(64),
-            nn.Linear(64, 32),
+            nn.BatchNorm1d(4 * D),
+            nn.Linear(4 * D, 2 * D),
             nn.ReLU(),
-            nn.BatchNorm1d(32),
+            nn.BatchNorm1d(2 * D),
             nn.Dropout(0.2),
-            nn.Linear(32, self.output_shape),
+            nn.Linear(2 * D, self.output_shape),
         )
 
     # ------------------------------------------------------------------------------------------------------------------
