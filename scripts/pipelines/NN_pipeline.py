@@ -420,21 +420,26 @@ if __name__== "__main__":
     train_shots, test_shots, val_shots = read_data_split_csv(SETTINGS.LOCAL_PATHS.data_split_csv_path)
     train_shots = train_shots[:SETTINGS.TRAINING.num_train_samples]  
     val_shots = val_shots[:SETTINGS.TRAINING.num_val_samples] # For testing purposes, limit the number of validation shots
-    
+
+
     # Define transform pipelines for data and target signals
-    transforms_data_signal_level = ComposeTransforms(
-        [
-            ImputerTransform(model_dictionary,SETTINGS.LOCAL_PATHS.average_values_file_path),
-            PCATransform(model_dictionary)
-        ]
-    )
     
-    transforms_target_signal_level = ComposeTransforms(
-        [
-            ImputerTransform(model_dictionary,SETTINGS.LOCAL_PATHS.average_values_file_path),
-            PCATransform(model_dictionary)
-        ]
-    )
+    # 1- Maps of transforms at signal level
+    data_map_signal_level= {var: ComposeTransforms([
+        ImputerTransform(model_dictionary["imputer"][var], 
+                         SETTINGS.LOCAL_PATHS.average_values_file_path),
+        PCATransform(model_dictionary["pca"][var])
+    ])
+        for var in [f'{source}-{signal}' for source, signal in SETTINGS.DATA.data_names]
+    }
+    
+    target_map_signal_level = {var: ComposeTransforms([
+        ImputerTransform(model_dictionary["imputer"][var], 
+                         SETTINGS.LOCAL_PATHS.average_values_file_path),
+        PCATransform(model_dictionary["pca"][var])
+    ])
+        for var in [f'{source}-{signal}' for source, signal in SETTINGS.DATA.target_names]
+    }
     
     transforms_data_shot_level = ComposeTransforms([
                 SegmenterTransform(
@@ -444,7 +449,6 @@ if __name__== "__main__":
             ]
         )
                                                     
-    
     transforms_target_shot_level = ComposeTransforms([
                 SegmenterTransform(
                     SETTINGS.TIME_SEGMENTATION.offset,
@@ -453,10 +457,6 @@ if __name__== "__main__":
             ]
         )
     
-    # Make maps of transforms to apply at signal and shot level
-    data_map_signal_level = {f"{source}-{signal}": transforms_data_signal_level for source, signal in SETTINGS.DATA.data_names}
-    target_map_signal_level = {f"{source}-{signal}": transforms_target_signal_level for source, signal in SETTINGS.DATA.target_names}
-
     data_loader_train, target_loader_train = initialize_pipeline(
         SETTINGS,
         train_shots,
@@ -519,22 +519,7 @@ if __name__== "__main__":
         log_file=None
         )
     
-    # current_process = "validating"
-    # eval_loss = run_model(
-    #     model,
-    #     device,
-    #     data_loader_validation,
-    #     target_loader_validation,
-    #     SETTINGS.TRAINING.train_batch_size,
-    #     SETTINGS.TRAINING.min_batch_size,
-    #     SETTINGS.TRAINING.num_epochs,
-    #     current_process,
-    #     criterion,
-    #     optimiser,
-    #     log_file=None
-    #     )
-    
-    current_process = "testing"
+    current_process = "validating"
     eval_loss = run_model(
         model,
         device,
@@ -548,6 +533,21 @@ if __name__== "__main__":
         optimiser,
         log_file=None
         )
+    
+    # current_process = "testing"
+    # eval_loss = run_model(
+    #     model,
+    #     device,
+    #     data_loader_validation,
+    #     target_loader_validation,
+    #     SETTINGS.TRAINING.train_batch_size,
+    #     SETTINGS.TRAINING.min_batch_size,
+    #     SETTINGS.TRAINING.num_epochs,
+    #     current_process,
+    #     criterion,
+    #     optimiser,
+    #     log_file=None
+    #     )
     
 
     print("Training completed successfully.")

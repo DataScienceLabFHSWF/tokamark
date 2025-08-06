@@ -20,8 +20,8 @@ class ImputerTransform(object):
         Path to the file containing the global averaged imputed values.
     """
 
-    def __init__(self, models, global_imputer_path):
-        self.models = models
+    def __init__(self, model_imputer, global_imputer_path):
+        self.model_imputer = model_imputer
         self.global_imputer_path = global_imputer_path
           
         with open(global_imputer_path, 'r') as f:
@@ -30,7 +30,7 @@ class ImputerTransform(object):
 
     def __call__(self, sample):
         try:
-            vals, time, source_signal = sample["values"], sample["time"], sample["source-signal"]
+            vals, time = sample["values"], sample["time"]
         except KeyError as e:
             print(f"KeyError: {e}. Sample is missing required keys.")
             return None
@@ -52,12 +52,11 @@ class ImputerTransform(object):
         # Apply mean imputer if signal is not empty and any nan are found
         if vals.size>0 and np.isnan(vals).any():
             try:
-                mean_imputer = self.models["imputer"][source_signal]
-                x_transformed = mean_imputer.transform(vals.T)
+                x_transformed = self.model_imputer.transform(vals.T)
                 vals = x_transformed.T
             except ValueError as e:
                 print(f"ValueError {e}")
                 return None
 
-        return {"values":vals, "time":time, "source-signal":source_signal}
+        return {"values":vals, "time":time}
       
