@@ -20,8 +20,8 @@ sys.path.append(scripts_dir)
 
 from MAST_tools.store_utils import MASTStorageManager
 from sigfill import run_simple_filler
-from utils import (read_data_split_csv, shuffle_shot_ids)
-
+from utils import shuffle_shot_ids
+from pipelines.utils.utils import read_data_split_csv
 
 
 def process_single_shot_id( 
