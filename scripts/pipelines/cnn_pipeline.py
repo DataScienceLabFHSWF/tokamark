@@ -16,32 +16,32 @@ if REPO_ROOT not in sys.path:
 # print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.main_pipeline.utils.utils import read_data_split_csv, flatten_then_collate
-from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
-from scripts.main_pipeline.utils.utils import ComposeTransforms
+from scripts.pipelines.utils.utils import read_data_split_csv, flatten_then_collate
+from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
+from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
+from scripts.pipelines.utils.utils import ComposeTransforms
 
-from scripts.main_pipeline.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import(
+from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import(
     StdScalingTransform
 )
-from scripts.main_pipeline.transforms.signal_level_transforms.sampling_reference_time_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
     SamplingToReferenceTimeTransform
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.truncation_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
     TruncationTransform
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.window_segmenter_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
     WindowSegmenterTransform
 )
-from scripts.main_pipeline.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.drop_sample_with_nans import (
+from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans import (
     DropSampleWithNans
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.cnn_transform import CNNTransform
+from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import CNNTransform
 
-from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
+from scripts.pipelines.models.cnn_model import MultiBranchCNNModel
 
 
 # ----------------------------------------------------------------------------------------------------------------------
