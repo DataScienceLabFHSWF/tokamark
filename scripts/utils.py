@@ -5,12 +5,9 @@ import random
 import sys
 
 cwd = os.path.dirname(os.path.abspath(__file__))
-mother_dir = os.path.dirname(cwd) + os.sep
-sys.path.append(os.path.abspath(os.path.join(mother_dir, "MAST_tools")))
-sys.path.append(mother_dir)
+sys.path.append(cwd)
 
-from signal_utils import MASTSignalManager
-from store_utils import MASTStorageManager
+from MAST_tools.signal_utils import MASTSignalManager
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -83,3 +80,5 @@ def make_dataframe_from_shot_ids(
     
     return channels, shot_list
 
+if __name__ == "__main__":
+    print("Main")
