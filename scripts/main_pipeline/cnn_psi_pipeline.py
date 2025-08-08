@@ -39,16 +39,17 @@ from scripts.main_pipeline.transforms.signal_level_transforms.fill_profile_with_
 from scripts.main_pipeline.transforms.shot_level_transforms.drop_sample_with_nans import (
     DropSampleWithNans
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.cnn_transform import CNNTransform
+from scripts.main_pipeline.transforms.shot_level_transforms.time_cnn_transform import TimeCNNTransform
 
-from scripts.main_pipeline.models.cnn_model import MultiBranchCNNModel
+from scripts.main_pipeline.models.time_cnn_model import MultiBranchTimeCNNModel
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
 
 if torch.backends.mps.is_available():
-    device = torch.device("mps")
+    # device = torch.device("mps")
+    device = torch.device("cpu") #bc maxpool3d not on mps yet
 elif torch.cuda.is_available():
     device = torch.device("cuda")
 else:
@@ -248,7 +249,7 @@ def create_cnn_architecture(
     if verbose:
         print(f"output_shape: {output_shape}")
 
-    return MultiBranchCNNModel(input_shapes, output_shape).to(device)
+    return MultiBranchTimeCNNModel(input_shapes, output_shape).to(device)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -403,28 +404,34 @@ if __name__ == "__main__":
 
     PARAMETERS_WINDOWS_SEGMENTER = {
         'x_keys': [
-            # 'magnetics-flux_loop_flux',
-            # 'magnetics-b_field_pol_probe_ccbv_field',
-            # 'magnetics-b_field_pol_probe_obr_field',
-            # 'magnetics-b_field_pol_probe_obv_field',
-            # 'pf_active-solenoid_current',
-            # 'pf_active-coil_voltage',
-            # 'pf_active-coil_current',
-            # 'pulse_schedule-i_plasma',
-            # 'summary-power_nbi',
+            'magnetics-flux_loop_flux',
+            'magnetics-b_field_pol_probe_ccbv_field',
+            'magnetics-b_field_pol_probe_obr_field',
+            'magnetics-b_field_pol_probe_obv_field',
+            'pf_active-solenoid_current',
+            'pf_active-coil_voltage',
+            'pf_active-coil_current',
+            'pulse_schedule-i_plasma',
+            'summary-power_nbi',
             'equilibrium-psi'
         ],
         'y_keys': [
             'equilibrium-elongation',
-            # 'equilibrium-elongation_axis',
-            # 'equilibrium-triangularity_upper',
-            # 'equilibrium-triangularity_lower',
-            # 'equilibrium-minor_radius',
-            # 'equilibrium-magnetic_axis_r',
-            # 'equilibrium-magnetic_axis_z',
+            'equilibrium-elongation_axis',
+            'equilibrium-triangularity_upper',
+            'equilibrium-triangularity_lower',
+            'equilibrium-minor_radius',
+            'equilibrium-magnetic_axis_r',
+            'equilibrium-magnetic_axis_z',
         ],
-        'x_window_sec': 0,
-        'y_window_sec': 0,
+        # 'x_window_sec': 0,
+        # 'y_window_sec': 0,
+        # 'dt_sec': 0.025,
+        # 'stride_sec': None,
+        # 'stride_unitary': True,
+        # 'min_samples_per_window': 1,
+        'x_window_sec': 0.05,
+        'y_window_sec': 0.0,
         'dt_sec': 0.025,
         'stride_sec': None,
         'stride_unitary': True,
@@ -486,7 +493,7 @@ if __name__ == "__main__":
         TruncationTransform(),
         WindowSegmenterTransform(**PARAMETERS_WINDOWS_SEGMENTER),  # shape-modifying transform
         DropSampleWithNans(),
-        CNNTransform()  # shape-modifying transform
+        TimeCNNTransform()  # shape-modifying transform
         ])
 
     # Prepare datasets

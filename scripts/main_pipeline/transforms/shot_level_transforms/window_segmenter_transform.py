@@ -138,18 +138,11 @@ class WindowSegmenterTransform:
 
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, shot: Dict[str, Any]) -> List[Dict[str, Any]]:
+        
+        # Raise Error if some Nans still present in the time vector (fallback but it should have been checked before)
         for var, entry in shot.items():
-            if not (isinstance(entry, dict) and "values" in entry and "time" in entry):
-                continue
-            v = entry["values"]
-            # t = entry["time"]
-
-            # if np.isnan(t).any():
-            #     raise ValueError(f"[ERROR] Signal '{var}' contains NaN values in its 'time' array.")
-
-            # if v.ndim == 1:
-            #     entry["values"] = v[None, :]
-            # assert entry["values"].ndim == 2, f"Signal {var} must have shape (C, T)"
+            if np.isnan(entry["time"]).any():
+                raise ValueError(f"[ERROR] Signal '{var}' contains NaN values in its 'time' array.")
 
         delta_ts = []
         for key in self.x_keys + self.y_keys:
@@ -301,7 +294,7 @@ class WindowSegmenterTransform:
                     sliced_vals = np.full((values.shape[0], self.min_samples), np.nan)
                     sliced_time = np.linspace(t_start, t_end, self.min_samples)
             else:
-                sliced_vals = values[:, idx[0]:idx[-1]+1]
+                sliced_vals = values[..., idx[0]:idx[-1]+1]
                 sliced_time = times[idx[0]:idx[-1]+1]
 
             signal_slices[key] = {

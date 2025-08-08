@@ -3,7 +3,7 @@ from collections import defaultdict
 
 
 # ======================================================================================================================
-class CNNTransform:
+class TimeCNNTransform:
 
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, list_samples):
@@ -29,11 +29,12 @@ class CNNTransform:
 
             # group arrays by shape for CNN branch
             reshaped_x = self._group_arrays_by_shape(array_x)
-            reshaped_x = [arr.squeeze(0) if arr.shape[0] == 1 else arr for arr in reshaped_x]
+            # reshaped_x = [arr.squeeze(0) if arr.shape[0] == 1 else arr for arr in reshaped_x]
             reshaped_x = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_x]
             reshaped_y = self._group_arrays_by_shape(array_y)
-            reshaped_y = [arr.squeeze(0) for arr in reshaped_y] # for the moment we only predict multiple signals at 1 timestamp
-            reshaped_y = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_y]
+            # reshaped_y = [arr.squeeze(0) for arr in reshaped_y] # for the moment we only predict multiple signals at 1 timestamp
+            reshaped_y = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_y] # first because we predict time series
+            reshaped_y = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_y] # second because we predict one timestamp
 
             cnn_samples.append((reshaped_x, reshaped_y))
         
@@ -50,8 +51,9 @@ class CNNTransform:
             stacked = np.stack(
                         [a for a in same_shape_group]
                     )
-            transposed = np.transpose(stacked, axes=[1, 0] + list(range(2, stacked.ndim)))
-            reshaped_list.append(transposed)
+            # transposed = np.transpose(stacked, axes=[1, 0] + list(range(2, stacked.ndim)))
+            # reshaped_list.append(transposed)
+            reshaped_list.append(stacked)
 
         return reshaped_list
 
