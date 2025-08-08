@@ -3,7 +3,17 @@ from collections import defaultdict
 import torch
 
 class SegmenterTransform(object):
-    
+    '''
+     Parameters
+    ----------
+    time_window_sec : float
+        The length of the time window in seconds to segment the x and y values.
+    time_step : float
+        The step in seconds to move the time window.
+    offset : float, optional
+        The offset in seconds to start the time window from the end of the signal, by default 0.0.
+        This is also used to offset the y segments in time with respect to the x segments.
+    '''
     def __init__(
         self,  
         time_window_sec, 
@@ -55,12 +65,13 @@ def segment_data_in_time_windows(
     times : np.ndarray
         The times corresponding to the values, shape: (time_steps,).
     time_window : float
-        The length of the time window in seconds to segment the x and y values.
+        The length of the time window in seconds.
     time_step : float
         The step in seconds to move the time window.
     offset : float, optional
         The offset in seconds to start the time window from the end of the signal, by default 0.0.
-        This is also used to offset the y segments in time with respect to the x segments.
+        This is also used to offset the y segments in time with respect to the x segments when we
+        what to to forecasting of y w.r.t. x.
     Returns
     -------
         Two lists one for "values" and one for "times" containing segments.
@@ -74,7 +85,7 @@ def segment_data_in_time_windows(
     segments_t = []
 
     while start_time >= times[0].item():
-                
+        
         # Find the indeces where the times is in the time window
         mask = (times >= start_time) & (times < start_time + time_window)
                 
@@ -83,6 +94,7 @@ def segment_data_in_time_windows(
         
         # If no end index is found, take the whole time series
         if len(idx) == 0:
+            print(f"No time values found in {start_time}sec - {start_time + time_window}sec")
             segments_v.insert(0,values)
             segments_t.insert(0,times)
             break
@@ -100,7 +112,8 @@ def segment_data_in_time_windows(
 
 def create_map(shot):
     """Create indexed map that contains mini-dictionaries, 
-        one per segment of values and times in the shot"""
+        one per segment of values and times 
+        for all the signals of found in the shot"""
     # Create a defaultdict to hold the segments
     data_map = defaultdict(list)
 
@@ -136,16 +149,15 @@ def segment_shot(
     time_step, 
     offset):
     """Segment the dictionaries contained in sample into smaller 
-       dictionaries each containing a segment of the original values.
+       dictionaries each containing a segment of the original arrays.
        
        These segments are created by sliding a time window of length
-       time_window_sec over the x and y values with a step of time_step. This algorithm is
+       time_window_sec over array values with a step of time_step. This algorithm is
        implemented in the function segment_data_in_time_windows.
        
        HINT: for forecasting purposes, the segments of y are 
        forward in time with respect to the segments of x. 
     
-
     Parameters
     ----------
     shot : dict
@@ -158,11 +170,11 @@ def segment_shot(
         The offset in seconds to start the time window from the end of the signal.
     Returns
     -------
-        A list of sub-x dictionaries each one containing a time segment 
-        of the original x, for all the signals in the original x. 
+        A list of sub-dictionaries each one containing a time segment 
+        of the original dictionary, for all the signals in the original shot. 
         For instance, the first element of the list will contain:
         {       
-                "shot_id": x["shot_id"]
+                "shot_id": shot_id
                 "source_name-signal_name": [
                        {
                            "signal_name": signal["names"], 
@@ -182,7 +194,7 @@ def segment_shot(
     if not shot:
         return None
     if type(shot) is not dict:
-        raise TypeError(f"---------------------- Shot must be a dictionary and not {type(shot)}.")
+        raise TypeError(f"Shot must be a dictionary and not {type(shot)}.")
    
     for _, sample in shot.items():
         try:

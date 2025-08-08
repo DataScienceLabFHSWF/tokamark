@@ -11,6 +11,18 @@ def first_item(batch):
     return batch[0]
     
 class TimeWindowSegmentationCollateFn:
+    '''
+    Customized collate function to collate samples obtained from SegmenterTransform.
+    
+     Parameters
+    ----------
+    list_x(y): list(dict)
+        A list of sub-dictionaries each one containing a time segment 
+        of the original dictionary, for all the signals in the original shot. 
+        
+        This is the return value of segment_shot in SegmenterTransform.          
+    '''
+    
     def __call__(self, list_x, list_y):
         all_x_segments = []
         all_y_segments = []
