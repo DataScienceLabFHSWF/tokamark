@@ -31,15 +31,18 @@ class PcaSettings():
     def __init__(self, config):
         try:
             self.max_components =  config["pca"]["max_components"]
-            self.sources = config["pca"]["sources"]
-            self.signal_names = config["pca"]["signal_names"]
+            self.source_signal_names = config["pca"]["source_signal_names"]
         except KeyError as e:
             print(f"Missing key in configuration: {e}")
             raise
         
 class SigFillSettings():
     def __init__(self, config):
-        pass
+        try:
+            self.list_of_signals = config["sigfill"]["list_of_signals"]
+        except KeyError as e:
+            print(f"Missing key in configuration: {e}")
+            raise
 
 
 class GeneralSettings():
@@ -55,7 +58,6 @@ class GeneralSettings():
 class PathSettings():
     def __init__(self, config):
         try:
-            self.home = config["paths"]["home"]
             self.signal_list_file = config["paths"]["signal list_file"]
             self.output_path = config["paths"]["output_path"]
             self.data_split_file = config["paths"]["data_split_file"]
