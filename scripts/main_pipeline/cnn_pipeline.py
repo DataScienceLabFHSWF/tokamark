@@ -370,11 +370,11 @@ if __name__ == "__main__":
     # ..................................................................................................................
     # For common pipeline
 
-    SUBSET_OF_SHOTS = 4  # <- This can be None for the entire dataset, or a small integer.
+    SUBSET_OF_SHOTS = None  # <- This can be None for the entire dataset, or a small integer.
     OUTPUT_SUB_FOLDER = 'cnn_output/'  # <- Sub-folder within /output/
-    BATCH_SIZE = 2  # 500
-    NUM_WORKERS = 2  # 64
-    MAX_EPOCHS = 3  # 500
+    BATCH_SIZE = 500  # 500
+    NUM_WORKERS = 64  # 64
+    MAX_EPOCHS = 500  # 500
 
     REF_FREQ = 0.005
 
