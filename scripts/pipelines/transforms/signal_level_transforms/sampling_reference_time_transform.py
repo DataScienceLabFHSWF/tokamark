@@ -26,7 +26,7 @@ class SamplingToReferenceTimeTransform:
         idx = np.searchsorted(time, ref_time)  # Reformat to be on the same scale as ref_time
         idx = np. clip(idx, 1, len(time) - 1)
         # print(values.shape)
-        values_rescaled = values[:, idx]
+        values_rescaled = values[..., idx]
         # print('\nAfter time rescaling', values_rescaled.shape[-1] )
 
         return {
