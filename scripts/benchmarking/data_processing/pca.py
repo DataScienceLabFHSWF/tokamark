@@ -69,8 +69,7 @@ class MASTpca:
     """PCAnalysis class for performing PCA on MAST data.
     """
     def __init__(self, SETTINGS):
-        self.signal_names = SETTINGS.PCASETTINGS.signal_names
-        self.sources = SETTINGS.PCASETTINGS.sources
+        self.source_signal_names = SETTINGS.PCASETTINGS.source_signal_names
         self.max_components = SETTINGS.PCASETTINGS.max_components
         self.processes = SETTINGS.GENERAL.processes
         self.nr_shots = SETTINGS.GENERAL.nr_shots
@@ -81,8 +80,8 @@ class MASTpca:
     def fit_PCA(
         self,
         shot_ids: list[int],
-        signal_name: str,
         source: str,
+        signal_name: str,
         ):
         """Aply PCA 
 
@@ -95,7 +94,6 @@ class MASTpca:
         source : str
             Name of the source to which the signal belongs
         """
-        
         # Use SLURM setting if available
         slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK")
 
@@ -114,13 +112,12 @@ class MASTpca:
         # Process shot ids
         if self.nr_shots < len(shot_ids):
             shot_ids = shot_ids[:self.nr_shots]
-       
+        
         with Pool(processes=self.processes) as pool:
-            args_iterable = [(  shot_id, 
-                                source, 
-                                signal_name, 
-                                self.store_manager,
-                                self.local) for shot_id in shot_ids]
+            args_iterable = [
+                (shot_id, source, signal_name, self.store_manager, self.local) 
+                for shot_id in shot_ids
+            ]
             
             filter_none_results_iterator = (
                 result for result in pool.imap(process_single_shot_id_star, args_iterable)
@@ -154,7 +151,7 @@ class MASTpca:
         # Save pca model to output_dir 
         os.makedirs(self.output_directory, exist_ok=True)
         
-        my_pca_file_name = self.output_directory+f"/pca_{source}_{signal_name}.joblib"
+        my_pca_file_name = self.output_directory+f"/pca_{signal_name}.joblib"
         print(f"Saving PCA model to {my_pca_file_name}")
         
         joblib.dump({
@@ -166,7 +163,8 @@ class MASTpca:
             my_pca_file_name) 
         
     def __call__(self, shot_ids):
-        for source, signal_name in zip(self.sources, self.signal_names):
+        for source_signal_names in self.source_signal_names:
+            source, signal_name = source_signal_names.split("-")
             print(f"Processing PCA for source: {source}, signal: {signal_name}")
             # Fit PCA for each source and signal name
             self.fit_PCA(shot_ids, source, signal_name)

@@ -185,7 +185,7 @@ class ConditionalFiller:
         
 def run_simple_filler(
     shot_id,
-    group,
+    source,
     signal_name, 
     store_manager,
     local
@@ -197,7 +197,7 @@ def run_simple_filler(
 
     sig_values = sig.get_signal_values(
         data_origin=store,
-        source_name=group,
+        source_name=source,
         signal_name=signal_name
     )
 
@@ -208,7 +208,7 @@ def run_simple_filler(
         return None
 
 def run_conditional_fill(local, 
-                            group, 
+                            source, 
                             signal_name, 
                             shot_ids,
                             focused_shot_index):
@@ -216,7 +216,7 @@ def run_conditional_fill(local,
 
     channels, df = make_dataframe_from_shot_ids(store_manager,
                     shot_ids,
-                    group, 
+                    source, 
                     signal_name,
                     local=local)
 
@@ -273,8 +273,8 @@ def signals_average_across_shots_v0(store_manager : MASTStorageManager,
         store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
 
         for key, value in data_set.items():
-            # Retrieve signal group and name
-            source_name, signal_name = key.split("/")
+            # Retrieve signal source and name
+            source_name, signal_name = key.split("-")
 
             # Form instance of SIGNAL
             sig = MASTSignalManager()
@@ -329,7 +329,7 @@ def signals_average_across_shots_v0(store_manager : MASTStorageManager,
 
 def signals_average_across_shots_v1(store_manager : MASTStorageManager, 
                                  shot_ids : list[int],
-                                 filepath:str,
+                                 data_set: list[list[str,float]],
                                  local : bool,
                                  json_filename: str = "averaged_arrays.json"):
 
@@ -362,8 +362,6 @@ def signals_average_across_shots_v1(store_manager : MASTStorageManager,
     }
     """
 
-    # Read file containing signal names and the number of channels for each signal
-    data_set = read_signals(filepath)
 
     data_set_counter = {}
     data_set_sums = {}
@@ -373,9 +371,9 @@ def signals_average_across_shots_v1(store_manager : MASTStorageManager,
     for nr,shot_id in enumerate(shot_ids):
         store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
 
-        for key, value in data_set.items():
-            # Retrieve signal group and name
-            source_name, signal_name = key.split("/")
+        for key, value in data_set:
+            # Retrieve signal source and name
+            source_name, signal_name = key.split("-")
 
             # Form instance of SIGNAL
             sig = MASTSignalManager()
@@ -444,7 +442,7 @@ def signals_average_across_shots_v1(store_manager : MASTStorageManager,
 
 def shotids_not_fully_nan_signals(store_manager : MASTStorageManager, 
                                  shot_ids : list[int],
-                                 filepath:str,
+                                 data_set: list[list[str,float]],
                                  local : bool,
                                  json_filename: str = "signal_shotids_not_fully_nan.json"):
 
@@ -469,9 +467,6 @@ def shotids_not_fully_nan_signals(store_manager : MASTStorageManager,
     }
     """
 
-    # Read file containing signal names and the number of channels for each signal
-    data_set = read_signals(filepath)
-
     data_set_idx = {}
 
     # Loop through shots
@@ -479,9 +474,9 @@ def shotids_not_fully_nan_signals(store_manager : MASTStorageManager,
 
         store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
 
-        for key, value in data_set.items():
-            # Retrieve signal group and name
-            source_name, signal_name = key.split("/")
+        for key, value in data_set:
+            # Retrieve signal source and name
+            source_name, signal_name = key.split("-")
             data_set_idx.setdefault(signal_name, [])
 
             # Form instance of SIGNAL
@@ -533,7 +528,7 @@ def test_conditional_vs_simpler():
 
     # input
     local = True
-    group = "magnetics"
+    source = "magnetics"
     signal_name = "flux_loop_flux"
     shot_id = 16092
 
@@ -552,12 +547,12 @@ def test_conditional_vs_simpler():
     shot_ids = new_shot_ids
 
     # Impute missing channels for test shot_id
-    channel_names, conditional_filled = run_conditional_fill(local, group, signal_name, shot_ids, 0)
+    channel_names, conditional_filled = run_conditional_fill(local, source, signal_name, shot_ids, 0)
     conditional_filled = conditional_filled[0].T
     conditional_filled = conditional_filled.to_numpy()
     simple_filled = run_simple_filler(  
         shot_id,
-        group,
+        source,
         signal_name, 
         store_manager,
         local
@@ -568,7 +563,7 @@ def test_conditional_vs_simpler():
     store = store_manager.make_shot_store(shot_info={"shot_id":shot_id, "local":local})
     vals = sig.get_signal_values(
             data_origin=store,
-            source_name=group,
+            source_name=source,
             signal_name=signal_name
         )
 
@@ -583,7 +578,7 @@ def test_conditional_vs_simpler():
     p2 = axes[2].pcolorfast(simple_filled)
 
 
-    axes[0].set_title(r"$\bf{Original}$" + f" {group}/{signal_name} shot id = {shot_ids[0]}")
+    axes[0].set_title(r"$\bf{Original}$" + f" {source}/{signal_name} shot id = {shot_ids[0]}")
     fig.colorbar(p0, ax=axes[0])
 
     axes[1].set_title(r"$\bf{Conditional fill}$")
@@ -598,7 +593,7 @@ def test_conditional_vs_simpler():
         axes[i].set_yticks(np.arange(len(channel_names)))
         axes[i].set_yticklabels(channel_names)
 
-    fig.savefig(f"{group}_{signal_name}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{source}_{signal_name}.png", bbox_inches="tight", dpi=300)
     plt.show()
 
 
@@ -654,7 +649,7 @@ def fit_and_save_imputer(
     source_name: str,
     signal_name: str,
     local: bool,
-    model_path="imputer2.joblib"
+    output_directory: str
     ):
 
     """Use simple imputer to impute missing data in MAST signals
@@ -665,8 +660,8 @@ def fit_and_save_imputer(
     imputer = SimpleImputer(strategy="mean")
     imputer.fit(data)
 
-    joblib.dump(imputer, model_path)
-    print(f"Imputer model saved to {model_path}")
+    joblib.dump(imputer, f"{output_directory}imputer_{signal_name}.joblib")
+    print(f"Imputer model saved to {output_directory}imputer_{signal_name}.joblib")
 
 
 def main(SETTINGS):
@@ -684,25 +679,31 @@ def main(SETTINGS):
     output_path = SETTINGS.LOCALPATHS.output_path
     data_split_file = SETTINGS.LOCALPATHS.data_split_file
     local = SETTINGS.GENERAL.local
+    signal_list =  SETTINGS.SIGFILL.list_of_signals
     
     shot_ids, _, _ = read_data_split_csv(csv_path = data_split_file)
     shot_ids = shuffle_shot_ids(shot_ids)
-    shot_ids = shot_ids[:nr_shots]
+    
+    if nr_shots < len(shot_ids):
+        shot_ids = shot_ids[:nr_shots]
     
     store_manager = MASTStorageManager()
     # shotids_not_fully_nan_signals(store_manager,
     #                                 shot_ids,
-    #                                 signal_list_file,
+    #                                 signal_list,
     #                                 local,
     #                                 json_filename=output_path+"signal_shotids_not_fully_nan"+str(len(shot_ids))+".json")
 
     signals_average_across_shots_v1(store_manager,
                                     shot_ids,
-                                    signal_list_file,
+                                    signal_list,
                                     local,
                                     json_filename=output_path+"averaged_arrays_N_"+str(len(shot_ids))+".json")
 
-    
+    for source_signal_name, _ in signal_list:
+        source, signal_name = source_signal_name.split("-")
+        fit_and_save_imputer(shot_ids, source, signal_name, local, output_path)
+        
 if __name__ == "__main__":
     
     # Inputs
