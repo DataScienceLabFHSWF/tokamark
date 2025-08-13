@@ -28,8 +28,20 @@ class Settings():
         self.TRAINING = TrainingSettings(config)
         self.LOCAL_PATHS = LocalPaths(config)
         self.DATA = DataInput(config) 
+        self.BETA_VAE =  BetaVae(config)
 
-      
+class BetaVae():
+    def __init__(self, config):
+        try:
+            # Model parameters
+            self.latent_dim = config["beta-vae"]["latent_dim"]
+            self.beta = config["beta-vae"]["beta"]
+            self.lr = config["beta-vae"]["lr"]
+            self.ref_freq = config["beta-vae"]["ref_freq"]
+            self.existing_fitted_params = = config["beta-vae"]["existing_fitted_params"]
+        except KeyError as e:
+            print(f"Missing key in training configuration: {e}")
+            raise
 class NNSettings():
     def __init__(self, config):
         try:
@@ -45,9 +57,15 @@ class TimeSettings():
     def __init__(self, config):
         try:
             # Time settings for data segmentation
-            self.time_window_sec = config["input"]["time_window_sec"] # This is the length of the time window in sec. for segmentation of data signals.
-            self.time_step = config["input"]["time_step"] # This is the time step in sec. Time window is moved by this amount backwards in time.
-            self.offset = config["input"]["offset"] # This is the target offset in sec. Signal is predicted in this time window
+            self.time_window_sec = config["time_settings"]["time_window_sec"] # This is the length of the time window in sec. for segmentation of data signals.
+            self.time_step = config["time_settings"]["time_step"] # This is the time step in sec. Time window is moved by this amount backwards in time.
+            self.offset = config["time_settings"]["offset"] # This is the target offset in sec. Signal is predicted in this time window
+            self.x_window_sec =  config["time_settings"]["x_window_sec"]
+            self.y_window_sec = config["time_settings"]["y_window_sec"]
+            self.dt_sec =  config["time_settings"]["dt_sec"]
+            self.stride_sec =  config["time_settings"]["stride_sec"]
+            self.stride_unitary =  config["time_settings"]["stride_unitary"]
+            self.min_samples_per_window config["time_settings"]["min_samples_per_window"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise

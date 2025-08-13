@@ -67,3 +67,31 @@ class TimeWindowSegmentationCollateFn:
             return None  # or return empty batch dicts
         
         return {'x': all_x_segments, 'y': all_y_segments}
+
+def beta_vae_collate_fn(batch):
+    """Custom collate function for β-VAE training"""
+    print(f"Collating β-VAE batch of size {len(batch)}")
+
+    # Flatten the batch of lists into a single list
+    flattened_batch = [item for sublist in batch for item in sublist]
+    print(
+        f"Number of signal segments from batch = {len(batch)} shots is N = {len(flattened_batch)}"
+    )
+
+    # Group by signal name
+    signal_groups = defaultdict(list)
+    for item in flattened_batch:
+        signal_groups[item["signal_name"]].append(item["data"])
+
+    # Convert to tensors for each signal group
+    batched_signals = {}
+    for signal_name, data_list in signal_groups.items():
+        try:
+            batched_signals[signal_name] = torch.stack(
+                [torch.from_numpy(data) for data in data_list]
+            )
+        except Exception as e:
+            print(f"Error batching signal {signal_name}: {e}")
+            continue
+
+    return batched_signals
