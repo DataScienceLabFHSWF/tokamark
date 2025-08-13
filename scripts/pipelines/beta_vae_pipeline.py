@@ -21,38 +21,38 @@ if REPO_ROOT not in sys.path:
 print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from pipelines.utils.utils import (
+from scripts.pipelines.utils.utils import (
     read_data_split_csv, ComposeTransforms
 )
-from pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from pipelines.preprocessing.standardscaling_preprocessing import (
+from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
+from scripts.pipelines.preprocessing.standardscaling_preprocessing import (
     get_mean_shot,
     get_std_shot,
 )
-from pipelines.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
     FillWithZerosImputerTransform,
 )
-from pipelines.transforms.signal_level_transforms.forward_fill_imputer_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.forward_fill_imputer_transform import (
     ForwardFillImputerTransform,
 )
-from pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform,
 )
-from pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
     SamplingToReferenceTimeTransform,
 )
-from pipelines.transforms.shot_level_transforms.truncation_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
     TruncationTransform,
 )
-from pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
     WindowSegmenterTransform,
 )
-from pipelines.transforms.shot_level_transforms.beta_vae_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.beta_vae_transform import (
     BetaVAETransform,
 )
-from pipelines.models.beta_vae_model import BetaVAE
-from pipelines.configs.config_setup import get_settings
-from pipelines.collate_functions.collate_functions import beta_vae_collate_fn
+from scripts.pipelines.models.beta_vae_model import BetaVAE
+from scripts.pipelines.configs.config_setup import get_settings
+from scripts.pipelines.collate_functions.collate_functions import beta_vae_collate_fn
 
 print(f"\nNumber of Cores: {cpu_count()}\n")
 
@@ -783,14 +783,14 @@ if __name__ == "__main__":
         "y_window_sec": SETTINGS.TIME_SEGMENTATION.y_window_sec,
         "dt_sec": SETTINGS.TIME_SEGMENTATION.dt_sec, 
         "stride_sec": SETTINGS.TIME_SEGMENTATION.stride_sec,
-        "stride_unitary": SETTINGS.TIME_SEGMENTATION.stride_unitary
-        "min_samples_per_window": SETTINGS.TIME_SEGMENTATION.min_samples_per_window
+        "stride_unitary": SETTINGS.TIME_SEGMENTATION.stride_unitary,
+        "min_samples_per_window": SETTINGS.TIME_SEGMENTATION.min_samples_per_window,
         "verbose": False,
     }
 
     # Create sets of shot IDs for training, validation and testing
     train_shots, test_shots, val_shots = get_train_test_val_shots(
-        max_index=pipelines SETTINGS.TRAINING.num_train_samples
+        SETTINGS.TRAINING.num_train_samples
     )
 
     # Fit mean and std for signal transformation
@@ -846,26 +846,26 @@ if __name__ == "__main__":
 
     # Create β-VAE models
     beta_vae_models = create_beta_vae_models(
-        train_dataloader_=train_dataloader,
+        train_dataloader,
         SETTINGS.BETA_VAE.latent_dim,
         SETTINGS.BETA_VAE.beta,
         verbose=True
     )
 
     best_model_states, training_loss_curves = train_beta_vae_models(
-        models=beta_vae_models,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        output_sub_dir=OUTPUT_SUB_FOLDER,
-        verbose=True,
+        beta_vae_models,
+        train_dataloader,
+        val_dataloader,
+        OUTPUT_SUB_FOLDER,
+        verbose=True
     )
 
     visualize_beta_vae_results(
-        models=beta_vae_models,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        output_sub_dir=OUTPUT_SUB_FOLDER,
-        loss_curves=training_loss_curves,
+        beta_vae_models,
+        train_dataloader,
+        val_dataloader,
+        OUTPUT_SUB_FOLDER,
+        training_loss_curves,
         verbose=True,
     )
 

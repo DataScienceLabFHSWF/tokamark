@@ -38,7 +38,7 @@ class BetaVae():
             self.beta = config["beta-vae"]["beta"]
             self.lr = config["beta-vae"]["lr"]
             self.ref_freq = config["beta-vae"]["ref_freq"]
-            self.existing_fitted_params = = config["beta-vae"]["existing_fitted_params"]
+            self.existing_fitted_params = config["beta-vae"]["existing_fitted_params"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
@@ -65,7 +65,7 @@ class TimeSettings():
             self.dt_sec =  config["time_settings"]["dt_sec"]
             self.stride_sec =  config["time_settings"]["stride_sec"]
             self.stride_unitary =  config["time_settings"]["stride_unitary"]
-            self.min_samples_per_window config["time_settings"]["min_samples_per_window"]
+            self.min_samples_per_window = config["time_settings"]["min_samples_per_window"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
