@@ -1,4 +1,5 @@
 import numpy as np
+from collections import defaultdict
 
 
 class BetaVAETransform:
@@ -52,18 +53,14 @@ class BetaVAETransform:
         # Loop trhough all window_index
         for sample in list_samples:
             # Extract all signals from both x and y windows
-            all_signals = {}
+            all_signals = defaultdict(list)
 
             # Add x signals
             for signal_name, signal_data in sample["x"].items():
-                if signal_name not in all_signals:
-                    all_signals[signal_name] = []
                 all_signals[signal_name].append(signal_data["values"])
 
             # Add y signals
             for signal_name, signal_data in sample["y"].items():
-                if signal_name not in all_signals:
-                    all_signals[signal_name] = []
                 all_signals[signal_name].append(signal_data["values"])
 
             # Create samples for each unique signal
