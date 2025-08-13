@@ -21,36 +21,38 @@ if REPO_ROOT not in sys.path:
 print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.main_pipeline.utils.utils import (
+from scripts.pipelines.utils.utils import (
     read_data_split_csv, ComposeTransforms
 )
-from scripts.main_pipeline.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from scripts.main_pipeline.preprocessing.standardscaling_preprocessing import (
+from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
+from scripts.pipelines.preprocessing.standardscaling_preprocessing import (
     get_mean_shot,
     get_std_shot,
 )
-from scripts.main_pipeline.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.fill_with_zeros_imputer_transform import (
     FillWithZerosImputerTransform,
 )
-from scripts.main_pipeline.transforms.signal_level_transforms.forward_fill_imputer_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.forward_fill_imputer_transform import (
     ForwardFillImputerTransform,
 )
-from scripts.main_pipeline.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform,
 )
-from scripts.main_pipeline.transforms.signal_level_transforms.sampling_reference_time_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
     SamplingToReferenceTimeTransform,
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.truncation_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
     TruncationTransform,
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.window_segmenter_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
     WindowSegmenterTransform,
 )
-from scripts.main_pipeline.transforms.shot_level_transforms.beta_vae_transform import (
+from scripts.pipelines.transforms.shot_level_transforms.beta_vae_transform import (
     BetaVAETransform,
 )
-from scripts.main_pipeline.models.beta_vae_model import BetaVAE
+from scripts.pipelines.models.beta_vae_model import BetaVAE
+from scripts.pipelines.configs.config_setup import get_settings
+from scripts.pipelines.collate_functions.collate_functions import beta_vae_collate_fn
 
 print(f"\nNumber of Cores: {cpu_count()}\n")
 
@@ -142,35 +144,6 @@ def fit_mean_and_std_for_signal_transform(
         pickle.dump(dict_std_, f)
 
     return dict_mean_, dict_std_
-
-
-def beta_vae_collate_fn(batch):
-    """Custom collate function for β-VAE training"""
-    print(f"Collating β-VAE batch of size {len(batch)}")
-
-    # Flatten the batch of lists into a single list
-    flattened_batch = [item for sublist in batch for item in sublist]
-    print(
-        f"Number of signal segments from batch = {len(batch)} shots is N = {len(flattened_batch)}"
-    )
-
-    # Group by signal name
-    signal_groups = defaultdict(list)
-    for item in flattened_batch:
-        signal_groups[item["signal_name"]].append(item["data"])
-
-    # Convert to tensors for each signal group
-    batched_signals = {}
-    for signal_name, data_list in signal_groups.items():
-        try:
-            batched_signals[signal_name] = torch.stack(
-                [torch.from_numpy(data) for data in data_list]
-            )
-        except Exception as e:
-            print(f"Error batching signal {signal_name}: {e}")
-            continue
-
-    return batched_signals
 
 
 def initialize_datasets(
@@ -267,7 +240,12 @@ def initialize_dataloaders(
     return dataloaders_
 
 
-def create_beta_vae_models(train_dataloader_, verbose=False):
+def create_beta_vae_models(
+    train_dataloader_, 
+    latent_dim,
+    beta,
+    verbose=False
+    ):
     """Create β-VAE models for each signal type"""
     if verbose:
         print("\n\n----------β-VAE MODEL INITIALIZATION----------\n")
@@ -284,7 +262,7 @@ def create_beta_vae_models(train_dataloader_, verbose=False):
                 f"Signal: {signal_name}, Shape: {signal_data.shape}, Input length: {input_length}"
             )
 
-        model = BetaVAE(input_length=input_length, latent_dim=LATENT_DIM, beta=BETA).to(
+        model = BetaVAE(input_length=input_length, latent_dim=latent_dim, beta=beta).to(
             device
         )
 
@@ -297,19 +275,18 @@ def create_beta_vae_models(train_dataloader_, verbose=False):
 
 
 def train_beta_vae_models(
-    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False
+    models, train_dataloader, val_dataloader, output_dir, verbose=False
 ):
     """Train β-VAE models for each signal"""
     if verbose:
         print("\n\n----------β-VAE TRAINING----------\n")
 
-    output_dir = os.path.join("output", output_sub_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     # Create optimizers for each model
     optimizers = {}
     for signal_name, model in models.items():
-        optimizers[signal_name] = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+        optimizers[signal_name] = torch.optim.Adam(model.parameters(), lr=SETTINGS.BETA_VAE.lr)
 
     # Training tracking
     best_losses = {signal_name: float("inf") for signal_name in models.keys()}
@@ -327,7 +304,7 @@ def train_beta_vae_models(
             'val_kl': []
         }
 
-    for epoch in range(MAX_EPOCHS):
+    for epoch in range(SETTINGS.TRAINING.num_epochs):
         if verbose:
             print(f"\nEpoch {epoch+1}\n")
 
@@ -786,59 +763,40 @@ Signal List:
 
 if __name__ == "__main__":
 
-    LOCAL_FLAG = False
+    # Initialize SETTINGS object
+    SETTINGS = get_settings("scripts/pipelines/configs/config.json")
+    
+    LOCAL_FLAG = SETTINGS.DATA.local
     mp.set_start_method("spawn", force=True)
 
     # For common pipeline
-    SUBSET_OF_SHOTS = 25  # Can be None for entire dataset
-    OUTPUT_SUB_FOLDER = "beta_vae_output/"
-    BATCH_SIZE = 5
-    NUM_WORKERS = 0
-    MAX_EPOCHS = 20
-    REF_FREQ = 0.001
-    USE_EXISTING_FITTED_PARAMS = True  # Set to True to load existing fitted parameters
+    OUTPUT_SUB_FOLDER = SETTINGS.LOCAL_PATHS.data_output_directory + "beta_vae_output/"
 
-    # For β-VAE specific settings
-    LATENT_DIM = 32
-    BETA = 1.0  # β parameter for KL divergence weighting
-    LEARNING_RATE = 1e-3
-
-    source_signal_list = [
-        ("magnetics", "flux_loop_flux"),
-        # ('magnetics', 'b_field_pol_probe_ccbv_field'),
-        # ('pf_active', 'solenoid_current'),
-        # ('pf_active', 'coil_voltage'),
-        # ('pulse_schedule', 'i_plasma'),
-        # ('summary', 'power_nbi'),
-        # ('equilibrium', 'elongation'),
-        # ('equilibrium', 'minor_radius'),
-    ]
+    source_signal_list = SETTINGS.DATA.data_names + SETTINGS.DATA.target_names
 
     # Parameters for window segmentation (no x/y split for VAE)
     PARAMETERS_WINDOWS_SEGMENTER = {
-        "x_keys": [f"{source}-{signal}" for source, signal in source_signal_list],
-        "y_keys": [
-            f"{source}-{signal}" for source, signal in source_signal_list
-        ],  # Same as x for VAE
-        "x_window_sec": 0.1,  # 100ms windows
-        "y_window_sec": 0.1,
-        "dt_sec": 0.0,  # No delay needed
-        "stride_sec": None,
-        "stride_unitary": True,
-        "min_samples_per_window": 1,
+        "x_keys": [f"{source}-{signal}" for source, signal in SETTINGS.DATA.data_names],
+        "y_keys": [f"{source}-{signal}" for source, signal in SETTINGS.DATA.target_names],  # Same as x for VAE
+        "x_window_sec": SETTINGS.TIME_SEGMENTATION.x_window_sec,  # 100ms windows
+        "y_window_sec": SETTINGS.TIME_SEGMENTATION.y_window_sec,
+        "dt_sec": SETTINGS.TIME_SEGMENTATION.dt_sec, 
+        "stride_sec": SETTINGS.TIME_SEGMENTATION.stride_sec,
+        "stride_unitary": SETTINGS.TIME_SEGMENTATION.stride_unitary,
+        "min_samples_per_window": SETTINGS.TIME_SEGMENTATION.min_samples_per_window,
         "verbose": False,
     }
 
     # Create sets of shot IDs for training, validation and testing
     train_shots, test_shots, val_shots = get_train_test_val_shots(
-        max_index=SUBSET_OF_SHOTS
+        SETTINGS.TRAINING.num_train_samples
     )
 
     # Fit mean and std for signal transformation
     dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
         output_sub_dir=OUTPUT_SUB_FOLDER,
         verbose=True,
-        use_existing=USE_EXISTING_FITTED_PARAMS,
+        use_existing=SETTINGS.BETA_VAE.existing_fitted_params,
     )
 
     # Get the signal transform map
@@ -848,7 +806,7 @@ if __name__ == "__main__":
                 ForwardFillImputerTransform(),
                 StdScalingTransform(dict_mean[var], dict_std[var]),
                 FillWithZerosImputerTransform(),
-                SamplingToReferenceTimeTransform(REF_FREQ),
+                SamplingToReferenceTimeTransform(SETTINGS.BETA_VAE.ref_freq),
             ]
         )
         for var in [f"{source}-{signal}" for source, signal in source_signal_list]
@@ -877,8 +835,8 @@ if __name__ == "__main__":
     dataloaders_train_val_test = initialize_dataloaders(
         datasets=datasets_train_val_test,
         collate_function=beta_vae_collate_fn,
-        batch_size=BATCH_SIZE,
-        num_workers=NUM_WORKERS,
+        batch_size= SETTINGS.TRAINING.dataloader_batch_size,
+        num_workers=SETTINGS.TRAINING.num_workers,
         verbose=True,
     )
     train_dataloader = dataloaders_train_val_test["train"]
@@ -887,23 +845,26 @@ if __name__ == "__main__":
 
     # Create β-VAE models
     beta_vae_models = create_beta_vae_models(
-        train_dataloader_=train_dataloader, verbose=True
+        train_dataloader,
+        SETTINGS.BETA_VAE.latent_dim,
+        SETTINGS.BETA_VAE.beta,
+        verbose=True
     )
 
     best_model_states, training_loss_curves = train_beta_vae_models(
-        models=beta_vae_models,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        output_sub_dir=OUTPUT_SUB_FOLDER,
-        verbose=True,
+        beta_vae_models,
+        train_dataloader,
+        val_dataloader,
+        OUTPUT_SUB_FOLDER,
+        verbose=True
     )
 
     visualize_beta_vae_results(
-        models=beta_vae_models,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        output_sub_dir=OUTPUT_SUB_FOLDER,
-        loss_curves=training_loss_curves,
+        beta_vae_models,
+        train_dataloader,
+        val_dataloader,
+        OUTPUT_SUB_FOLDER,
+        training_loss_curves,
         verbose=True,
     )
 

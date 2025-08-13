@@ -13,7 +13,34 @@ class BetaVAETransform:
         Parameters
         ----------
         list_samples : list
-            List of window samples from WindowSegmenterTransform
+        [
+            {
+                'x': {
+                    signal_name1: {
+                        'time': np.ndarray,   # shape (T_x,)
+                        'values': np.ndarray  # shape (C, T_x)
+                    },
+                    signal_name2: {
+                        'time': np.ndarray,   # shape (T_x,)
+                        'values': np.ndarray  # shape (C, T_x)
+                    },
+                    …..
+                },
+                'y': {
+                    signal_name1: {
+                        'time': np.ndarray,   # shape (T_y,)
+                        'values': np.ndarray  # shape (C, T_y)
+                    },
+                    signal_name2: {
+                                'time': np.ndarray,   # shape (T_y,)
+                                'values': np.ndarray  # shape (C, T_y)
+                    },
+                    ...
+                },
+            'window_index': int,  # The same index for x, y does not mean necessarily same time, it means that x and y are to be considered input-target pair
+            }
+            ... Same for a different 'window_index'
+        ]
 
         Returns
         -------
@@ -21,7 +48,8 @@ class BetaVAETransform:
             List of (signal_name, signal_data) tuples for β-VAE training
         """
         vae_samples = []
-
+        
+        # Loop trhough all window_index
         for sample in list_samples:
             # Extract all signals from both x and y windows
             all_signals = {}
