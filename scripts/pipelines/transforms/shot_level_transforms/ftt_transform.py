@@ -1,20 +1,3 @@
-"""
-ft_transform_prep.py
-
-Shot-level transform for preparing data from WindowSegmenterTransform
-into the format expected by the FTTransformer pipeline.
-
-This class is designed to be passed as the `shot_level_transform` in MastDataset.
-It converts each (x, y) window into:
-
-    Xs         : List[np.ndarray] of model input arrays (one per input modality).
-    names      : List[str] active target names for this sample.
-    y_native   : Dict[target_name] -> np.ndarray in native (d1, d2, d3) shape.
-
-Unlike the PerTargetDataset approach, this transform directly outputs tuples
-that can be batched with a matching collate function, avoiding an extra dataset wrapper.
-"""
-
 from typing import List, Dict, Any, Tuple
 import numpy as np
 
@@ -23,71 +6,112 @@ class FTTransformPrep:
     """
     Prepare segmented windows into FTTransformer-ready tuples.
 
+    Input format (from WindowSegmenterTransform):
+      shot -> List[window], where each window is:
+        {
+          "x": { x_key: {"values": np.ndarray, ...}, ... },
+          "y": { y_key: {"values": np.ndarray, ...}, ... },
+          ... (other metadata)
+        }
+
+    Output per window (for collate_fttransform):
+        (Xs, names, y_native)
+          Xs       : List[np.ndarray] of inputs (now optionally normalized to 3D)
+          names    : List[str] target names (order preserved)
+          y_native : Dict[target_name] -> np.ndarray, normalized to 3D if requested
+
+    Normalization to 3D (applied when enabled):
+      - 1D  (T,)         -> (1, 1, T)
+      - 2D  (C, T)       -> (C, 1, T)
+      - 2D  (D, 1)       -> (D, 1, 1)
+      - 3D  (C, T, 1)    -> (C, 1, T)   (assume axis1 is time, axis2 is singleton)
+      - 3D  (C, 1, T)    -> (C, 1, T)   (already canonical for 1D-over-time)
+      - Image/Video (H, W, T) or (H, W, 1) are left as-is (d1>1 and d2>1)
+
     Parameters
     ----------
     x_keys : List[str]
         List of signal names to be used as inputs (in order).
     y_key_to_target : Dict[str, str]
-        Mapping from signal names in the window's 'y' dict to target names
-        as used in the model's target registry.
-    ensure_3d : bool, default=True
-        If True, reshapes target arrays to (d1, d2, d3) by adding singleton dims
-        where necessary.
+        Mapping from window['y'] keys to model target names.
+        (If you later add a version that accepts `y_keys`, you can build {k:k} upstream.)
+    ensure_3d_inputs : bool
+        If True, normalize X arrays to 3D as described above.
+    ensure_3d_targets : bool
+        If True, normalize Y arrays to 3D as described above.
     """
 
     def __init__(
         self,
         x_keys: List[str],
         y_key_to_target: Dict[str, str],
-        ensure_3d: bool = True
+        ensure_3d_inputs: bool = True,
+        ensure_3d_targets: bool = True,
     ):
         self.x_keys = x_keys
         self.y_key_to_target = y_key_to_target
-        self.ensure_3d = ensure_3d
+        self.ensure_3d_inputs = ensure_3d_inputs
+        self.ensure_3d_targets = ensure_3d_targets
+
+    @staticmethod
+    def _to_3d(arr: np.ndarray) -> np.ndarray:
+        """Normalize array to (d1, d2, d3) with sensible rules for TS/profile/scalar."""
+        a = np.asarray(arr)
+        if a.ndim == 1:
+            # (T,) -> (1,1,T)
+            return a[None, None, :]
+        if a.ndim == 2:
+            d1, d2 = a.shape
+            if d2 > 1:
+                # (C,T) -> (C,1,T)
+                return a.reshape(d1, 1, d2)
+            else:
+                # (D,1) -> (D,1,1)
+                return a.reshape(d1, 1, 1)
+        if a.ndim == 3:
+            d1, d2, d3 = a.shape
+            # Treat strictly 2D spatial (image/video) as already canonical
+            if d1 > 1 and d2 > 1:
+                return a
+            # If it looks like (C,T,1), convert to (C,1,T)
+            if d3 == 1 and d2 > 1:
+                return np.transpose(a, (0, 2, 1))  # (C,1,T)
+            # (C,1,T) already fine, or (D,1,1) scalar/vector-like
+            return a
+        # Fallback: add singleton dims until 3D
+        while a.ndim < 3:
+            a = a[..., None]
+        return a
 
     def __call__(self, shot: Dict[str, Any]) -> List[Tuple[List[np.ndarray], List[str], Dict[str, np.ndarray]]]:
-        """
-        Convert a shot (already segmented into windows) into a list of FTTransformer tuples.
-
-        Parameters
-        ----------
-        shot : dict
-            Output from WindowSegmenterTransform: list of windows or a dict per window.
-
-        Returns
-        -------
-        samples : List of tuples
-            Each tuple is (Xs, names, y_native):
-                Xs         : List[np.ndarray] inputs for the model
-                names      : List[str] active target names
-                y_native   : Dict[target_name] -> np.ndarray
-        """
         if not isinstance(shot, list):
             raise ValueError("FTTransformPrep expects shot-level transform input to be a list of windows.")
 
         samples = []
         for window in shot:
-            # 1. Collect X inputs in specified order
-            Xs = []
+            # --- 1) Inputs in specified order ---
+            Xs: List[np.ndarray] = []
             for key in self.x_keys:
                 if key not in window["x"]:
                     raise KeyError(f"Missing expected x_key '{key}' in window.")
-                arr = window["x"][key]["values"]
-                Xs.append(np.asarray(arr))
+                arr = np.asarray(window["x"][key]["values"])
+                if self.ensure_3d_inputs:
+                    arr = self._to_3d(arr)
+                Xs.append(arr)
 
-            # 2. Collect targets
+            # --- 2) Targets (map y_key -> target name) ---
             y_native: Dict[str, np.ndarray] = {}
             names: List[str] = []
             for y_key, target_name in self.y_key_to_target.items():
                 if y_key not in window["y"]:
                     raise KeyError(f"Missing expected y_key '{y_key}' in window.")
                 arr = np.asarray(window["y"][y_key]["values"])
-                if self.ensure_3d:
-                    while arr.ndim < 3:
-                        arr = np.expand_dims(arr, axis=-1)
+                if self.ensure_3d_targets:
+                    arr = self._to_3d(arr)
                 y_native[target_name] = arr
                 names.append(target_name)
 
             samples.append((Xs, names, y_native))
 
         return samples
+

@@ -48,47 +48,52 @@ def flatten_then_collate(batch):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def collate_fttransform(
-    batch: List[Tuple[List, List[str], Dict[str, torch.Tensor]]],
-    dtype: torch.dtype = torch.float32
-):
+def collate_fttransform(batch, dtype: torch.dtype = torch.float32):
     """
-    collate_fttransform.py
+    Custom collate for FTTransformer-prepared data.
 
-    Custom collate function for FTTransformer-prepared samples.
-    Intended to be used after flatten_then_collate or directly in DataLoader.
+    Parameters
+    ----------
+    batch : list
+        Each element is a tuple:
+          (Xs, active_targets, y_native)
+          - Xs: list of np.ndarray (n_inputs)
+          - active_targets: list of str
+          - y_native: dict {target_name: np.ndarray (d1,d2,d3)}
+    dtype : torch.dtype
+        Target tensor dtype.
 
-    Batch Format
-    ------------
-    Inputs:  batch = list of (Xs, names, y_native) tuples from FTTransformPrep.
-
-    Outputs:
-        X_batch       : List[B] of List[n_inputs] of np.ndarray
-                        (model handles np→torch conversion internally)
-        active_targets: List[str] target names shared by all samples in batch
-        y_native      : Dict[target_name] -> (B, d1, d2, d3) torch tensor
+    Returns
+    -------
+    X_batch       : list of list[np.ndarray]  # (B, n_inputs)
+    active_targets: list[str]  # shared for the whole batch
+    y_native      : dict[target_name, torch.Tensor]  # (B, d1, d2, d3)
     """
     if not batch:
         return [], [], {}
 
-    # Ensure all samples have the same active_targets
+    # Flatten if this is [ [sample, sample, ...], [sample, ...], ... ]
+    if isinstance(batch[0], list):
+        flat = []
+        for sub in batch:
+            flat.extend(sub)
+        batch = flat
+
+    # Check targets consistency
     active_targets = batch[0][1]
     for _, names, _ in batch:
         if names != active_targets:
-            raise ValueError("Batch mixes different active_targets; bucket by task before batching.")
+            raise ValueError("Mixed active_targets in batch — bucket by task before batching.")
 
-    # Collect Xs
+    # Collect inputs and outputs
     X_batch = [sample[0] for sample in batch]
+    stacked = {t: [] for t in active_targets}
 
-    # Stack Ys per target
-    stacked: Dict[str, List[torch.Tensor]] = {n: [] for n in active_targets}
     for _, _, y_nat in batch:
-        for n in active_targets:
-            arr = torch.as_tensor(y_nat[n], dtype=dtype)
-            stacked[n].append(arr)
+        for t in active_targets:
+            stacked[t].append(torch.as_tensor(y_nat[t], dtype=dtype))
 
-    y_native = {n: torch.stack(tensors, dim=0).to(dtype) for n, tensors in stacked.items()}
-
+    y_native = {t: torch.stack(vals, dim=0) for t, vals in stacked.items()}
     return X_batch, active_targets, y_native
 
 # ======================================================================================================================

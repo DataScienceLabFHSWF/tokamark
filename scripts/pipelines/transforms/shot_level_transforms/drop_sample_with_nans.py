@@ -5,6 +5,10 @@ import numpy as np
 class DropSampleWithNans:
 
     # ------------------------------------------------------------------------------------------------------------------
+    def __init__(self, verbose: bool = False):
+        self.verbose = verbose
+
+    # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, list_samples):
         # print('TTM-specific formatting')
         
@@ -35,8 +39,9 @@ class DropSampleWithNans:
             
             if accepted:
                 no_nans_samples.append(sample)
-        
-        print(f"Going from {len(list_samples)} windows to {len(no_nans_samples)} windows due to Nans in shot!!!")
+
+        if self.verbose:
+            print(f"Going from {len(list_samples)} windows to {len(no_nans_samples)} windows due to Nans in shot!!!")
         return no_nans_samples
 
     # ------------------------------------------------------------------------------------------------------------------

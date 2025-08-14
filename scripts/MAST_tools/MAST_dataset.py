@@ -79,13 +79,13 @@ class MastDataset(Dataset):
                 try:
                     if f"{source}-{signal}" == "equilibrium-psi":
                         print("Transposing values because equilibrium-psi not saved the same way as others")
-                        print(shot_profile.values.shape)
+                        # print(shot_profile.values.shape)
                         shot_vals = np.moveaxis(shot_profile.values, 0, -1)
-                        print(shot_vals.shape)
+                        # print(shot_vals.shape)
                     else:
                         shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
                                     else shot_profile.values)
-                        print(shot_vals.shape)
+                        # print(shot_vals.shape)
 
                 except AttributeError:
                     shot_vals = None

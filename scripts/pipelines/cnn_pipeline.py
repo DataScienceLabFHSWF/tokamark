@@ -68,7 +68,7 @@ def get_train_test_val_shots(max_index=None):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def fit_mean_and_std_for_signal_transform(output_sub_dir, train_shots, verbose=False, local=False):
+def fit_mean_and_std_for_signal_transform(output_sub_dir, train_shots, source_signal_list, verbose=False, local=False):
 
     if verbose:
         print('\n\n----------TRANSFORM FITTING----------\n')
@@ -455,6 +455,7 @@ if __name__ == "__main__":
     dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
         train_shots=train_shots,
         local=LOCAL_FLAG,
+        source_signal_list=source_signal_list,
         output_sub_dir=OUTPUT_SUB_FOLDER,
         verbose=True
     )

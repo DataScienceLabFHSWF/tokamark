@@ -41,11 +41,12 @@ from __future__ import annotations
 import copy
 import math
 from typing import List, Tuple, Dict, Any, Callable, Optional
+from scripts.pipelines.models.ftt_model import InputRegistry, TargetRegistry, InputSpec, TargetSpec
 
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset
+# from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 
 # -------------------
@@ -137,77 +138,79 @@ def yraw_list_to_dicts(
     return Y_dicts, active_targets
 
 
-# ============================================================
-# === Dataset / Collate (per-target dicts; no pad/mask) =====
-# ============================================================
-class PerTargetDataset(Dataset):
-    """
-    Minimal dataset that carries raw inputs and per-target native arrays.
-
-    X_raw[b]         : List[n_inputs] of np.ndarray (native)
-    Y_raw_per_target : List over samples of Dict[target_name] -> np.ndarray(native (d1,d2,d3))
-    active_targets[b]: List[str] names present in Y_raw[b]
-    """
-    def __init__(
-        self,
-        X_raw,
-        Y_raw_per_target: List[Dict[str, np.ndarray]],
-        active_targets: List[List[str]],
-        dtype: torch.dtype = torch.float32
-    ):
-        assert len(X_raw) == len(Y_raw_per_target) == len(active_targets), "Mismatched dataset lengths."
-        self.X_raw = X_raw
-        self.Y_raw = Y_raw_per_target
-        self.active_targets = active_targets
-        self.dtype = dtype
-
-    def __len__(self) -> int:
-        return len(self.X_raw)
-
-    def __getitem__(self, idx):
-        Xs = self.X_raw[idx]  # list of np arrays (kept as-is; model handles conversion)
-        names = self.active_targets[idx]
-        y_native = {n: torch.from_numpy(self.Y_raw[idx][n].astype(np.float32)) for n in names}
-        return Xs, names, y_native
-
-
-def collate_per_target(batch, dtype: torch.dtype = torch.float32):
-    """
-    Collate samples that share the same active_targets (recommend: bucket by task).
-
-    Returns
-    -------
-    X_batch       : List[B] of List[n_inputs] (raw np arrays)
-    active_targets: List[str] (shared for the batch)
-    y_native      : Dict[name] -> (B, d1, d2, d3) tensor
-    """
-    if not batch:
-        return [], [], {}
-    X_batch = [b[0] for b in batch]
-    active_targets = batch[0][1]
-    for _, names, _ in batch:
-        if names != active_targets:
-            raise ValueError("Batch mixes different active_targets; bucket by task before batching.")
-    # stack native Ys per target
-    stacked: Dict[str, List[torch.Tensor]] = {n: [] for n in active_targets}
-    for _, _, y_nat in batch:
-        for n in active_targets:
-            stacked[n].append(y_nat[n])
-    y_native = {n: torch.stack(tlist, dim=0).to(dtype) for n, tlist in stacked.items()}
-    return X_batch, active_targets, y_native
+# # ============================================================
+# # === Dataset / Collate (per-target dicts; no pad/mask) =====
+# # ============================================================
+# class PerTargetDataset(Dataset):
+#     """
+#     Minimal dataset that carries raw inputs and per-target native arrays.
+#
+#     X_raw[b]         : List[n_inputs] of np.ndarray (native)
+#     Y_raw_per_target : List over samples of Dict[target_name] -> np.ndarray(native (d1,d2,d3))
+#     active_targets[b]: List[str] names present in Y_raw[b]
+#     """
+#     def __init__(
+#         self,
+#         X_raw,
+#         Y_raw_per_target: List[Dict[str, np.ndarray]],
+#         active_targets: List[List[str]],
+#         dtype: torch.dtype = torch.float32
+#     ):
+#         assert len(X_raw) == len(Y_raw_per_target) == len(active_targets), "Mismatched dataset lengths."
+#         self.X_raw = X_raw
+#         self.Y_raw = Y_raw_per_target
+#         self.active_targets = active_targets
+#         self.dtype = dtype
+#
+#     def __len__(self) -> int:
+#         return len(self.X_raw)
+#
+#     def __getitem__(self, idx):
+#         Xs = self.X_raw[idx]  # list of np arrays (kept as-is; model handles conversion)
+#         names = self.active_targets[idx]
+#         y_native = {n: torch.from_numpy(self.Y_raw[idx][n].astype(np.float32)) for n in names}
+#         return Xs, names, y_native
+#
+#
+# def collate_per_target(batch, dtype: torch.dtype = torch.float32):
+#     """
+#     Collate samples that share the same active_targets (recommend: bucket by task).
+#
+#     Returns
+#     -------
+#     X_batch       : List[B] of List[n_inputs] (raw np arrays)
+#     active_targets: List[str] (shared for the batch)
+#     y_native      : Dict[name] -> (B, d1, d2, d3) tensor
+#     """
+#     if not batch:
+#         return [], [], {}
+#     X_batch = [b[0] for b in batch]
+#     active_targets = batch[0][1]
+#     for _, names, _ in batch:
+#         if names != active_targets:
+#             raise ValueError("Batch mixes different active_targets; bucket by task before batching.")
+#     # stack native Ys per target
+#     stacked: Dict[str, List[torch.Tensor]] = {n: [] for n in active_targets}
+#     for _, _, y_nat in batch:
+#         for n in active_targets:
+#             stacked[n].append(y_nat[n])
+#     y_native = {n: torch.stack(tlist, dim=0).to(dtype) for n, tlist in stacked.items()}
+#     return X_batch, active_targets, y_native
 
 
 # ============================================================
 # === Loss (per-target, device-safe) =========================
 # ============================================================
 def compute_per_target_loss_pred_space(
-    preds: Dict[str, torch.Tensor],           # name -> (B, out_dim)
-    targets_flat: Dict[str, torch.Tensor],    # name -> (B, out_dim)
+    preds: Dict[str, torch.Tensor],           # name -> (B, D)
+    targets_flat: Dict[str, torch.Tensor],    # name -> (B, D)
     registry,
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     """
-    Per-target MSE in *prediction space*, balanced across targets.
-    If spec.loss_weight != 1, weights are normalized to sum=1.
+    Per-target MSE in prediction space with per-sample reduction:
+      1) mean over feature dim per sample
+      2) mean over samples
+      3) weighted across targets (weights normalized to sum=1 when > 0)
     """
     per_t = []
     names = []
@@ -218,13 +221,20 @@ def compute_per_target_loss_pred_space(
             continue
         y_pred = preds[name]
         y_true = y_true.to(device=y_pred.device, dtype=y_pred.dtype)
-        l = torch.mean((y_pred - y_true) ** 2)  # MSE
+
+        diff2 = (y_pred - y_true) ** 2          # (B, D)
+        per_sample = diff2.mean(dim=1)          # (B,)  mean over features
+        l = per_sample.mean()                   # ()    mean over samples
+
         per_t.append(l)
         names.append(name)
         logs[name] = float(l.detach().cpu())
 
     if not per_t:
         # nothing active in this batch
+        # safer device/dtype fallback if preds could be empty
+        if len(preds) == 0:
+            return torch.tensor(0.0), logs
         any_tensor = next(iter(preds.values()))
         return torch.zeros((), device=any_tensor.device, dtype=any_tensor.dtype), logs
 
@@ -251,20 +261,20 @@ def decode_preds_to_native(
 
 def compute_per_target_loss_native_space(
     model,
-    preds: Dict[str, torch.Tensor],           # name -> (B, out_dim in pred space)
-    y_native: Dict[str, torch.Tensor],        # name -> (B, d1, d2, d3)
+    preds: Dict[str, torch.Tensor],
+    y_native: Dict[str, torch.Tensor],
     registry,
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     """
-    Per-target MSE in *native space* by decoding predictions back to original shapes.
+    Per-target MSE in *native space* with per-sample reduction,
+    then weighted across targets. Returns a scalar loss for backward
+    and per-target logs (means).
     """
     y_pred_native = decode_preds_to_native(model, preds, y_native)
 
     per_t = []
     names = []
     logs: Dict[str, float] = {}
-
-    # Optional one-time diagnostic to catch accidentally detached decode paths
     _printed_diag = getattr(compute_per_target_loss_native_space, "_printed_diag", False)
 
     for name, yt in y_native.items():
@@ -272,11 +282,16 @@ def compute_per_target_loss_native_space(
             continue
         yp = y_pred_native[name]
         yt = yt.to(device=yp.device, dtype=yp.dtype)
-
         if (not _printed_diag) and (not yp.requires_grad):
             print(f"[warn] decoded '{name}' does not require grad. "
                   f"Check for @torch.no_grad or .detach() in decode path.")
-        l = torch.mean((yp - yt) ** 2)
+
+        # --- per-sample mean over spatial/temporal dims, then mean over batch
+        # shapes: yp, yt = (B, d1, d2, d3)
+        diff2 = (yp - yt) ** 2
+        per_sample = diff2.flatten(1).mean(dim=1)   # (B,)
+        l = per_sample.mean()                       # scalar
+
         per_t.append(l)
         names.append(name)
         logs[name] = float(l.detach().cpu())
@@ -287,7 +302,7 @@ def compute_per_target_loss_native_space(
         any_tensor = next(iter(preds.values()))
         return torch.zeros((), device=any_tensor.device, dtype=any_tensor.dtype), logs
 
-    per_t = torch.stack(per_t, dim=0)
+    per_t = torch.stack(per_t, dim=0)  # (T,)
     weights = torch.tensor([registry.specs[n].loss_weight for n in names],
                            device=per_t.device, dtype=per_t.dtype)
     loss = (per_t * (weights / (weights.sum() + 1e-8))).sum() if float(weights.sum()) > 0 else per_t.mean()
@@ -488,6 +503,7 @@ def train_model_per_target_persistent(
             print(f"  available targets: {list(model.heads.keys())}")
         print(f"  active targets: {active_targets_print}\n")
 
+    # ... inside the function, right before the epoch loop
     history = {"train_loss": [], "val_loss": []}
     best_val = math.inf
     best_state = None
@@ -495,13 +511,15 @@ def train_model_per_target_persistent(
 
     for epoch in range(1, epochs + 1):
         model.train()
-        train_losses = []
+        train_loss_sum = 0.0
+        train_sample_count = 0
 
         optimizer.zero_grad(set_to_none=True)
         last_active_t = None
 
         for it, (X_batch, active_t_batch, y_native) in enumerate(train_loader, start=1):
             last_active_t = active_t_batch
+
             out = model(
                 X_batch,
                 active_targets=active_t_batch,
@@ -516,24 +534,26 @@ def train_model_per_target_persistent(
                 y_flat = build_supervision_from_native(y_native, registry)
                 loss, _ = compute_per_target_loss_pred_space(preds, y_flat, registry)
 
+            # --- sample-weighted accumulation (like CNN loop) ---
+            any_t = next(iter(y_native.values()), None)
+            if any_t is None:
+                # no targets in this batch; skip safely
+                continue
+            B = int(any_t.shape[0])
+            train_loss_sum += float(loss.detach().cpu()) * B
+            train_sample_count += B
+
             (loss / max(1, grad_accum_steps)).backward()
 
             if it % grad_accum_steps == 0:
-                # Enable only the heads touched in this batch
                 toggle_head_groups(optimizer, active_names=set(active_t_batch))
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 if scheduler:
                     scheduler.step()
-                    # Scheduler may change LR; re-apply toggles to match current scale
                     toggle_head_groups(optimizer, active_names=set(active_t_batch))
 
-            train_losses.append(float(loss.detach().cpu()))
-
-        train_loss = float(sum(train_losses) / max(1, len(train_losses)))
-        history["train_loss"].append(train_loss)
-
-        # finalize a partial accumulation step at epoch end
+        # finalize a partial accumulation step at epoch end (if any)
         if (len(train_loader) > 0) and ((it % max(1, grad_accum_steps)) != 0) and (last_active_t is not None):
             toggle_head_groups(optimizer, active_names=set(last_active_t))
             optimizer.step()
@@ -542,9 +562,13 @@ def train_model_per_target_persistent(
                 scheduler.step()
                 toggle_head_groups(optimizer, active_names=set(last_active_t))
 
-        # ---- Validate ----
+        train_loss = train_loss_sum / max(1, train_sample_count)
+        history["train_loss"].append(train_loss)
+
+        # ---- Validate (sample-weighted) ----
         model.eval()
-        val_losses = []
+        val_loss_sum = 0.0
+        val_sample_count = 0
         with torch.no_grad():
             for X_batch, active_t_batch, y_native in val_loader:
                 out = model(
@@ -561,9 +585,13 @@ def train_model_per_target_persistent(
                     y_flat = build_supervision_from_native(y_native, registry)
                     vloss, _ = compute_per_target_loss_pred_space(preds, y_flat, registry)
 
-                val_losses.append(float(vloss.detach().cpu()))
+                any_t = next(iter(y_native.values()))
+                B = int(any_t.shape[0])
 
-        val_loss = float(sum(val_losses) / max(1, len(val_losses)))
+                val_loss_sum += float(vloss.detach().cpu()) * B
+                val_sample_count += B
+
+        val_loss = val_loss_sum / max(1, val_sample_count)
         history["val_loss"].append(val_loss)
 
         improved = (val_loss < best_val - float(min_delta))
@@ -574,6 +602,8 @@ def train_model_per_target_persistent(
             best_val = val_loss
             best_state = copy.deepcopy(model.state_dict())
             bad_epochs = 0
+            # (optional) save best checkpoint
+            # torch.save(best_state, os.path.join(output_dir, "best_model.pt"))
         else:
             bad_epochs += 1
             if bad_epochs >= patience:
@@ -604,18 +634,18 @@ def build_padded_from_dicts(
     T = len(target_names)
     D1, D2, D3 = padded_output_shape
 
-    # create pads on CPU
+    # allocate on CPU; we'll return numpy
     Y_true_pad = torch.zeros((B, T, D1, D2, D3), dtype=torch.float32, device="cpu")
     Y_pred_pad = torch.zeros_like(Y_true_pad)
 
     for t, name in enumerate(target_names):
-        yt = y_native[name].to(device=Y_true_pad.device, dtype=torch.float32)
-        yp = y_pred_native[name].to(device=Y_pred_pad.device, dtype=torch.float32)
-        d1, d2, d3 = yt.shape[1], yt.shape[2], yt.shape[3]
+        yt = y_native[name].to(dtype=torch.float32, device="cpu")
+        yp = y_pred_native[name].to(dtype=torch.float32, device="cpu")
+        d1, d2, d3 = yt.shape[1:4]
         Y_true_pad[:, t, :d1, :d2, :d3] = yt
         Y_pred_pad[:, t, :d1, :d2, :d3] = yp
 
-    return Y_true_pad.cpu().numpy(), Y_pred_pad.cpu().numpy()
+    return Y_true_pad.numpy(), Y_pred_pad.numpy()
 
 
 @torch.no_grad()
@@ -643,7 +673,7 @@ def evaluate_model_per_target(
     preds = out["preds"]
     y_pred_native = decode_preds_to_native(model, preds, y_native)
 
-    # overall RMSE in prediction space (concatenate flats)
+    # overall RMSE in prediction space (concatenate flats) — PER-SAMPLE semantics
     def _cat(d: Dict[str, torch.Tensor]) -> torch.Tensor:
         return torch.cat([d[n].reshape(d[n].shape[0], -1) for n in active_targets], dim=1)
 
@@ -652,15 +682,22 @@ def evaluate_model_per_target(
 
     # align device & dtype before math
     y_flat_true = y_flat_true.to(device=y_flat_pred.device, dtype=y_flat_pred.dtype)
-    rmse_total = float(torch.sqrt(((y_flat_pred - y_flat_true) ** 2).mean()).item())
 
-    # per-target RMSE (native): also align to the pred device
+    # per-sample MSE -> mean over samples -> RMSE
+    diff2 = (y_flat_pred - y_flat_true) ** 2            # (B, Dtot)
+    per_sample_mse = diff2.mean(dim=1)                  # (B,)
+    rmse_total = float(torch.sqrt(per_sample_mse.mean()).item())
+
+    # per-target RMSE (native) — PER-SAMPLE semantics
     pred_device = next(iter(y_pred_native.values())).device
     rmse_per_target = []
     for n in active_targets:
         yt = y_native[n].to(device=pred_device, dtype=torch.float32)
         yp = y_pred_native[n].to(device=pred_device, dtype=torch.float32)
-        rmse_n = torch.sqrt(((yp - yt) ** 2).mean()).item()
+
+        diff2 = (yp - yt) ** 2                          # (B, d1, d2, d3)
+        per_sample_mse = diff2.reshape(diff2.shape[0], -1).mean(dim=1)  # (B,)
+        rmse_n = torch.sqrt(per_sample_mse.mean()).item()
         rmse_per_target.append(float(rmse_n))
 
     Y_true_np, Y_pred_np = build_padded_from_dicts(
@@ -676,44 +713,179 @@ def evaluate_model_per_target(
 # ============================================================
 # === Shape inference (still handy for plotting) =============
 # ============================================================
-def infer_modality_from_shape(shape: Shape3D) -> str:
-    """Best-effort modality guess based on (d1,d2,d3)."""
-    d1, d2, d3 = shape
-    if d1 > 1 and d2 > 1 and d3 == 1: return "image"
-    if d1 > 1 and d2 > 1 and d3 > 1:  return "video"
-    if d1 == 1 and d2 == 1 and d3 > 1: return "timeseries"
-    if d1 > 1 and d2 == 1 and d3 > 1:  return "profile2d"
-    if d1 >= 1 and d2 == 1 and d3 == 1: return "vector"
+def infer_modality_from_shape(shape: tuple[int, ...]) -> str:
+    """
+    Infer a modality label from a tensor shape.
+    Supports 1D, 2D (common for inputs), and canonical 3D (C,H,T) targets.
+
+    Returns one of:
+      'scalar', 'vector', 'timeseries', 'profile', 'image', 'video', 'unknown'
+    """
+
+    ndim = len(shape)
+
+    # --- 1D ---
+    if ndim == 1:
+        c, = shape
+        return "scalar" if c == 1 else "vector"
+
+    # --- 2D (typical input: (C, T)) ---
+    if ndim == 2:
+        d1, d2 = shape
+        # Heuristic: treat as multi-channel 1D signal over time if the second dim > 1
+        if d2 > 1:
+            return "timeseries"   # (C, T)
+        # Otherwise it's a static vector-like thing
+        return "vector"           # (C, 1) or (1, 1)
+
+    # --- 3D (canonical targets: (C, H, T)) ---
+    if ndim == 3:
+        d1, d2, d3 = shape
+
+        # Pure scalar / vector (no time, no spatial width)
+        if d2 == 1 and d3 == 1:
+            return "scalar" if d1 == 1 else "vector"
+
+        # Image or video (true 2D spatial)
+        if d1 > 1 and d2 > 1:
+            return "video" if d3 > 1 else "image"
+
+        # 1D over time: decide "timeseries" vs "profile" by the first dim
+        # (if there's only 1 channel → timeseries; if many positions → profile)
+        if d2 == 1 and d3 > 1:
+            return "timeseries" if d1 == 1 else "profile"
+
     return "unknown"
 
 
-def infer_shapes_from_raw(
-    X_raw: List[List[np.ndarray]],
-    Y_raw: List[List[np.ndarray]],
-) -> Dict[str, object]:
-    """
-    Infer input/target shapes & modalities from the first sample and validate consistency.
-    Also compute a padded_output_shape that can hold all targets for grid visualization.
-    """
-    input_shapes  = [tuple(arr.shape) for arr in X_raw[0]]
-    target_shapes = [tuple(arr.shape) for arr in Y_raw[0]]
-    for Xi in X_raw:
-        assert [tuple(a.shape) for a in Xi] == input_shapes, "Inconsistent input shapes across samples."
-    for Yi in Y_raw:
-        assert [tuple(a.shape) for a in Yi] == target_shapes, "Inconsistent target shapes across samples."
-    input_modalities  = [infer_modality_from_shape(s) for s in input_shapes]
-    output_modalities = [infer_modality_from_shape(s) for s in target_shapes]
-    max_d1 = max(s[0] for s in target_shapes) if target_shapes else 0
-    max_d2 = max(s[1] for s in target_shapes) if target_shapes else 0
-    max_d3 = max(s[2] for s in target_shapes) if target_shapes else 0
-    padded_output_shape = (max_d1, max_d2, max_d3)
-    return dict(
-        input_shapes=input_shapes,
-        target_shapes=target_shapes,
-        input_modalities=input_modalities,
-        output_modalities=output_modalities,
-        padded_output_shape=padded_output_shape,
+def build_registries_from_shapes(
+    *,
+    input_names: List[str],
+    input_shapes: List[Tuple[int, ...]],
+    target_names: List[str],
+    target_shapes: List[Tuple[int, ...]],
+    get_encoder,                  # name -> encoder factory
+    get_decoder,                  # name -> decoder factory
+    infer_modality_from_shape,    # shape -> modality str
+    input_overrides: Optional[Dict[str, Dict]] = None,
+    target_overrides: Optional[Dict[str, Dict]] = None,
+    default_input_by_modality: Optional[Dict[str, Dict]] = None,
+    default_target_by_modality: Optional[Dict[str, Dict]] = None,
+) -> Tuple[InputRegistry, TargetRegistry]:
+
+    # --- basic checks ---
+    assert len(input_names) == len(input_shapes), "input_names vs input_shapes mismatch"
+    assert len(target_names) == len(target_shapes), "target_names vs target_shapes mismatch"
+    assert len(set(input_names)) == len(input_names), "Duplicate input names"
+    assert len(set(target_names)) == len(target_names), "Duplicate target names"
+
+    input_overrides = input_overrides or {}
+    target_overrides = target_overrides or {}
+
+    # --- sensible internal defaults if none provided ---
+    if default_input_by_modality is None:
+        default_input_by_modality = {
+            "timeseries": dict(encoder_name="flatten_bspline_1d", encoder_kwargs={"degree": 4, "num_basis": 5}),
+            "profile":    dict(encoder_name="fpca_3d",            encoder_kwargs={"num_components": 3, "pca_dim": "space"}),
+            "image":      dict(encoder_name="dct_2d",             encoder_kwargs={"keep_h": 8, "keep_w": 8}),
+            "video":      dict(encoder_name="dct_3d",             encoder_kwargs={"keep_h": 5, "keep_w": 5, "keep_t": 5}),
+            "scalar":     dict(encoder_name=None, encoder_kwargs=None),
+            "vector":     dict(encoder_name=None, encoder_kwargs=None),
+        }
+    if default_target_by_modality is None:
+        default_target_by_modality = {
+            "timeseries": dict(encoder_name="per_channel_bspline_1d", encoder_kwargs={"degree": 4, "num_basis": 5}),
+            "profile":    dict(encoder_name="per_channel_bspline_1d", encoder_kwargs={"degree": 4, "num_basis": 5}),
+            "image":      dict(encoder_name="dct_2d",                 encoder_kwargs={"keep_h": 8, "keep_w": 8}),
+            "video":      dict(encoder_name="dct_3d",                 encoder_kwargs={"keep_h": 5, "keep_w": 5, "keep_t": 5}),
+            "scalar":     dict(encoder_name=None, encoder_kwargs=None),
+            "vector":     dict(encoder_name=None, encoder_kwargs=None),
+        }
+
+    # --- INPUT SPECS (objects) ---
+    in_specs: Dict[str, InputSpec] = {}
+    for name, shp in zip(input_names, input_shapes):
+        mod = infer_modality_from_shape(shp)
+        if mod == "unknown":
+            raise ValueError(f"Unknown modality for input '{name}' with shape {shp}")
+
+        enc_cfg = (input_overrides.get(name) or {}).copy()
+        if enc_cfg.get("encoder_name") is None:
+            enc_cfg.update(default_input_by_modality.get(mod, {}))
+
+        in_specs[name] = InputSpec(
+            name=name,
+            shape=tuple(int(s) for s in shp),
+            encoder_name=enc_cfg.get("encoder_name"),
+            encoder_kwargs=enc_cfg.get("encoder_kwargs"),
+        )
+
+    input_registry = InputRegistry(
+        specs=in_specs,
+        get_encoder=get_encoder,
+        infer_modality_from_shape=infer_modality_from_shape,
     )
+    input_registry.bind_shapes({n: s for n, s in zip(input_names, input_shapes)})
+    input_registry.auto_fill_modalities()  # ok if your registry populates spec.modality internally
+    input_registry.build_encoders()
+
+    # --- TARGET SPECS (objects) ---
+    tgt_specs: Dict[str, TargetSpec] = {}
+    for name, shp in zip(target_names, target_shapes):
+        mod = infer_modality_from_shape(shp)
+        if mod == "unknown":
+            raise ValueError(f"Unknown modality for target '{name}' with shape {shp}")
+
+        enc_cfg = (target_overrides.get(name) or {}).copy()
+        if enc_cfg.get("encoder_name") is None:
+            enc_cfg.update(default_target_by_modality.get(mod, {}))
+
+        tgt_specs[name] = TargetSpec(
+            name=name,
+            shape=tuple(int(s) for s in shp),
+            encoder_name=enc_cfg.get("encoder_name"),
+            encoder_kwargs=enc_cfg.get("encoder_kwargs"),
+            # head_hidden / loss / loss_weight can be left to defaults or set here if needed
+        )
+
+    target_registry = TargetRegistry(
+        specs=tgt_specs,
+        get_encoder=get_encoder,
+        get_decoder=get_decoder,
+    )
+    target_registry.bind_shapes({n: s for n, s in zip(target_names, target_shapes)})
+    target_registry.auto_fill_decoders()
+
+    return input_registry, target_registry
+
+
+# def infer_shapes_from_raw(
+#     X_raw: List[List[np.ndarray]],
+#     Y_raw: List[List[np.ndarray]],
+# ) -> Dict[str, object]:
+#     """
+#     Infer input/target shapes & modalities from the first sample and validate consistency.
+#     Also compute a padded_output_shape that can hold all targets for grid visualization.
+#     """
+#     input_shapes  = [tuple(arr.shape) for arr in X_raw[0]]
+#     target_shapes = [tuple(arr.shape) for arr in Y_raw[0]]
+#     for Xi in X_raw:
+#         assert [tuple(a.shape) for a in Xi] == input_shapes, "Inconsistent input shapes across samples."
+#     for Yi in Y_raw:
+#         assert [tuple(a.shape) for a in Yi] == target_shapes, "Inconsistent target shapes across samples."
+#     input_modalities  = [infer_modality_from_shape(s) for s in input_shapes]
+#     output_modalities = [infer_modality_from_shape(s) for s in target_shapes]
+#     max_d1 = max(s[0] for s in target_shapes) if target_shapes else 0
+#     max_d2 = max(s[1] for s in target_shapes) if target_shapes else 0
+#     max_d3 = max(s[2] for s in target_shapes) if target_shapes else 0
+#     padded_output_shape = (max_d1, max_d2, max_d3)
+#     return dict(
+#         input_shapes=input_shapes,
+#         target_shapes=target_shapes,
+#         input_modalities=input_modalities,
+#         output_modalities=output_modalities,
+#         padded_output_shape=padded_output_shape,
+#     )
 
 
 # ============================================================
