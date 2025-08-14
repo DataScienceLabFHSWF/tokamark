@@ -68,13 +68,13 @@ def get_train_test_val_shots(max_index=None):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def fit_mean_and_std_for_signal_transform(output_sub_dir, verbose=False):
+def fit_mean_and_std_for_signal_transform(output_sub_dir, train_shots, verbose=False, local=False):
 
     if verbose:
         print('\n\n----------TRANSFORM FITTING----------\n')
 
     preprocessing_train_dataset = MastDataset(
-        local=LOCAL_FLAG,
+        local=local,
         shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
         source_signal_list=source_signal_list,
         signal_level_transform_map=None,
@@ -453,6 +453,8 @@ if __name__ == "__main__":
 
     # Fit mean and std for signal transformation
     dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
+        train_shots=train_shots,
+        local=LOCAL_FLAG,
         output_sub_dir=OUTPUT_SUB_FOLDER,
         verbose=True
     )

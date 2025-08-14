@@ -2,6 +2,8 @@ import joblib
 import os
 import pandas as pd
 from torch.utils.data._utils.collate import default_collate  # noqa
+from typing import List, Tuple, Dict
+import torch
 
 # Compute project root relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
@@ -44,6 +46,50 @@ def flatten_then_collate(batch):
     # Use the default collate function
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+def collate_fttransform(
+    batch: List[Tuple[List, List[str], Dict[str, torch.Tensor]]],
+    dtype: torch.dtype = torch.float32
+):
+    """
+    collate_fttransform.py
+
+    Custom collate function for FTTransformer-prepared samples.
+    Intended to be used after flatten_then_collate or directly in DataLoader.
+
+    Batch Format
+    ------------
+    Inputs:  batch = list of (Xs, names, y_native) tuples from FTTransformPrep.
+
+    Outputs:
+        X_batch       : List[B] of List[n_inputs] of np.ndarray
+                        (model handles np→torch conversion internally)
+        active_targets: List[str] target names shared by all samples in batch
+        y_native      : Dict[target_name] -> (B, d1, d2, d3) torch tensor
+    """
+    if not batch:
+        return [], [], {}
+
+    # Ensure all samples have the same active_targets
+    active_targets = batch[0][1]
+    for _, names, _ in batch:
+        if names != active_targets:
+            raise ValueError("Batch mixes different active_targets; bucket by task before batching.")
+
+    # Collect Xs
+    X_batch = [sample[0] for sample in batch]
+
+    # Stack Ys per target
+    stacked: Dict[str, List[torch.Tensor]] = {n: [] for n in active_targets}
+    for _, _, y_nat in batch:
+        for n in active_targets:
+            arr = torch.as_tensor(y_nat[n], dtype=dtype)
+            stacked[n].append(arr)
+
+    y_native = {n: torch.stack(tensors, dim=0).to(dtype) for n, tensors in stacked.items()}
+
+    return X_batch, active_targets, y_native
 
 # ======================================================================================================================
 class ComposeTransforms(object):
