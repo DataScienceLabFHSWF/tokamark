@@ -2,11 +2,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-def run_test_scripts(test_dir=None):
-    """Run all Python scripts in the test directory."""
+def run_test_scripts(test_dir=None, timeout=300):
+    """Run all Python scripts in the test directory.
+    
+    Parameters
+    ----------
+    test_dir : pathlib.Path, optional
+        Path to the test directory containing test scripts to run. The
+        module containing this function is excluded. Defaults to None,
+        which uses the parent directory of the current module.
+    timeout : int, optional
+        Timeout in seconds for each test. Defaults to 300.
+    """
     if test_dir is None:
         test_dir = Path(__file__).parent
-        
+
     test_path = Path(test_dir)
     
     if not test_path.exists():
@@ -35,7 +45,7 @@ def run_test_scripts(test_dir=None):
                 [sys.executable, str(test_file)],
                 capture_output=True,
                 text=True,
-                timeout=60  # 60 second timeout per script
+                timeout=timeout
             )
             
             if result.returncode == 0:
