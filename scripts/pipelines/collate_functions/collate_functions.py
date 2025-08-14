@@ -7,13 +7,13 @@
     see transforms.SegmenterTransform for more details on the input data format.
 """      
 from collections import defaultdict
-from torch import stack, from_numpy
+import torch
 
 def first_item(batch):
     return batch[0]
     
 class TimeWindowSegmentationCollateFn:
-    '''
+    """
     Customized collate function to collate samples obtained from SegmenterTransform.
     
      Parameters
@@ -23,7 +23,7 @@ class TimeWindowSegmentationCollateFn:
         of the original dictionary, for all the signals in the original shot. 
         
         This is the return value of segment_shot in SegmenterTransform.          
-    '''
+    """
     
     def __call__(self, list_x, list_y):
         all_x_segments = []
@@ -69,6 +69,7 @@ class TimeWindowSegmentationCollateFn:
             return None  # or return empty batch dicts
         
         return {'x': all_x_segments, 'y': all_y_segments}
+
 
 def beta_vae_collate_fn(batch):
     """Custom collate function for β-VAE training"""
