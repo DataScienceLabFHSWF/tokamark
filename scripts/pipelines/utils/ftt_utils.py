@@ -46,7 +46,7 @@ from scripts.pipelines.models.ftt_model import InputRegistry, TargetRegistry, In
 import numpy as np
 import torch
 import torch.nn as nn
-# from torch.utils.data import Dataset
+from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 
 # -------------------
@@ -136,66 +136,6 @@ def yraw_list_to_dicts(
         active_targets.append(names)
 
     return Y_dicts, active_targets
-
-
-# # ============================================================
-# # === Dataset / Collate (per-target dicts; no pad/mask) =====
-# # ============================================================
-# class PerTargetDataset(Dataset):
-#     """
-#     Minimal dataset that carries raw inputs and per-target native arrays.
-#
-#     X_raw[b]         : List[n_inputs] of np.ndarray (native)
-#     Y_raw_per_target : List over samples of Dict[target_name] -> np.ndarray(native (d1,d2,d3))
-#     active_targets[b]: List[str] names present in Y_raw[b]
-#     """
-#     def __init__(
-#         self,
-#         X_raw,
-#         Y_raw_per_target: List[Dict[str, np.ndarray]],
-#         active_targets: List[List[str]],
-#         dtype: torch.dtype = torch.float32
-#     ):
-#         assert len(X_raw) == len(Y_raw_per_target) == len(active_targets), "Mismatched dataset lengths."
-#         self.X_raw = X_raw
-#         self.Y_raw = Y_raw_per_target
-#         self.active_targets = active_targets
-#         self.dtype = dtype
-#
-#     def __len__(self) -> int:
-#         return len(self.X_raw)
-#
-#     def __getitem__(self, idx):
-#         Xs = self.X_raw[idx]  # list of np arrays (kept as-is; model handles conversion)
-#         names = self.active_targets[idx]
-#         y_native = {n: torch.from_numpy(self.Y_raw[idx][n].astype(np.float32)) for n in names}
-#         return Xs, names, y_native
-#
-#
-# def collate_per_target(batch, dtype: torch.dtype = torch.float32):
-#     """
-#     Collate samples that share the same active_targets (recommend: bucket by task).
-#
-#     Returns
-#     -------
-#     X_batch       : List[B] of List[n_inputs] (raw np arrays)
-#     active_targets: List[str] (shared for the batch)
-#     y_native      : Dict[name] -> (B, d1, d2, d3) tensor
-#     """
-#     if not batch:
-#         return [], [], {}
-#     X_batch = [b[0] for b in batch]
-#     active_targets = batch[0][1]
-#     for _, names, _ in batch:
-#         if names != active_targets:
-#             raise ValueError("Batch mixes different active_targets; bucket by task before batching.")
-#     # stack native Ys per target
-#     stacked: Dict[str, List[torch.Tensor]] = {n: [] for n in active_targets}
-#     for _, _, y_nat in batch:
-#         for n in active_targets:
-#             stacked[n].append(y_nat[n])
-#     y_native = {n: torch.stack(tlist, dim=0).to(dtype) for n, tlist in stacked.items()}
-#     return X_batch, active_targets, y_native
 
 
 # ============================================================
@@ -291,6 +231,8 @@ def compute_per_target_loss_native_space(
         diff2 = (yp - yt) ** 2
         per_sample = diff2.flatten(1).mean(dim=1)   # (B,)
         l = per_sample.mean()                       # scalar
+        # before
+        # l = torch.mean((yp - yt) ** 2)  # averages over (B, d1, d2, d3) in one go
 
         per_t.append(l)
         names.append(name)
@@ -859,35 +801,6 @@ def build_registries_from_shapes(
     return input_registry, target_registry
 
 
-# def infer_shapes_from_raw(
-#     X_raw: List[List[np.ndarray]],
-#     Y_raw: List[List[np.ndarray]],
-# ) -> Dict[str, object]:
-#     """
-#     Infer input/target shapes & modalities from the first sample and validate consistency.
-#     Also compute a padded_output_shape that can hold all targets for grid visualization.
-#     """
-#     input_shapes  = [tuple(arr.shape) for arr in X_raw[0]]
-#     target_shapes = [tuple(arr.shape) for arr in Y_raw[0]]
-#     for Xi in X_raw:
-#         assert [tuple(a.shape) for a in Xi] == input_shapes, "Inconsistent input shapes across samples."
-#     for Yi in Y_raw:
-#         assert [tuple(a.shape) for a in Yi] == target_shapes, "Inconsistent target shapes across samples."
-#     input_modalities  = [infer_modality_from_shape(s) for s in input_shapes]
-#     output_modalities = [infer_modality_from_shape(s) for s in target_shapes]
-#     max_d1 = max(s[0] for s in target_shapes) if target_shapes else 0
-#     max_d2 = max(s[1] for s in target_shapes) if target_shapes else 0
-#     max_d3 = max(s[2] for s in target_shapes) if target_shapes else 0
-#     padded_output_shape = (max_d1, max_d2, max_d3)
-#     return dict(
-#         input_shapes=input_shapes,
-#         target_shapes=target_shapes,
-#         input_modalities=input_modalities,
-#         output_modalities=output_modalities,
-#         padded_output_shape=padded_output_shape,
-#     )
-
-
 # ============================================================
 # === Visualization
 # ============================================================
@@ -996,6 +909,99 @@ def visualize_sample_outputs(
             else:
                 print(f"[visualize] Unhandled shape for {tname}: (d1={d1}, d2={d2}, d3={d3})")
 
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# These classes and functions are designed for synthetic data experiments
+
+# ============================================================
+# === Dataset / Collate (per-target dicts; no pad/mask)
+# ============================================================
+
+def infer_shapes_from_raw(
+    X_raw: List[List[np.ndarray]],
+    Y_raw: List[List[np.ndarray]],
+) -> Dict[str, object]:
+    """
+    This is for synthetic data experiments.
+    Infer input/target shapes & modalities from the first sample and validate consistency.
+    Also compute a padded_output_shape that can hold all targets for grid visualization.
+    """
+    input_shapes  = [tuple(arr.shape) for arr in X_raw[0]]
+    target_shapes = [tuple(arr.shape) for arr in Y_raw[0]]
+    for Xi in X_raw:
+        assert [tuple(a.shape) for a in Xi] == input_shapes, "Inconsistent input shapes across samples."
+    for Yi in Y_raw:
+        assert [tuple(a.shape) for a in Yi] == target_shapes, "Inconsistent target shapes across samples."
+    input_modalities  = [infer_modality_from_shape(s) for s in input_shapes]
+    output_modalities = [infer_modality_from_shape(s) for s in target_shapes]
+    max_d1 = max(s[0] for s in target_shapes) if target_shapes else 0
+    max_d2 = max(s[1] for s in target_shapes) if target_shapes else 0
+    max_d3 = max(s[2] for s in target_shapes) if target_shapes else 0
+    padded_output_shape = (max_d1, max_d2, max_d3)
+    return dict(
+        input_shapes=input_shapes,
+        target_shapes=target_shapes,
+        input_modalities=input_modalities,
+        output_modalities=output_modalities,
+        padded_output_shape=padded_output_shape,
+    )
+
+class PerTargetDataset(Dataset):
+    """
+    Minimal dataset that carries raw inputs and per-target native arrays.
+
+    X_raw[b]         : List[n_inputs] of np.ndarray (native)
+    Y_raw_per_target : List over samples of Dict[target_name] -> np.ndarray(native (d1,d2,d3))
+    active_targets[b]: List[str] names present in Y_raw[b]
+    """
+    def __init__(
+        self,
+        X_raw,
+        Y_raw_per_target: List[Dict[str, np.ndarray]],
+        active_targets: List[List[str]],
+        dtype: torch.dtype = torch.float32
+    ):
+        assert len(X_raw) == len(Y_raw_per_target) == len(active_targets), "Mismatched dataset lengths."
+        self.X_raw = X_raw
+        self.Y_raw = Y_raw_per_target
+        self.active_targets = active_targets
+        self.dtype = dtype
+
+    def __len__(self) -> int:
+        return len(self.X_raw)
+
+    def __getitem__(self, idx):
+        Xs = self.X_raw[idx]  # list of np arrays (kept as-is; model handles conversion)
+        names = self.active_targets[idx]
+        y_native = {n: torch.from_numpy(self.Y_raw[idx][n].astype(np.float32)) for n in names}
+        return Xs, names, y_native
+
+
+def collate_per_target(batch, dtype: torch.dtype = torch.float32):
+    """
+    Collate samples that share the same active_targets (recommend: bucket by task).
+
+    Returns
+    -------
+    X_batch       : List[B] of List[n_inputs] (raw np arrays)
+    active_targets: List[str] (shared for the batch)
+    y_native      : Dict[name] -> (B, d1, d2, d3) tensor
+    """
+    if not batch:
+        return [], [], {}
+    X_batch = [b[0] for b in batch]
+    active_targets = batch[0][1]
+    for _, names, _ in batch:
+        if names != active_targets:
+            raise ValueError("Batch mixes different active_targets; bucket by task before batching.")
+    # stack native Ys per target
+    stacked: Dict[str, List[torch.Tensor]] = {n: [] for n in active_targets}
+    for _, _, y_nat in batch:
+        for n in active_targets:
+            stacked[n].append(y_nat[n])
+    y_native = {n: torch.stack(tlist, dim=0).to(dtype) for n, tlist in stacked.items()}
+    return X_batch, active_targets, y_native
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Synthetic data generation (kept, lightly annotated) — great for testing new models

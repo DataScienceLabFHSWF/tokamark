@@ -72,20 +72,20 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
     train_shots, test_shots, val_shots = get_train_test_val_shots(max_index=SUBSET_OF_SHOTS)
 
-    # # Fit mean and std for signal transformation
-    # dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
-    #     train_shots=train_shots,
-    #     source_signal_list=SOURCE_SIGNAL_LIST,
-    #     local=LOCAL_FLAG,
-    #     output_sub_dir=OUTPUT_SUB_FOLDER,
-    #     verbose=True
-    # )
+    # Fit mean and std for signal transformation
+    dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
+        train_shots=train_shots,
+        source_signal_list=SOURCE_SIGNAL_LIST,
+        local=LOCAL_FLAG,
+        output_sub_dir=OUTPUT_SUB_FOLDER,
+        verbose=True
+    )
 
     all_vars = [f"{src}-{sig}" for src, sig in SOURCE_SIGNAL_LIST]
     signal_transform_map = {
         var: ComposeTransforms([
             FillProfileWithZerosTransform(),
-            # StdScalingTransform(dict_mean[var], dict_std[var]),
+            StdScalingTransform(dict_mean[var], dict_std[var]),
             # SamplingToReferenceTimeTransform(REF_FREQ),
         ])
         for var in all_vars
