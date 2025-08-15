@@ -18,7 +18,7 @@ if REPO_ROOT not in sys.path:
 from scripts.pipelines.configs.ftt_config import (
     SUBSET_OF_SHOTS, OUTPUT_SUB_FOLDER, BATCH_SIZE, NUM_WORKERS,
     REF_FREQ, SOURCE_SIGNAL_LIST, LOCAL_FLAG, INACTIVE_TARGETS,
-    WINDOW_SEGMENTER_PARAMS, MODEL_DTYPE, DEVICE, VERBOSE,
+    WINDOW_SEGMENTER_PARAMS, VERBOSE,
     DEFAULT_INPUT_ENCODERS_BY_MOD, DEFAULT_TARGET_ENCODERS_BY_MOD,
     EPOCHS, LR_TRUNK, LR_HEADS, USE_ADAMW, LOSS_SPACE, EARLY_STOP_PATIENCE,
     RUN_TRAINING, RUN_EVALUATION, SAVE_RESULTS,
@@ -61,11 +61,28 @@ def get_decoder(name: str, **kwargs):
         return None
     return DECODER_REGISTRY[name](**kwargs)
 
+# SET UP DEVICE AND AMP 
+from contextlib import nullcontext 
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+if device.type == "cuda" and torch.cuda.is_bf16_supported():
+    AMP_DTYPE = torch.bfloat16 
+elif device.type == "cuda":
+    AMP_DTYPE = torch.float16
+else:
+    AMP_DTYPE = None
+use_amp = (device.type == "cuda") and (AMP_DTYPE is not None)
+def amp_ctx():
+    return torch.amp.autocast(device_type="cuda", dtype=AMP_DTYPE, enabled=use_amp) if device.type == "cuda" else nullcontext()
+print(f"device = {device}")
+print(f"AMP_DTYPE = {AMP_DTYPE}")
+
 # ----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
     print(f"\nNumber of available cores: {cpu_count()}\n")
     mp.set_start_method("spawn", force=True)
+
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # DATA SPLITS & PER-VAR TRANSFORMS
@@ -177,8 +194,7 @@ if __name__ == "__main__":
     model = MultiModalFTTransformer(
         input_registry=input_registry,
         target_registry=target_registry,
-        dtype=MODEL_DTYPE,
-        device=DEVICE,
+        device=device,
         verbose=VERBOSE
     )
 
@@ -231,7 +247,7 @@ if __name__ == "__main__":
         # Restore best weights if you saved them
         best_path = os.path.join("output", OUTPUT_SUB_FOLDER, "best_model.pt")
         if os.path.exists(best_path):
-            model.load_state_dict(torch.load(best_path, map_location=DEVICE))
+            model.load_state_dict(torch.load(best_path, map_location=device))
         model.eval()
 
         # Decide target order for reporting (use the same order you trained with)
@@ -282,37 +298,43 @@ if __name__ == "__main__":
 
                 with torch.no_grad():
                     for X_batch, active_targets, y_native in test_shot_loader:
-                        out = model(
-                            X_batch,
-                            active_targets=active_targets,
-                            Y_for_meta=y_native,
-                            require_decoded=False,
-                        )
+                        # Forward under autocast (bf16/fp16 on CUDA)
+                        with amp_ctx():
+                            out = model(
+                                X_batch,
+                                active_targets=active_targets,
+                                Y_for_meta=y_native,
+                                require_decoded=False,
+                            )
+
                         preds = out["preds"]
+                        # Decoding in fp32 on model/device
                         y_pred_native = decode_preds_to_native(model, preds, y_native)
 
-                        # batch size
-                        any_t = next(iter(y_native.values()))
-                        B = int(any_t.shape[0])
+                        # Fast paths: batch size & device
+                        B = len(X_batch)              # cheaper than inspecting tensors
+                        pred_device = device          # already known / consistent
 
-                        # device/dtype alignment for math
-                        pred_device = next(iter(y_pred_native.values())).device
+                        # Pre-move y_native once (only those we’ll actually score)
+                        present = set(y_pred_native.keys())
+                        y_native_fp32 = {
+                            n: t.to(dtype=torch.float32, device=pred_device)
+                            for n, t in y_native.items() if n in present
+                        }
 
                         for name in target_order_eval:
-                            if name not in y_native or name not in y_pred_native:
+                            yp = y_pred_native.get(name)
+                            yt = y_native_fp32.get(name)
+                            if yp is None or yt is None:
                                 continue
 
-                            yt = y_native[name].to(dtype=torch.float32, device=pred_device)
-                            yp = y_pred_native[name].to(dtype=torch.float32, device=pred_device)
+                            # yp should already be fp32 on device; cast if you aren't 100% sure
+                            diff2 = (yp.float() - yt) ** 2
+                            per_sample_mse = diff2.reshape(B, -1).mean(dim=1)
+                            batch_mean_mse = float(per_sample_mse.mean())
 
-                            # per-sample MSE (mean over elements), then mean over samples in this batch
-                            diff2 = (yp - yt) ** 2  # (B, d1, d2, d3)
-                            per_sample_mse = diff2.reshape(B, -1).mean(dim=1)  # (B,)
-                            batch_mean_mse = per_sample_mse.mean().item()  # scalar
-
-                            # micro-average: weight by B for this target only
                             sum_mse_per_target[name] += batch_mean_mse * B
-                            count_per_target[name] += B
+                            count_per_target[name]   += B
 
                 # Final per-target MSE (sample-weighted); keep order in target_order_eval
                 avg_mse_per_target = [

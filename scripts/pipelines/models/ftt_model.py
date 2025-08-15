@@ -34,9 +34,11 @@ Shape conventions
   output size can be determined (decoder embedding size or raw flattened size).
 """
 
+
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional, Any, Callable
+from contextlib import nullcontext
 
 import torch
 import torch.nn as nn
@@ -46,7 +48,7 @@ try:
     from rtdl_revisiting_models import FTTransformer  # pip install rtdl-revisiting-models
     _HAS_FT = True
 except Exception:
-    print("\nRtdl_revisiting_models env not found:FT-Transformer block skipped!\n")
+    print("\nRtdl_revisiting_models env not found: FT-Transformer block skipped!\n")
     _HAS_FT = False
 
 Shape3D = Tuple[int, int, int]
@@ -66,8 +68,8 @@ class InputSpec:
     modality: Optional[str] = None
     encoder_name: Optional[str] = None
     encoder_kwargs: Optional[Dict[str, Any]] = None
-    frozen: bool = False     # reserved for future use (e.g., stop encoding updates)
-    active: bool = True      # allow disabling an input without removing it
+    frozen: bool = False
+    active: bool = True
 
 
 class InputRegistry:
@@ -84,7 +86,6 @@ class InputRegistry:
         self.specs: Dict[str, InputSpec] = specs
         self.get_encoder = get_encoder
         self.infer_modality_from_shape = infer_modality_from_shape
-        # Keep insertion order stable for concatenation
         self._names: List[str] = list(specs.keys())
         self.encoders: Dict[str, Any] = {}
 
@@ -95,7 +96,7 @@ class InputRegistry:
         return [n for n in self._names if self.specs[n].active]
 
     def bind_shapes(self, shapes_by_name: Dict[str, Shape3D]) -> None:
-        """Attach concrete shapes to the declared inputs."""
+        """Attach concrete shapes to the declared inputs."""        
         for n, shp in shapes_by_name.items():
             if n in self.specs:
                 self.specs[n].shape = tuple(int(s) for s in shp)
@@ -211,25 +212,25 @@ class TargetRegistry(nn.Module):
                     f"Target '{name}' missing shape/out_dim_override. Call bind_shapes() first."
                 )
 
-            # Create decoder (optional)
+            # Decoder (optional)
             dec = self._get_decoder(spec.decoder_name, **(spec.decoder_kwargs or {})) \
                 if spec.decoder_name is not None else None
             self.decoders[name] = dec
 
-            # Create encoder for metadata (optional, used at decode time)
+            # Encoder for metadata (optional)
             enc = self._get_encoder(spec.encoder_name, **(spec.encoder_kwargs or {})) \
                 if spec.encoder_name is not None else None
             self.encoders[name] = enc
 
-            # Determine head output size
+            # Output size
             if spec.out_dim_override is not None:
                 out_dim = int(spec.out_dim_override)
             elif dec is not None:
                 if not hasattr(dec, "get_embedding_dim"):
                     raise ValueError(f"Decoder for '{name}' lacks get_embedding_dim; set out_dim_override.")
-                out_dim = int(dec.get_embedding_dim(spec.shape))  # decoder-embedding dim
+                out_dim = int(dec.get_embedding_dim(spec.shape))
             else:
-                out_dim = _prod(spec.shape)  # raw flattened size
+                out_dim = _prod(spec.shape)
 
             self.pred_dims[name] = out_dim
             self.heads[name] = MLPHead(trunk_out_dim, out_dim, hidden=spec.head_hidden)
@@ -244,12 +245,10 @@ class TargetRegistry(nn.Module):
 class MultiModalFTTransformer(nn.Module):
     """
     Multimodal regressor with optional FT-Transformer backbone and per-target heads/decoders.
-    See the module docstring for a high-level overview.
     """
     def __init__(
         self,
         input_registry: InputRegistry,          # prepared with bound shapes and encoders (or defaults)
-        dtype: torch.dtype = torch.float32,
         device: Optional[torch.device] = None,
         n_blocks: int = 3,                      # FT-Transformer depth if available
         target_registry: Optional[TargetRegistry] = None,
@@ -259,29 +258,24 @@ class MultiModalFTTransformer(nn.Module):
         if target_registry is None:
             raise ValueError("target_registry must be provided.")
         self.verbose = verbose
-        self.dtype = dtype
         self.device = device or torch.device("cpu")
 
         # ---------------------------
         # Inputs (from InputRegistry)
         # ---------------------------
         self.input_registry = input_registry
-        # If encoders weren’t built by the caller, build them now
         if getattr(self.input_registry, "encoders", None) in (None, {}):
             self.input_registry.build_encoders()
 
-        # Fixed order = registry insertion order
         self.input_names: List[str] = self.input_registry.names()
         self.input_shapes: List[Shape3D] = [self.input_registry.specs[n].shape for n in self.input_names]
         self.input_modalities: List[Optional[str]] = [self.input_registry.specs[n].modality for n in self.input_names]
         self.input_encoders_by_name: Dict[str, Any] = dict(self.input_registry.encoders)
 
-        # Sanity-check shapes
         for n, shp in zip(self.input_names, self.input_shapes):
             if shp is None:
                 raise ValueError(f"Input '{n}' is missing a bound shape.")
 
-        # Infer per-input embedding dims and total concatenated dim
         self.input_split_sizes: List[int] = []
         for n, shp in zip(self.input_names, self.input_shapes):
             enc = self.input_encoders_by_name.get(n, None)
@@ -303,14 +297,12 @@ class MultiModalFTTransformer(nn.Module):
                 cat_cardinalities=[],
                 **bb_kwargs
             )
-            # Try to obtain the trunk width robustly; fall back to a safe value
             try:
                 self.trunk_out_dim = self.backbone.backbone.blocks[0]["ffn"].linear2.out_features
             except Exception:
                 self.trunk_out_dim = max(128, self.total_input_dim)
             self._has_ft = True
         else:
-            # Lightweight MLP fallback if FT-Transformer isn't available
             self.trunk_out_dim = max(128, self.total_input_dim)
             self.backbone = nn.Sequential(
                 nn.Linear(self.total_input_dim, self.trunk_out_dim),
@@ -331,15 +323,15 @@ class MultiModalFTTransformer(nn.Module):
         self.target_shapes = {n: spec.shape for n, spec in self.registry.specs.items()}
         self.total_pred_dim = int(sum(self.pred_dims.values()))
 
-        # Place model on the requested device/dtype
-        self.to(self.device, dtype=self.dtype)
+        # Move params to device ONLY; keep fp32 dtype
+        self.to(self.device)
 
         if self.verbose:
             self._print_init_summary()
 
     # ---------------- Summary ----------------
     def _print_init_summary(self) -> None:
-        print(f"\n[init] device={self.device} dtype={self.dtype}")
+        print(f"\n[init] device={self.device} (params are fp32)")
 
         print("[init] inputs : (name, modality, shape, embed_dim, encoder)")
         for n, shp, mod, d in zip(self.input_names, self.input_shapes, self.input_modalities, self.input_split_sizes):
@@ -361,23 +353,24 @@ class MultiModalFTTransformer(nn.Module):
         print(f"[init] params={n_params/1e6:.2f}M | total_in={self.total_input_dim} → sum_head_out={self.total_pred_dim}")
 
     # ---------------- Utilities ----------------
-    def _to_torch(self, x: Any, dtype: Optional[torch.dtype] = None) -> torch.Tensor:
-        """Move/convert `x` to model device/dtype."""
+    def _to_torch(self, x: Any, dtype: Optional[torch.dtype] = torch.float32) -> torch.Tensor:
+        """Move/convert `x` to model device; default dtype is fp32."""
         if isinstance(x, torch.Tensor):
-            return x.to(device=self.device, dtype=dtype or self.dtype)
-        return torch.as_tensor(x, device=self.device, dtype=dtype or self.dtype)
+            return x.to(device=self.device, dtype=dtype)
+        return torch.as_tensor(x, device=self.device, dtype=dtype)
+
 
     # ---------------- Encode inputs ----------------
     def encode_inputs(self, X_raw: List[List[Any]]) -> torch.Tensor:
         """
-        Convert raw per-input signals into a single (B, total_input_dim) tensor.
+        Convert raw per-input signals into a single (B, total_input_dim) fp32 tensor.
 
         X_raw: list over batch of lists over inputs.
-               The inner order MUST match InputRegistry.names().
+            The inner order MUST match InputRegistry.names().
         """
         B = len(X_raw)
         if B == 0:
-            return torch.empty((0, self.total_input_dim), device=self.device, dtype=self.dtype)
+            return torch.empty((0, self.total_input_dim), device=self.device, dtype=torch.float32)
 
         L = len(self.input_names)
         for b, row in enumerate(X_raw):
@@ -391,17 +384,18 @@ class MultiModalFTTransformer(nn.Module):
 
             for b in range(B):
                 sig = X_raw[b][i]
-                sig_t = self._to_torch(sig, dtype=torch.float32)  # encoders expect fp32
+                sig_t = self._to_torch(sig, dtype=torch.float32)  # keep fp32 for encoders
                 if enc is None:
                     emb = sig_t.flatten()
                 else:
-                    meta = enc.encode(sig_t)          # → {"embedding": torch.Tensor, ...}
+                    meta = enc.encode(sig_t)  # sig_t is already fp32
                     emb = meta["embedding"].reshape(-1)
-                embed_b.append(emb.to(self.dtype))
+                embed_b.append(emb)
 
             chunks.append(torch.stack(embed_b, dim=0))  # (B, dim_i)
 
-        return torch.cat(chunks, dim=1)  # (B, total_input_dim)
+        return torch.cat(chunks, dim=1)  # (B, total_input_dim) fp32
+
 
     # ---------------- Output meta / decode ----------------
     def encode_output_metadata(
@@ -425,12 +419,10 @@ class MultiModalFTTransformer(nn.Module):
         for tname, Yt in Y_for_meta.items():
             enc = self.encoders.get(tname)
             if enc is None:
-                # No encoder: only store shape per-sample
                 for b in range(B):
                     out[b][tname] = {"shape": tuple(Yt[b].shape)}
                 continue
 
-            # With encoder: compute metadata (drop "embedding")
             for b in range(B):
                 y_b = self._to_torch(Yt[b], dtype=torch.float32)
                 meta = enc.encode(y_b)
@@ -464,15 +456,15 @@ class MultiModalFTTransformer(nn.Module):
                 for b in range(B):
                     emb_b = pred[b].reshape(-1)
                     meta_b = None if meta_batch is None else meta_batch[b][tname]
-                    y_b = dec.decode_torch(emb_b, meta_b)
-                    outs.append(self._to_torch(y_b, dtype=self.dtype))
+                    y_b = dec.decode_torch(emb_b, meta_b)  # decoder runs fp32
+                    outs.append(self._to_torch(y_b, dtype=torch.float32))
                 decoded[tname] = torch.stack(outs, dim=0)
 
         return decoded
 
     # ---------------- Backbone forward ----------------
     def backbone_forward(self, X_raw: List[List[Any]]) -> torch.Tensor:
-        """Encode inputs and run the shared backbone."""
+        """Encode inputs and run the shared backbone (fp32)."""
         X = self.encode_inputs(X_raw)
         if _HAS_FT:
             return self.backbone(x_cat=None, x_cont=X)
@@ -512,13 +504,14 @@ class MultiModalFTTransformer(nn.Module):
           - "preds": dict[target_name] = flat predictions (B, pred_dim)
           - "decoded": (optional) dict[target_name] = native-shape predictions (B, d1, d2, d3)
         """
+        
         # Validate active targets up front
         unknown = [t for t in active_targets if t not in self.registry.specs]
         if unknown:
             raise KeyError(f"Unknown active_targets: {unknown}")
 
         z = self.backbone_forward(X_raw)
-        preds: Dict[str, torch.Tensor] = {t: self.heads[t](z).to(self.dtype) for t in active_targets}
+        preds: Dict[str, torch.Tensor] = {t: self.heads[t](z) for t in active_targets}  # fp32
         out: Dict[str, Any] = {"z": z, "preds": preds}
 
         if require_decoded:

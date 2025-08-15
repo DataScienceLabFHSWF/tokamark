@@ -52,6 +52,20 @@ import torch
 import math
 import torch.nn.functional as F
 
+import contextlib
+try:
+    _autocast = torch.autocast  # PyTorch >= 1.12
+except AttributeError:
+    try:
+        from torch.cuda.amp import autocast as _autocast  # older fallback
+    except Exception:
+        _autocast = None
+
+def _amp_off():
+    # Only matters on CUDA; on CPU/MPS this becomes a no-op
+    if _autocast is None:
+        return contextlib.nullcontext()
+    return _autocast(device_type="cuda", enabled=False)
 
 # ==============================================================================
 # Registry
@@ -213,25 +227,26 @@ def _pca_topk_lowrank(Xc: torch.Tensor, k: int) -> tuple[torch.Tensor, torch.Ten
       - Picks a safe oversampling q for torch.pca_lowrank.
       - Handles MPS by running pca_lowrank on CPU then moving results back.
     """
-    # choose q >= k safely
-    m, n = Xc.shape
-    q_oversample = max(k + 2, int(1.25 * k))
-    q = min(m, n, q_oversample)
-    q = max(k, q)
+    with _amp_off():
+        # choose q >= k safely
+        m, n = Xc.shape
+        q_oversample = max(k + 2, int(1.25 * k))
+        q = min(m, n, q_oversample)
+        q = max(k, q)
 
-    # MPS fallback for QR inside pca_lowrank
-    orig_device, orig_dtype = Xc.device, Xc.dtype
-    if orig_device.type == "mps":
-        Xc_cpu = Xc.detach().to("cpu", dtype=torch.float32)
-        U, S, V = torch.pca_lowrank(Xc_cpu, q=q, center=False)   # V: (features, q) on CPU
-        comps = V[:, :k].T.contiguous().to(orig_device, dtype=orig_dtype)  # (k, features)
-    else:
-        U, S, V = torch.pca_lowrank(Xc, q=q, center=False)
-        comps = V[:, :k].T.contiguous()  # (k, features)
+        # MPS fallback for QR inside pca_lowrank
+        orig_device, orig_dtype = Xc.device, Xc.dtype
+        if orig_device.type == "mps":
+            Xc_cpu = Xc.detach().to("cpu", dtype=torch.float32)
+            U, S, V = torch.pca_lowrank(Xc_cpu, q=q, center=False)   # V: (features, q) on CPU
+            comps = V[:, :k].T.contiguous().to(orig_device, dtype=orig_dtype)  # (k, features)
+        else:
+            U, S, V = torch.pca_lowrank(Xc, q=q, center=False)
+            comps = V[:, :k].T.contiguous()  # (k, features)
 
-    # scores on original device
-    scores = Xc @ comps.T  # (samples, k)
-    return scores, comps
+        # scores on original device
+        scores = Xc @ comps.T  # (samples, k)
+        return scores, comps
 
 
 def _lstsq_cpu_safe(Phi: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
@@ -244,15 +259,16 @@ def _lstsq_cpu_safe(Phi: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
       - Y shape (N,)  -> X shape (K,)
       - Y shape (N,R) -> X shape (K,R)
     """
-    orig_device, orig_dtype = Phi.device, Phi.dtype
+    with _amp_off():
+        orig_device, orig_dtype = Phi.device, Phi.dtype
 
-    if orig_device.type == "mps":
-        Phi_cpu = Phi.detach().to("cpu", dtype=torch.float32)
-        Y_cpu   = Y.detach().to("cpu", dtype=torch.float32)
-        X_cpu   = torch.linalg.lstsq(Phi_cpu, Y_cpu).solution
-        return X_cpu.to(orig_device, dtype=orig_dtype)
-    else:
-        return torch.linalg.lstsq(Phi, Y).solution
+        if orig_device.type == "mps":
+            Phi_cpu = Phi.detach().to("cpu", dtype=torch.float32)
+            Y_cpu   = Y.detach().to("cpu", dtype=torch.float32)
+            X_cpu   = torch.linalg.lstsq(Phi_cpu, Y_cpu).solution
+            return X_cpu.to(orig_device, dtype=orig_dtype)
+        else:
+            return torch.linalg.lstsq(Phi, Y).solution
 
 
 # ==============================================================================

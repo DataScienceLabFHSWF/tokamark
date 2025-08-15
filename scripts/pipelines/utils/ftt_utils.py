@@ -48,11 +48,25 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
+from contextlib import nullcontext
 
+# Choose AMP dtype (prefer bf16 on Ampere+) during training and evaluation 
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+if device.type == "cuda" and torch.cuda.is_bf16_supported():
+    AMP_DTYPE = torch.bfloat16 
+elif device.type == "cuda":
+    AMP_DTYPE = torch.float16
+else:
+    AMP_DTYPE = None
+use_amp = (device.type == "cuda") and (AMP_DTYPE is not None)
+def amp_ctx():
+    return torch.amp.autocast(device_type="cuda", dtype=AMP_DTYPE, enabled=use_amp) if device.type == "cuda" else nullcontext()
+ 
 # -------------------
 # Types
 # -------------------
 Shape3D = Tuple[int, int, int]  # (d1, d2, d3)
+
 
 # ============================================================
 # === Supervision builder (native -> prediction space) =======
@@ -408,11 +422,25 @@ def train_model_per_target_persistent(
     verbose: bool = True,
 ):
     """
-    Reference trainer:
-      - One persistent optimizer across trunk + all heads
-      - Toggle head parameter groups per batch based on the active targets
-      - Cosine schedule with optional warmup (applied via trunk LR scale)
+    Reference trainer with AMP:
+      - Model stays fp32; compute is bf16/fp16 under autocast on CUDA.
+      - One persistent optimizer across trunk + all heads.
+      - Toggle head parameter groups per batch based on active targets.
     """
+    # ---------------- AMP setup ----------------
+    # derive device from model (safer than torch.cuda.is_available())
+    try:
+        _any_param = next(model.parameters())
+        device = _any_param.device
+    except StopIteration:
+        device = torch.device("cuda" if torch.cuda.is_available()
+                              else "mps" if torch.backends.mps.is_available()
+                              else "cpu")
+
+    # ---------------- Set Up scaler for AMP ----------------
+    scaler = torch.amp.GradScaler(enabled=use_amp and AMP_DTYPE == torch.float16)
+
+    # ---------------- Optimizer/Scheduler ----------------
     steps_per_epoch = max(1, len(train_loader))
     total_steps = epochs * steps_per_epoch // max(1, grad_accum_steps)
 
@@ -422,11 +450,12 @@ def train_model_per_target_persistent(
         wd_trunk=wd_trunk, wd_heads=wd_heads,
         total_steps=total_steps, warmup_steps=warmup_steps,
         use_adamw=use_adamw,
-        include_decoders=False,  # set True if you make decoders trainable
+        include_decoders=False,
     )
 
-    # --- Pretty config print (with active targets) ---
+    # ---------------- Pretty print ----------------
     if verbose:
+        import contextlib
         try:
             _xb, _names, _yn = next(iter(train_loader))
             active_targets_print = list(_names)
@@ -436,11 +465,13 @@ def train_model_per_target_persistent(
         n_trunk = sum(p.numel() for p in model.backbone.parameters())
         n_heads = sum(p.numel() for h in model.heads.values() for p in h.parameters())
         n_total = sum(p.numel() for p in model.parameters())
-        dev = getattr(model, "device", torch.device("cpu"))
-        dtype = getattr(model, "dtype", torch.float32)
+
+        amp_str = "off"
+        if use_amp:
+            amp_str = f"on ({'bf16' if AMP_DTYPE==torch.bfloat16 else 'fp16'+', GradScaler'})"
 
         print("\n[train] configuration")
-        print(f"  device={dev} dtype={dtype}")
+        print(f"  device={device} | AMP={amp_str}")
         print(f"  epochs={epochs} | batches/epoch={len(train_loader)} | total_steps≈{total_steps}")
         print(f"  optimizer={'AdamW' if use_adamw else 'Adam'} | lr_trunk={lr_trunk} lr_heads={lr_heads} | wd_trunk={wd_trunk} wd_heads={wd_heads}")
         print(f"  scheduler={'cosine+warmup' if (total_steps > 0) else 'None'} | warmup_steps={warmup_steps}")
@@ -448,64 +479,79 @@ def train_model_per_target_persistent(
         print(f"  early_stopping: patience={patience} min_delta={min_delta} restore_best={restore_best}")
         print(f"  loss_space={loss_space}  (balanced per target; weights from TargetSpec.loss_weight)")
         print(f"  params: trunk={n_trunk/1e6:.2f}M heads={n_heads/1e6:.2f}M total={n_total/1e6:.2f}M")
-        if hasattr(model, "heads"):
-            print(f"  available targets: {list(model.heads.keys())}")
+        print(f"  available targets: {list(model.heads.keys())}")
         print(f"  active targets: {active_targets_print}\n")
 
-    # ... inside the function, right before the epoch loop
+    # ---------------- Training loop ----------------
+    import contextlib
     history = {"train_loss": [], "val_loss": []}
     best_val = math.inf
     best_state = None
     bad_epochs = 0
 
+    model.train()
     for epoch in range(1, epochs + 1):
-        model.train()
         train_loss_sum = 0.0
         train_sample_count = 0
 
         optimizer.zero_grad(set_to_none=True)
         last_active_t = None
+        it = 0
 
         for it, (X_batch, active_t_batch, y_native) in enumerate(train_loader, start=1):
             last_active_t = active_t_batch
 
-            out = model(
-                X_batch,
-                active_targets=active_t_batch,
-                Y_for_meta=y_native,
-                require_decoded=False,
-            )
-            preds = out["preds"]
+            with amp_ctx():
+                out = model(
+                    X_batch,
+                    active_targets=active_t_batch,
+                    Y_for_meta=y_native if (loss_space == "native") else None,
+                    require_decoded=False,
+                )
+                preds = out["preds"]
 
-            if loss_space == "native":
-                loss, _ = compute_per_target_loss_native_space(model, preds, y_native, registry)
-            else:
-                y_flat = build_supervision_from_native(y_native, registry)
-                loss, _ = compute_per_target_loss_pred_space(preds, y_flat, registry)
+                if loss_space == "native":
+                    loss, _ = compute_per_target_loss_native_space(model, preds, y_native, registry)
+                else:
+                    y_flat = build_supervision_from_native(y_native, registry)
+                    loss, _ = compute_per_target_loss_pred_space(preds, y_flat, registry)
 
-            # --- sample-weighted accumulation (like CNN loop) ---
+                # keep scalar in fp32 to avoid overflow
+                loss = loss.float()
+
+            # sample-weighted running mean
             any_t = next(iter(y_native.values()), None)
             if any_t is None:
-                # no targets in this batch; skip safely
                 continue
             B = int(any_t.shape[0])
             train_loss_sum += float(loss.detach().cpu()) * B
             train_sample_count += B
 
-            (loss / max(1, grad_accum_steps)).backward()
+            if scaler.is_enabled():
+                scaler.scale(loss / max(1, grad_accum_steps)).backward()
+            else:
+                (loss / max(1, grad_accum_steps)).backward()
 
             if it % grad_accum_steps == 0:
                 toggle_head_groups(optimizer, active_names=set(active_t_batch))
-                optimizer.step()
+                if scaler.is_enabled():
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 if scheduler:
                     scheduler.step()
                     toggle_head_groups(optimizer, active_names=set(active_t_batch))
 
-        # finalize a partial accumulation step at epoch end (if any)
+        # finalize partial accumulation at epoch end
         if (len(train_loader) > 0) and ((it % max(1, grad_accum_steps)) != 0) and (last_active_t is not None):
             toggle_head_groups(optimizer, active_names=set(last_active_t))
-            optimizer.step()
+            if scaler.is_enabled():
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
             optimizer.zero_grad(set_to_none=True)
             if scheduler:
                 scheduler.step()
@@ -514,29 +560,31 @@ def train_model_per_target_persistent(
         train_loss = train_loss_sum / max(1, train_sample_count)
         history["train_loss"].append(train_loss)
 
-        # ---- Validate (sample-weighted) ----
+        # ---------------- Validation (no grad, same AMP) ----------------
         model.eval()
         val_loss_sum = 0.0
         val_sample_count = 0
         with torch.no_grad():
             for X_batch, active_t_batch, y_native in val_loader:
-                out = model(
-                    X_batch,
-                    active_targets=active_t_batch,
-                    Y_for_meta=y_native,
-                    require_decoded=False,
-                )
-                preds = out["preds"]
+                with amp_ctx():
+                    out = model(
+                        X_batch,
+                        active_targets=active_t_batch,
+                        Y_for_meta=y_native if (loss_space == "native") else None,
+                        require_decoded=False,
+                    )
+                    preds = out["preds"]
 
-                if loss_space == "native":
-                    vloss, _ = compute_per_target_loss_native_space(model, preds, y_native, registry)
-                else:
-                    y_flat = build_supervision_from_native(y_native, registry)
-                    vloss, _ = compute_per_target_loss_pred_space(preds, y_flat, registry)
+                    if loss_space == "native":
+                        vloss, _ = compute_per_target_loss_native_space(model, preds, y_native, registry)
+                    else:
+                        y_flat = build_supervision_from_native(y_native, registry)
+                        vloss, _ = compute_per_target_loss_pred_space(preds, y_flat, registry)
+
+                    vloss = vloss.float()
 
                 any_t = next(iter(y_native.values()))
                 B = int(any_t.shape[0])
-
                 val_loss_sum += float(vloss.detach().cpu()) * B
                 val_sample_count += B
 
@@ -551,18 +599,19 @@ def train_model_per_target_persistent(
             best_val = val_loss
             best_state = copy.deepcopy(model.state_dict())
             bad_epochs = 0
-            # (optional) save best checkpoint
-            # torch.save(best_state, os.path.join(output_dir, "best_model.pt"))
         else:
             bad_epochs += 1
             if bad_epochs >= patience:
                 print(f"Early stopping at epoch {epoch} (best val {best_val:.6f}).")
                 break
 
+        model.train()
+
     if restore_best and (best_state is not None):
         model.load_state_dict(best_state)
 
     return history
+
 
 
 # ============================================================
@@ -613,23 +662,23 @@ def evaluate_model_per_target(
     X_batch, active_targets, y_native = next(iter(test_loader))
     assert active_targets == target_names, "For plotting, pass loader bucketed to the same target order."
 
-    out = model(
-        X_batch,
-        active_targets=active_targets,
-        Y_for_meta=y_native,
-        require_decoded=False,
-    )
-    preds = out["preds"]
+    with amp_ctx():
+        out = model(
+            X_batch,
+            active_targets=active_targets,
+            Y_for_meta=y_native,
+            require_decoded=False,
+        )
+        preds = out["preds"]
     y_pred_native = decode_preds_to_native(model, preds, y_native)
 
     # overall RMSE in prediction space (concatenate flats) — PER-SAMPLE semantics
     def _cat(d: Dict[str, torch.Tensor]) -> torch.Tensor:
         return torch.cat([d[n].reshape(d[n].shape[0], -1) for n in active_targets], dim=1)
 
-    y_flat_true = _cat(build_supervision_from_native(y_native, model.registry))
-    y_flat_pred = _cat(preds)
-
     # align device & dtype before math
+    y_flat_pred = _cat(preds).float()
+    y_flat_true = _cat(build_supervision_from_native(y_native, model.registry))
     y_flat_true = y_flat_true.to(device=y_flat_pred.device, dtype=y_flat_pred.dtype)
 
     # per-sample MSE -> mean over samples -> RMSE
