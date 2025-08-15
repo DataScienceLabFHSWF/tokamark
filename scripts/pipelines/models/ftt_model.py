@@ -46,6 +46,7 @@ try:
     from rtdl_revisiting_models import FTTransformer  # pip install rtdl-revisiting-models
     _HAS_FT = True
 except Exception:
+    print("\nRtdl_revisiting_models env not found:FT-Transformer block skipped!\n")
     _HAS_FT = False
 
 Shape3D = Tuple[int, int, int]

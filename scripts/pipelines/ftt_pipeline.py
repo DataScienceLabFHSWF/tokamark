@@ -305,8 +305,10 @@ if __name__ == "__main__":
                             yt = y_native[name].to(dtype=torch.float32, device=pred_device)
                             yp = y_pred_native[name].to(dtype=torch.float32, device=pred_device)
 
-                            # simple per-batch mean MSE (no per-sample masking/weights)
-                            batch_mean_mse = ((yp - yt) ** 2).mean().item()  # scalar over (B, d1, d2, d3)
+                            # per-sample MSE (mean over elements), then mean over samples in this batch
+                            diff2 = (yp - yt) ** 2  # (B, d1, d2, d3)
+                            per_sample_mse = diff2.reshape(B, -1).mean(dim=1)  # (B,)
+                            batch_mean_mse = per_sample_mse.mean().item()  # scalar
 
                             # micro-average: weight by B for this target only
                             sum_mse_per_target[name] += batch_mean_mse * B

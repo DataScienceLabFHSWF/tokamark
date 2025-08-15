@@ -100,8 +100,8 @@ VERBOSE = True
 # ==============================
 # General settings
 # ==============================
-LOCAL_FLAG = False
-SUBSET_OF_SHOTS = 1
+LOCAL_FLAG = True
+SUBSET_OF_SHOTS = 4
 NUM_WORKERS = 0  # 64
 OUTPUT_SUB_FOLDER = 'ftt_output/'
 SAVE_RESULTS = True
@@ -143,12 +143,12 @@ INPUT_SPECS = {
         # encoder_name="flatten_bspline_1d",
         # encoder_kwargs={"degree": 3, "num_basis": 5}
     ),
-    # "magnetics-b_field_pol_probe_ccbv_field": InputSpec(
-    #     name="magnetics-b_field_pol_probe_ccbv_field"
-    # ),
-    # "magnetics-b_field_pol_probe_obr_field": InputSpec(
-    #     name="magnetics-b_field_pol_probe_obr_field"
-    # ),
+    "magnetics-b_field_pol_probe_ccbv_field": InputSpec(
+        name="magnetics-b_field_pol_probe_ccbv_field"
+    ),
+    "magnetics-b_field_pol_probe_obr_field": InputSpec(
+        name="magnetics-b_field_pol_probe_obr_field"
+    ),
     # "magnetics-b_field_pol_probe_obv_field": InputSpec(
     #     name="magnetics-b_field_pol_probe_obv_field"
     # ),
@@ -267,7 +267,7 @@ REF_FREQ = 0.005  # kept for compatibility; currently unused if sampling transfo
 # Training params
 # ==============================
 BATCH_SIZE = 100
-EPOCHS = 2
+EPOCHS = 3
 LR_TRUNK = 1e-3
 LR_HEADS = 1e-3
 USE_ADAMW = False
