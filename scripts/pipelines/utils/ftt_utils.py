@@ -162,9 +162,14 @@ def compute_per_target_loss_pred_space(
         y_pred = preds[name]
         y_true = y_true.to(device=y_pred.device, dtype=y_pred.dtype)
 
-        diff2 = (y_pred - y_true) ** 2          # (B, D)
-        per_sample = diff2.mean(dim=1)          # (B,)  mean over features
-        l = per_sample.mean()                   # ()    mean over samples
+        # --- per-sample mean (shapes are the same in the same targets)
+        # shapes: yp, yt = (B, d1, d2, d3)
+        l = torch.mean((y_pred - y_true) ** 2)
+
+        # version for weighting different each samples and introducing masking at a sample level
+        # diff2 = (yp - yt) ** 2
+        # per_sample = diff2.flatten(1).mean(dim=1)   # (B,)
+        # l = per_sample.mean()
 
         per_t.append(l)
         names.append(name)
@@ -226,13 +231,14 @@ def compute_per_target_loss_native_space(
             print(f"[warn] decoded '{name}' does not require grad. "
                   f"Check for @torch.no_grad or .detach() in decode path.")
 
-        # --- per-sample mean over spatial/temporal dims, then mean over batch
+        # --- per-sample mean (shapes are the same in the same targets)
         # shapes: yp, yt = (B, d1, d2, d3)
-        diff2 = (yp - yt) ** 2
-        per_sample = diff2.flatten(1).mean(dim=1)   # (B,)
-        l = per_sample.mean()                       # scalar
-        # before
-        # l = torch.mean((yp - yt) ** 2)  # averages over (B, d1, d2, d3) in one go
+        l = torch.mean((yp - yt) ** 2)
+
+        # version for weighting different each samples and introducing masking at a sample level
+        # diff2 = (yp - yt) ** 2
+        # per_sample = diff2.flatten(1).mean(dim=1)   # (B,)
+        # l = per_sample.mean()
 
         per_t.append(l)
         names.append(name)
@@ -249,6 +255,7 @@ def compute_per_target_loss_native_space(
                            device=per_t.device, dtype=per_t.dtype)
     loss = (per_t * (weights / (weights.sum() + 1e-8))).sum() if float(weights.sum()) > 0 else per_t.mean()
     return loss, logs
+
 
 
 # ============================================================
@@ -636,11 +643,14 @@ def evaluate_model_per_target(
     for n in active_targets:
         yt = y_native[n].to(device=pred_device, dtype=torch.float32)
         yp = y_pred_native[n].to(device=pred_device, dtype=torch.float32)
-
-        diff2 = (yp - yt) ** 2                          # (B, d1, d2, d3)
-        per_sample_mse = diff2.reshape(diff2.shape[0], -1).mean(dim=1)  # (B,)
-        rmse_n = torch.sqrt(per_sample_mse.mean()).item()
+        rmse_n = torch.sqrt(((yp - yt) ** 2).mean()).item()
         rmse_per_target.append(float(rmse_n))
+
+        # version for weighting different each samples and introducing masking at a sample level
+        # diff2 = (yp - yt) ** 2                          # (B, d1, d2, d3)
+        # per_sample_mse = diff2.reshape(diff2.shape[0], -1).mean(dim=1)  # (B,)
+        # rmse_n = torch.sqrt(per_sample_mse.mean()).item()
+        # rmse_per_target.append(float(rmse_n))
 
     Y_true_np, Y_pred_np = build_padded_from_dicts(
         y_native, y_pred_native, target_names=active_targets, padded_output_shape=padded_output_shape
