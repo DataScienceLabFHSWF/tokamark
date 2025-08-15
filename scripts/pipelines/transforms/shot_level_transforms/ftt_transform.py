@@ -86,6 +86,10 @@ class FTTransformPrep:
     def __call__(self, shot: Dict[str, Any]) -> List[Tuple[List[np.ndarray], List[str], Dict[str, np.ndarray]]]:
         if not isinstance(shot, list):
             raise ValueError("FTTransformPrep expects shot-level transform input to be a list of windows.")
+            # ⬇️ Skip immediately if previous transforms dropped all windows
+        if len(shot) == 0:
+            print("Shot is empty, returning empty list.")
+            return []  # do not preprocess empty shots
 
         samples = []
         for window in shot:
