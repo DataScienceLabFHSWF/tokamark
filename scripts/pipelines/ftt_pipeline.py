@@ -149,7 +149,6 @@ if __name__ == "__main__":
     train_loader = dataloaders["train"]
     val_loader = dataloaders["val"]
     print(f'\nlen(train_loader) = {len(train_loader)}')
-    print(f'len(val_loader) = {len(val_loader)}')
 
     # ----------------------------------------------------------------------
     # SHAPES FROM FIRST WINDOW OF FIRST TRAIN SHOT (no loader)
@@ -162,19 +161,16 @@ if __name__ == "__main__":
     input_shapes = [tuple(np.asarray(x).shape) for x in Xs]
 
     # Targets: dict of 3D arrays (C,H,T) because ensure_3d=True
-    target_order = list(names)
+    # target_order = list(names)
     target_order = [n for n in names if n not in INACTIVE_TARGETS]
     target_shapes = [tuple(np.asarray(y_native[n]).shape) for n in target_order]
 
     # ----------------------------------------------------------------------
     # REGISTRIES (auto modality + defaults per modality)
     # ----------------------------------------------------------------------
-    from scripts.pipelines.utils.modality_codecs import get_encoder, DECODER_REGISTRY
-
 
     def get_decoder(name: str, **kwargs):
         return None if name is None else DECODER_REGISTRY[name](**kwargs)
-
 
     input_registry, target_registry = build_registries_from_shapes(
         input_names=WINDOW_SEGMENTER_PARAMS['x_keys'],
