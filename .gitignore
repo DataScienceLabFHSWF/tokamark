@@ -8,6 +8,10 @@ scripts/pipelines/best_model.pth
 prediction_evolution_example_0.gif
 optuna_results.png
 
+# Models test output
+scripts/pipelines/models/output_figures
+output_figures/
+
 # Local supporting folder
 zz/
 *output/

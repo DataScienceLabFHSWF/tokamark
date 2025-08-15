@@ -77,7 +77,6 @@ def initialize_pipeline(
         shot_level_transform=transforms_target_shot_level
     )
     
-    
     # Initialize DataLoaders for training and validation
     data_loader = DataLoader(
         dataset = data_dataset,
