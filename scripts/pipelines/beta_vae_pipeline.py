@@ -764,7 +764,7 @@ Signal List:
 if __name__ == "__main__":
 
     # Initialize SETTINGS object
-    SETTINGS = get_settings("scripts/pipelines/configs/config.json")
+    SETTINGS = get_settings("scripts/pipelines/configs/config_beta_vae.json")
     
     LOCAL_FLAG = SETTINGS.DATA.local
     mp.set_start_method("spawn", force=True)
