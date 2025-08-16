@@ -7,6 +7,7 @@
     see transforms.SegmenterTransform for more details on the input data format.
 """      
 from collections import defaultdict
+import torch
 from torch import stack, from_numpy
 
 def first_item(batch):
