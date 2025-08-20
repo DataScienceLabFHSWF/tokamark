@@ -1,15 +1,17 @@
 import os
-import json
-    
+
+
+# ----------------------------------------------------------------------------------------------------------------------
 def load_config(config_file_path):
     if not os.path.exists(config_file_path):
-        raise FileNotFoundError(f"Configuration file {config_file_path} not found.")       
+        raise FileNotFoundError(f"Configuration file {config_file_path} not found.")
     with open(config_file_path, 'r') as f:
         config = json.load(f)
-    
+
     return config
-    
-   
+
+
+# ----------------------------------------------------------------------------------------------------------------------
 def get_settings(config_file_path):
     config = load_config(config_file_path)
     try:
@@ -19,7 +21,8 @@ def get_settings(config_file_path):
         raise
 
 
-class Settings():
+# ======================================================================================================================
+class Settings:
     def __init__(self, config):
         # Set up individual settings classes
         self.config = config
@@ -27,10 +30,12 @@ class Settings():
         self.TIME_SEGMENTATION = TimeSettings(config)
         self.TRAINING = TrainingSettings(config)
         self.LOCAL_PATHS = LocalPaths(config)
-        self.DATA = DataInput(config) 
-        self.BETA_VAE =  BetaVae(config)
+        self.DATA = DataInput(config)
+        self.BETA_VAE = BetaVae(config)
 
-class BetaVae():
+
+# ======================================================================================================================
+class BetaVae:
     def __init__(self, config):
         try:
             # Model parameters
@@ -42,7 +47,10 @@ class BetaVae():
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
-class NNSettings():
+
+
+# ======================================================================================================================
+class NNSettings:
     def __init__(self, config):
         try:
             # Model parameters
@@ -52,25 +60,36 @@ class NNSettings():
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
-        
-class TimeSettings():
+
+
+# ======================================================================================================================
+class TimeSettings:
     def __init__(self, config):
         try:
             # Time settings for data segmentation
-            self.time_window_sec = config["time_settings"]["time_window_sec"] # This is the length of the time window in sec. for segmentation of data signals.
-            self.time_step = config["time_settings"]["time_step"] # This is the time step in sec. Time window is moved by this amount backwards in time.
-            self.offset = config["time_settings"]["offset"] # This is the target offset in sec. Signal is predicted in this time window
-            self.x_window_sec =  config["time_settings"]["x_window_sec"]
+
+            # This is the length of the time window in seconds. for segmentation of data signals.
+            self.time_window_sec = config["time_settings"]["time_window_sec"]
+            
+            # # This is the time step in seconds. Time window is moved by this amount backwards in time.
+            self.time_step = config["time_settings"]["time_step"]
+
+            # This is the target offset in seconds. Signal is predicted in this time window.
+            self.offset = config["time_settings"]["offset"]
+            
+            self.x_window_sec = config["time_settings"]["x_window_sec"]
             self.y_window_sec = config["time_settings"]["y_window_sec"]
-            self.dt_sec =  config["time_settings"]["dt_sec"]
-            self.stride_sec =  config["time_settings"]["stride_sec"]
-            self.stride_unitary =  config["time_settings"]["stride_unitary"]
+            self.dt_sec = config["time_settings"]["dt_sec"]
+            self.stride_sec = config["time_settings"]["stride_sec"]
+            self.stride_unitary = config["time_settings"]["stride_unitary"]
             self.min_samples_per_window = config["time_settings"]["min_samples_per_window"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
-        
-class TrainingSettings():
+
+
+# ======================================================================================================================
+class TrainingSettings:
     def __init__(self, config):
 
         # Training parameters
@@ -85,9 +104,10 @@ class TrainingSettings():
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
-        
-   
-class LocalPaths():
+
+
+# ======================================================================================================================
+class LocalPaths:
     def __init__(self, config):
         try:
             # Local paths
@@ -99,8 +119,9 @@ class LocalPaths():
             print(f"Missing key in training configuration: {e}")
             raise
 
-    
-class DataInput():
+
+# ======================================================================================================================
+class DataInput:
     def __init__(self, config):
         try:
             # Data lists
@@ -111,11 +132,12 @@ class DataInput():
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
-    
-    
+
+
+# ======================================================================================================================
 if __name__ == "__main__":
     import json
 
-    config_file_path = "scripts/main_pipeline/configs/config_lr_0_0001.json"
-    settings = get_settings(config_file_path)
+    config_file_path_ = "scripts/main_pipeline/configs/config_lr_0_0001.json"
+    settings = get_settings(config_file_path_)
     print(settings.NEURALNET.lr)
