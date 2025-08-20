@@ -42,6 +42,7 @@ class DropSampleWithNans:
 
         if self.verbose:
             print(f"Going from {len(list_samples)} windows to {len(no_nans_samples)} windows due to Nans in shot!!!")
+
         return no_nans_samples
 
     # ------------------------------------------------------------------------------------------------------------------

@@ -8,9 +8,16 @@ import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 from multiprocessing import cpu_count
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Repo-specific imports
+
 # Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
-                                         else os.getcwd(), "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(
+    os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
+    "..", ".."
+))  # noqa: E402
+
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 # print(f"REPO_ROOT: {REPO_ROOT}")
@@ -21,7 +28,7 @@ from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_sho
 from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 from scripts.pipelines.utils.utils import ComposeTransforms
 
-from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import(
+from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform
 )
 from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
@@ -378,7 +385,7 @@ if __name__ == "__main__":
 
     REF_FREQ = 0.005
 
-    source_signal_list = [
+    source_signal_list_ = [
         ('magnetics', 'flux_loop_flux'),
         ('magnetics', 'b_field_pol_probe_ccbv_field'),
         ('magnetics', 'b_field_pol_probe_obr_field'),
@@ -447,15 +454,15 @@ if __name__ == "__main__":
     # For common pipeline
 
     # Create sets of shot IDs for training, validation and testing
-    train_shots, test_shots, val_shots = get_train_test_val_shots(
+    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
         max_index=SUBSET_OF_SHOTS
     )
 
     # Fit mean and std for signal transformation
     dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
-        train_shots=train_shots,
+        train_shots=train_shots_,
         local=LOCAL_FLAG,
-        source_signal_list=source_signal_list,
+        source_signal_list=source_signal_list_,
         output_sub_dir=OUTPUT_SUB_FOLDER,
         verbose=True
     )
@@ -469,7 +476,7 @@ if __name__ == "__main__":
         # FillWithZerosImputerTransform(),
         SamplingToReferenceTimeTransform(REF_FREQ),
     ])
-        for var in [f'{source}-{signal}' for source, signal in source_signal_list]
+        for var in [f'{source}-{signal}' for source, signal in source_signal_list_]
     }
 
     # ..................................................................................................................
@@ -484,8 +491,8 @@ if __name__ == "__main__":
 
     # Prepare datasets
     datasets_train_val_test = initialize_datasets(
-        sources_and_signals=source_signal_list,
-        shots={"train": train_shots, "val": val_shots, "test": test_shots},
+        sources_and_signals=source_signal_list_,
+        shots={"train": train_shots_, "val": val_shots_, "test": test_shots_},
         sig_tran_map=signal_transform_map,
         shot_tran=shot_transform,
         local_flag=LOCAL_FLAG,
@@ -529,6 +536,7 @@ if __name__ == "__main__":
 
     # ..................................................................................................................
     # Evaluation
+    # ..................................................................................................................
 
     output_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
 
@@ -548,13 +556,13 @@ if __name__ == "__main__":
                 writer = csv.writer(f)
                 writer.writerow(['shot_id', f"MSE for {PARAMETERS_WINDOWS_SEGMENTER['y_keys']}"])  # Header
 
-                for shot_id in test_shots:
+                for shot_id in test_shots_:
                     print(f'Evaluating shot {shot_id}')
                 
                     test_shot_dataset = MastDataset(
                         local=LOCAL_FLAG,
                         shots_list=[shot_id],
-                        source_signal_list=source_signal_list,
+                        source_signal_list=source_signal_list_,
                         signal_level_transform_map=signal_transform_map,
                         shot_level_transform=shot_transform
                     )

@@ -4,27 +4,33 @@ import numpy as np
 import torch.multiprocessing as mp
 from multiprocessing import cpu_count
 import torch
+from torch.utils.data import DataLoader
 import csv
+from contextlib import nullcontext
 
-# === Repo root ===
+# ----------------------------------------------------------------------------------------------------------------------
+# Repo-specific imports
+
+# Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
 REPO_ROOT = os.path.abspath(os.path.join(
     os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
     "..", ".."
-))
+))  # noqa: E402
+
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-# === Import config ===
+# Config imports
 from scripts.pipelines.configs.ftt_config import (
-    SUBSET_OF_SHOTS, OUTPUT_SUB_FOLDER, BATCH_SIZE, NUM_WORKERS,
-    REF_FREQ, SOURCE_SIGNAL_LIST, LOCAL_FLAG, INACTIVE_TARGETS,
+    SUBSET_OF_SHOTS, OUTPUT_SUB_FOLDER, BATCH_SIZE, NUM_WORKERS,  # REF_FREQ,
+    SOURCE_SIGNAL_LIST, LOCAL_FLAG, INACTIVE_TARGETS,
     WINDOW_SEGMENTER_PARAMS, VERBOSE,
     DEFAULT_INPUT_ENCODERS_BY_MOD, DEFAULT_TARGET_ENCODERS_BY_MOD,
     EPOCHS, LR_TRUNK, LR_HEADS, USE_ADAMW, LOSS_SPACE, EARLY_STOP_PATIENCE,
     RUN_TRAINING, RUN_EVALUATION, SAVE_RESULTS,
 )
 
-# === Common pipeline helpers ===
+# Common pipeline helpers
 from scripts.pipelines.cnn_pipeline import (
     get_train_test_val_shots,
     fit_mean_and_std_for_signal_transform,
@@ -32,37 +38,35 @@ from scripts.pipelines.cnn_pipeline import (
     initialize_dataloaders
 )
 
-# === Transforms ===
+# Transforms
 from scripts.pipelines.utils.utils import ComposeTransforms, collate_fttransform
-from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
-from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import StdScalingTransform
-# from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import SamplingToReferenceTimeTransform
+from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
+    FillProfileWithZerosTransform
+)
+from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
+    StdScalingTransform
+)
+# from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
+#     SamplingToReferenceTimeTransform
+# )
 from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import TruncationTransform
 from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import WindowSegmenterTransform
 from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans import DropSampleWithNans
 from scripts.pipelines.transforms.shot_level_transforms.ftt_transform import FTTransformPrep
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from torch.utils.data import DataLoader
 
-
-# === Model & registries ===
+# Model & registries
 from scripts.pipelines.models.ftt_model import MultiModalFTTransformer
-from scripts.pipelines.utils.modality_codecs import get_encoder, DECODER_REGISTRY
+from scripts.pipelines.utils.modality_codecs import get_encoder, get_decoder
 from scripts.pipelines.utils.ftt_utils import (
-    infer_modality_from_shape,
     build_registries_from_shapes,
     train_model_per_target_persistent,
     decode_preds_to_native,
 )
 
-def get_decoder(name: str, **kwargs):
-    """Factory for decoder registry"""
-    if name is None:
-        return None
-    return DECODER_REGISTRY[name](**kwargs)
+# ----------------------------------------------------------------------------------------------------------------------
+# SET UP DEVICE AND AMP
 
-# SET UP DEVICE AND AMP 
-from contextlib import nullcontext 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 if device.type == "cuda" and torch.cuda.is_bf16_supported():
     AMP_DTYPE = torch.bfloat16 
@@ -71,22 +75,27 @@ elif device.type == "cuda":
 else:
     AMP_DTYPE = None
 use_amp = (device.type == "cuda") and (AMP_DTYPE is not None)
-def amp_ctx():
-    return torch.amp.autocast(device_type="cuda", dtype=AMP_DTYPE, enabled=use_amp) if device.type == "cuda" else nullcontext()
+
 print(f"device = {device}")
 print(f"AMP_DTYPE = {AMP_DTYPE}")
 
+
 # ----------------------------------------------------------------------------------------------------------------------
+def amp_ctx():
+    return torch.amp.autocast(device_type="cuda", dtype=AMP_DTYPE, enabled=use_amp) if device.type == "cuda"\
+        else nullcontext()
+
+
+# ======================================================================================================================
 if __name__ == "__main__":
 
     print(f"\nNumber of available cores: {cpu_count()}\n")
     mp.set_start_method("spawn", force=True)
 
-
-
     # ------------------------------------------------------------------------------------------------------------------
     # DATA SPLITS & PER-VAR TRANSFORMS
     # ------------------------------------------------------------------------------------------------------------------
+
     train_shots, test_shots, val_shots = get_train_test_val_shots(max_index=SUBSET_OF_SHOTS)
 
     # Fit mean and std for signal transformation
@@ -108,9 +117,10 @@ if __name__ == "__main__":
         for var in all_vars
     }
 
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # SHOT-LEVEL TRANSFORM (still using y_key_to_target; identity mapping)
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
     y_key_to_target = {yk: yk for yk in WINDOW_SEGMENTER_PARAMS['y_keys']}
 
     shot_transform = ComposeTransforms([
@@ -125,9 +135,10 @@ if __name__ == "__main__":
         )
     ])
 
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # DATASETS and DATALOADERS
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
     datasets = initialize_datasets(
         sources_and_signals=SOURCE_SIGNAL_LIST,
         shots={"train": train_shots, "val": val_shots, "test": test_shots},
@@ -150,27 +161,25 @@ if __name__ == "__main__":
     val_loader = dataloaders["val"]
     print(f'\nlen(train_loader) = {len(train_loader)}')
 
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # SHAPES FROM FIRST WINDOW OF FIRST TRAIN SHOT (no loader)
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
     windows = datasets["train"][0]  # list of (Xs, names, y_native)
     if not windows:
         raise RuntimeError("First train shot produced no windows; try a different shot or adjust window params.")
     sample = windows[0]
     Xs, names, y_native = sample
-    input_shapes = [tuple(np.asarray(x).shape) for x in Xs]
+    input_shapes = [tuple(np.asarray(x).shape) for x in Xs]  # noqa
 
     # Targets: dict of 3D arrays (C,H,T) because ensure_3d=True
     # target_order = list(names)
     target_order = [n for n in names if n not in INACTIVE_TARGETS]
-    target_shapes = [tuple(np.asarray(y_native[n]).shape) for n in target_order]
+    target_shapes = [tuple(np.asarray(y_native[n]).shape) for n in target_order]  # noqa
 
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # REGISTRIES (auto modality + defaults per modality)
-    # ----------------------------------------------------------------------
-
-    def get_decoder(name: str, **kwargs):
-        return None if name is None else DECODER_REGISTRY[name](**kwargs)
+    # ------------------------------------------------------------------------------------------------------------------
 
     input_registry, target_registry = build_registries_from_shapes(
         input_names=WINDOW_SEGMENTER_PARAMS['x_keys'],
@@ -179,14 +188,14 @@ if __name__ == "__main__":
         target_shapes=target_shapes,
         get_encoder=get_encoder,
         get_decoder=get_decoder,
-        infer_modality_from_shape=infer_modality_from_shape,
         default_input_by_modality=DEFAULT_INPUT_ENCODERS_BY_MOD,
         default_target_by_modality=DEFAULT_TARGET_ENCODERS_BY_MOD,
     )
 
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # MODEL INIT
-    # ----------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
     model = MultiModalFTTransformer(
         input_registry=input_registry,
         target_registry=target_registry,
@@ -252,6 +261,7 @@ if __name__ == "__main__":
         # CSV setup (only if saving)
         writer = None
         f_csv = None
+        csv_path = None
         if SAVE_RESULTS:
             out_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
             os.makedirs(out_dir, exist_ok=True)
@@ -330,7 +340,7 @@ if __name__ == "__main__":
                             batch_mean_mse = float(per_sample_mse.mean())
 
                             sum_mse_per_target[name] += batch_mean_mse * B
-                            count_per_target[name]   += B
+                            count_per_target[name] += B
 
                 # Final per-target MSE (sample-weighted); keep order in target_order_eval
                 avg_mse_per_target = [
@@ -347,4 +357,4 @@ if __name__ == "__main__":
                 f_csv.close()
                 print(f"Saved CSV to: {csv_path}")
 
-
+    # ------------------------------------------------------------------------------------------------------------------

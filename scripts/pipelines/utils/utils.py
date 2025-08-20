@@ -2,12 +2,15 @@ import joblib
 import os
 import pandas as pd
 from torch.utils.data._utils.collate import default_collate  # noqa
-from typing import List, Tuple, Dict
+# from typing import List, Tuple, Dict
 import torch
 
 # Compute project root relative to this file
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__) if '__file__' in globals()
-                                         else os.getcwd(), "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(
+    os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
+    "..", "..", ".."
+))  # noqa: E402
+
 # print(REPO_ROOT)
 
 
@@ -16,6 +19,7 @@ def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
     """Read the csv file containing the lists of shot IDs for
     training, validation and testing.
     """
+
     full_path = os.path.join(REPO_ROOT, csv_path)
     print(full_path)
 
@@ -37,7 +41,6 @@ def flatten_then_collate(batch):
     print(f"Collating batch of size {len(batch)}")
     
     # Flatten the batch of lists into a single list
-
     flattened_batch = None
     if isinstance(batch[0], list):
         flattened_batch = [item for sublist in batch for item in sublist]
@@ -69,6 +72,7 @@ def collate_fttransform(batch, dtype: torch.dtype = torch.float32):
     active_targets: list[str]  # shared for the whole batch
     y_native      : dict[target_name, torch.Tensor]  # (B, d1, d2, d3)
     """
+
     if not batch:
         return [], [], {}
 
@@ -96,6 +100,7 @@ def collate_fttransform(batch, dtype: torch.dtype = torch.float32):
     y_native = {t: torch.stack(vals, dim=0) for t, vals in stacked.items()}
     return X_batch, active_targets, y_native
 
+
 # ======================================================================================================================
 class ComposeTransforms(object):
     """Compose transforms and apply them in series checking for None return values
@@ -106,11 +111,11 @@ class ComposeTransforms(object):
         List containing the names of the transforms
     """
 
-    # ----------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(self, transforms):
         self.transforms = transforms
 
-    # ----------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, sample):
         for transform in self.transforms:
             if sample is None:
@@ -118,7 +123,8 @@ class ComposeTransforms(object):
             sample = transform(sample)
         return sample
 
-# ======================================================================================================================
+
+# ----------------------------------------------------------------------------------------------------------------------
 def load_models(data_names, data_dir):
     """Load the PCA and imputer models for the given data names.
 
@@ -126,12 +132,15 @@ def load_models(data_names, data_dir):
     ----------
     data_names : list[str]
         List of data names to load models for.
+    data_dir : str
+        Root data directory.
 
     Returns
     -------
     dict
         Dictionary containing the loaded PCA and imputer models.
     """
+
     pca_models = {}
     imputer_models = {}
 

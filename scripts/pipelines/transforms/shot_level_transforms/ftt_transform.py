@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Tuple
 import numpy as np
 
 
+# ======================================================================================================================
 class FTTransformPrep:
     """
     Prepare segmented windows into FTTransformer-ready tuples.
@@ -41,6 +42,7 @@ class FTTransformPrep:
         If True, normalize Y arrays to 3D as described above.
     """
 
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(
         self,
         x_keys: List[str],
@@ -53,23 +55,25 @@ class FTTransformPrep:
         self.ensure_3d_inputs = ensure_3d_inputs
         self.ensure_3d_targets = ensure_3d_targets
 
+    # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def _to_3d(arr: np.ndarray) -> np.ndarray:
         """Normalize array to (d1, d2, d3) with sensible rules for TS/profile/scalar."""
+
         a = np.asarray(arr)
-        if a.ndim == 1:
+        if a.ndim == 1:  # noqa
             # (T,) -> (1,1,T)
             return a[None, None, :]
-        if a.ndim == 2:
-            d1, d2 = a.shape
+        if a.ndim == 2:  # noqa
+            d1, d2 = a.shape  # noqa
             if d2 > 1:
                 # (C,T) -> (C,1,T)
-                return a.reshape(d1, 1, d2)
+                return a.reshape(d1, 1, d2)  # noqa
             else:
                 # (D,1) -> (D,1,1)
-                return a.reshape(d1, 1, 1)
-        if a.ndim == 3:
-            d1, d2, d3 = a.shape
+                return a.reshape(d1, 1, 1)  # noqa
+        if a.ndim == 3:  # noqa
+            d1, d2, d3 = a.shape  # noqa
             # Treat strictly 2D spatial (image/video) as already canonical
             if d1 > 1 and d2 > 1:
                 return a
@@ -78,22 +82,29 @@ class FTTransformPrep:
                 return np.transpose(a, (0, 2, 1))  # (C,1,T)
             # (C,1,T) already fine, or (D,1,1) scalar/vector-like
             return a
+
         # Fallback: add singleton dims until 3D
         while a.ndim < 3:
             a = a[..., None]
+
         return a
 
+    # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, shot: Dict[str, Any]) -> List[Tuple[List[np.ndarray], List[str], Dict[str, np.ndarray]]]:
+
         if not isinstance(shot, list):
             raise ValueError("FTTransformPrep expects shot-level transform input to be a list of windows.")
             # ⬇️ Skip immediately if previous transforms dropped all windows
         if len(shot) == 0:
             print("Shot is empty, returning empty list.")
-            return []  # do not preprocess empty shots
+            return []  # Do not preprocess empty shots
 
         samples = []
         for window in shot:
-            # --- 1) Inputs in specified order ---
+
+            # ..........................................................................................................
+            # 1) Inputs in specified order
+
             Xs: List[np.ndarray] = []
             for key in self.x_keys:
                 if key not in window["x"]:
@@ -103,7 +114,9 @@ class FTTransformPrep:
                     arr = self._to_3d(arr)
                 Xs.append(arr)
 
-            # --- 2) Targets (map y_key -> target name) ---
+            # ..........................................................................................................
+            # 2) Targets (map y_key -> target name)
+
             y_native: Dict[str, np.ndarray] = {}
             names: List[str] = []
             for y_key, target_name in self.y_key_to_target.items():
@@ -117,5 +130,8 @@ class FTTransformPrep:
 
             samples.append((Xs, names, y_native))
 
+            # ..........................................................................................................
+
         return samples
 
+    # ------------------------------------------------------------------------------------------------------------------

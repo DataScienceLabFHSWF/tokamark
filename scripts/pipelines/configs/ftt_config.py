@@ -88,19 +88,21 @@ works cleanly for inputs.
 """
 
 from __future__ import annotations
-import torch
+# import torch
 from scripts.pipelines.models.ftt_model import InputSpec, TargetSpec
 
-# ==============================
-# Repro & verbosity
-# ==============================
+# ======================================================================================================================
+# Reproducibility & verbosity
+# ======================================================================================================================
+
 SEED = 54
 VERBOSE = True
 
-# ==============================
+# ======================================================================================================================
 # General settings
-# ==============================
-LOCAL_FLAG = True
+# ======================================================================================================================
+
+LOCAL_FLAG = False  # True
 SUBSET_OF_SHOTS = 4
 NUM_WORKERS = 0  # 64
 OUTPUT_SUB_FOLDER = 'ftt_output/'
@@ -108,9 +110,9 @@ SAVE_RESULTS = True
 RUN_EVALUATION = True
 RUN_TRAINING = True
 
-# ==============================
-# SEGNAL LIST
-# ==============================
+# ======================================================================================================================
+# SIGNAL LIST
+# ======================================================================================================================
 
 SOURCE_SIGNAL_LIST = [
     ('magnetics', 'flux_loop_flux'),
@@ -131,10 +133,10 @@ SOURCE_SIGNAL_LIST = [
     ('equilibrium', 'magnetic_axis_z')
 ]
 
-# ==============================
+# ======================================================================================================================
 # INPUT specs (no shapes; keys define x_keys)
 # Encoders are assigned later via DEFAULT_INPUT_ENCODERS_BY_MOD if not set here.
-# ==============================
+# ======================================================================================================================
 
 INPUT_SPECS = {
     # Time series & profiles you’re using as inputs
@@ -168,10 +170,11 @@ INPUT_SPECS = {
     #     name="summary-power_nbi"),
 }
 
-# ==============================
+# ======================================================================================================================
 # TARGET specs (no shapes; keys define y_keys)
 # Encoders are assigned later using DEFAULT_TARGET_ENCODER
-# ==============================
+# ======================================================================================================================
+
 TARGET_SPECS = {
     "equilibrium-elongation": TargetSpec(
         name="equilibrium-elongation",
@@ -222,10 +225,11 @@ TARGET_SPECS = {
 # Optional: exclude some targets from training/eval
 INACTIVE_TARGETS: list[str] = []
 
-# ==============================
+# ======================================================================================================================
 # Modality-based encoder defaults
 # Applied AFTER shapes are bound from the first shot
-# ==============================
+# ======================================================================================================================
+
 DEFAULT_INPUT_ENCODERS_BY_MOD = {
     # "timeseries": dict(encoder_name="flatten_bspline_1d", encoder_kwargs={"degree": 4, "num_basis": 5}),
     "profile": dict(encoder_name="fpca_3d", encoder_kwargs={"num_components": 5, "pca_dim": "space"}),
@@ -245,10 +249,11 @@ DEFAULT_TARGET_ENCODERS_BY_MOD = {
     "vector":     dict(encoder_name=None, encoder_kwargs=None),
 }
 
-# ==============================
+# ======================================================================================================================
 # Transforms parameters
 # x_keys and y_keys are derived from the specs above
-# ==============================
+# ======================================================================================================================
+
 WINDOW_SEGMENTER_PARAMS = {
     "x_keys": list(INPUT_SPECS.keys()),   # auto from INPUT_SPECS
     "y_keys": list(TARGET_SPECS.keys()),  # auto from TARGET_SPECS
@@ -263,9 +268,10 @@ WINDOW_SEGMENTER_PARAMS = {
 
 REF_FREQ = 0.005  # kept for compatibility; currently unused if sampling transform is commented
 
-# ==============================
+# ======================================================================================================================
 # Training params
-# ==============================
+# ======================================================================================================================
+
 BATCH_SIZE = 100
 EPOCHS = 3
 LR_TRUNK = 1e-3
@@ -274,3 +280,4 @@ USE_ADAMW = False
 LOSS_SPACE = "native"  # 'pred' or 'native'
 EARLY_STOP_PATIENCE = 5
 
+# ======================================================================================================================
