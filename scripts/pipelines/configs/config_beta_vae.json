@@ -21,7 +21,7 @@
     "dataloader_batch_size": 1,
     "training_batch_size":10,
     "min_batch_size": 4,
-    "num_workers": 2
+    "num_workers": 1
   },
   "nn_model":{
     "lr": 0.001,
