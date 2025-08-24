@@ -49,9 +49,9 @@ class Conv1DVAE(nn.Module):
         
         # A linear map from the output of Conv1d to the latent space
         self.decoder = nn.Sequential(
-            nn.ConvTranspose1d(self.out_channels*self.factor, self.out_channels, self.scaled_kernel_size, self.stride, self.padding),
+            nn.ConvTranspose1d(self.out_channels*self.factor, self.out_channels, self.kernel_size, self.stride, self.padding),
             nn.ReLU(),
-            nn.ConvTranspose1d(self.out_channels, self.in_channels, self.kernel_size, self.stride, self.padding),
+            nn.ConvTranspose1d(self.out_channels, self.in_channels, self.scaled_kernel_size, self.stride, self.padding),
             nn.ReLU(),
         )
         

@@ -122,6 +122,6 @@ def conv1d_vae_collate_fn(batch):
     for signal_name in collated_batch:
         collated_batch[signal_name] = torch.stack(flat_list, dim=0) # shape (tot_Nr_windows, C, T)
 
-    return collated_batch
+    return {"x": collated_batch, "y":collated_batch}
             
         
