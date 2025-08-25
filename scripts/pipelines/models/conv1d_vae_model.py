@@ -1,65 +1,45 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-       
-        
-class Conv1DVAE(nn.Module):
-    def __init__(self,  
-                 beta, 
-                 in_channels,
-                 input_length,
-                 out_channels, 
-                 latent_dim, 
-                 kernel_size, 
-                 stride, 
-                 padding,
-                 factor = 2):
-        
+
+from encoder_decoder import Encoder, Decoder
+
+class Conv1dVAE(nn.Module):
+    def __init__(self, encoder_layers_specs, decoder_layers_specs, vae_specs):
         super().__init__()
-        self.beta = beta
-        self.in_channels = in_channels
-        self.input_length = input_length
-        self.out_channels = out_channels
-        self.latent_dim = latent_dim
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-        self.factor = factor
-        self.scaled_kernel_size = max(1, self.kernel_size // self.factor)
+        
+        try:
+            self.in_channels = encoder_layers_specs["layers"][0]["kwargs"]["in_channels"]
+            self.latent_dim = vae_specs["latent_dim"]
+            self.input_length= vae_specs["input_length"]
+
+        except KeyError as e:
+            print(f"{e}")
+            raise ValueError(f"Missing required encoder spec key: {e}")
         
         # =============== Encoder =====================
-        self.encoder = nn.Sequential(
-            nn.Conv1d(self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding),
-            nn.ReLU(),
-            nn.Conv1d(self.out_channels, self.out_channels*self.factor, self.scaled_kernel_size, self.stride, self.padding),
-            nn.ReLU(),
-        )
-    
-        # Find shape after Conv1d
+        self.encoder = Encoder(encoder_layers_specs)
+         # Find shape after encoding
         dummy_input = torch.zeros(1, self.in_channels, self.input_length)
         self.encode_out = self.encoder(dummy_input)
         conv_out_dim= self.encode_out.shape[1] * self.encode_out.shape[2] #(out_channels*factor * L_out = 1+ (L_in - kernel_size + 2*padding) / stride)
         
-        # Linear map from Conv1d output to the latent space,(multivariate guassian).
-        self.fc_mu = nn.Linear(conv_out_dim, latent_dim)
-        self.fc_logvar = nn.Linear(conv_out_dim, latent_dim)
         
+        # =============== VAE =====================
+        # Linear map from encoder output to the latent space.
+        self.fc_mu = nn.Linear(conv_out_dim, self.latent_dim)
+        self.fc_logvar = nn.Linear(conv_out_dim, self.latent_dim)
+
+
         # =============== Decoder =====================
-        self.fc_decode = nn.Linear(latent_dim, conv_out_dim)
-        
-        # A linear map from the output of Conv1d to the latent space
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose1d(self.out_channels*self.factor, self.out_channels, self.kernel_size, self.stride, self.padding),
-            nn.ReLU(),
-            nn.ConvTranspose1d(self.out_channels, self.in_channels, self.scaled_kernel_size, self.stride, self.padding),
-            nn.ReLU(),
-        )
+        self.fc_decode = nn.Linear(self.latent_dim, conv_out_dim)
+        self.decoder = Decoder(decoder_layers_specs)
         
     def encode(self, x):
-        h = self.encoder(x)
-        h = torch.flatten(h, start_dim=1)
-        mu = self.fc_mu(h)
-        logvar = self.fc_logvar(h)
+        encoded = self.encoder(x)
+        encoded = torch.flatten(encoded, start_dim=1)
+        mu = self.fc_mu(encoded)
+        logvar = self.fc_logvar(encoded)
         return mu, logvar
 
     def reparameterize(self, mu, logvar):
@@ -68,9 +48,9 @@ class Conv1DVAE(nn.Module):
         return mu + eps * std
 
     def decode(self, z):
-        h = self.fc_decode(z)
-        h = h.view(h.size(0), self.encode_out.shape[1], self.encode_out.shape[2])
-        x_recon = self.decoder(h)
+        decoded = self.fc_decode(z)
+        decoded = decoded.view(decoded.size(0), self.encode_out.shape[1], self.encode_out.shape[2])
+        x_recon = self.decoder(decoded)
         return x_recon
 
     def forward(self, x):
@@ -92,39 +72,75 @@ def loss_function(beta, reconstruction, target, mu, logvar):
     kl_loss : torch.Tensor
         KL divergence loss component
     """
-    reconstruction_loss = F.mse_loss(reconstruction, target, reduction='mean')        
+    masked_target = target[:,:,:reconstruction.shape[2]]
+    reconstruction_loss = F.mse_loss(reconstruction, masked_target, reduction='mean')        
     kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())        
     total_loss = reconstruction_loss + beta * kl_loss
     return total_loss, reconstruction_loss, kl_loss
     
-        
-# ===== Example usage =====
-if __name__ == "__main__":
+            
 
+def test_conv1d_vae():
+    # Model hyperparameters
     beta = 1
     in_channels = 10
     input_length = 100
-    x = torch.randn(100, in_channels, input_length)
-    model = Conv1DVAE( 
-                    beta, 
-                    in_channels,
-                    input_length,
-                    out_channels = 5, 
-                    latent_dim = 3, 
-                    kernel_size = 10, 
-                    stride = 5, 
-                    padding = 0,
-                    factor = 2,
-                )
+    out_channels = 5
+    latent_dim = 3
+    kernel_size = 10
+    stride = 5
+    padding = 0
+
+    vae_specs = {"beta":beta, "latent_dim": latent_dim, "input_length":input_length}
     
-    
-    x_recon, mu, logvar = model(x)
-    total_loss, reconstruction_loss, kl_loss = loss_function(beta, x_recon, x, mu, logvar)
-    print("Input: ", x.shape)
-    print("Reconstruction:", x_recon.shape)
-    print("Mu: ", mu.shape)
-    print("Logvar: ", logvar.shape)  
-    print("total_loss: ", total_loss)    
-        
+    # Encoder layer specs
+    encoder_layers_specs = {
+        "layers": [
+            {
+                "name": "conv_1d", 
+                "kwargs": {
+                    "in_channels": in_channels,
+                    "out_channels": out_channels,
+                    "kernel_size": kernel_size,
+                    "stride": stride, 
+                    "padding": padding}
+            },
             
-        
+            {"name": "relu"}
+        ]
+    }
+
+    # Decoder layer specs
+    decoder_layers_specs = {
+        "layers": [
+            {"name": "convT_1d", 
+             "kwargs": {
+                "in_channels": out_channels,
+                "out_channels":in_channels,
+                "kernel_size": kernel_size,
+                "stride": stride, 
+                "padding": padding}},
+            {"name": "relu"}
+        ]
+    }
+
+    # Create model
+    model = Conv1dVAE(encoder_layers_specs, decoder_layers_specs, vae_specs)
+
+    # Dummy input
+    x = torch.randn(4, in_channels, input_length)  # batch size = 4
+
+    # Forward pass
+    x_recon, mu, logvar = model(x)
+
+    # Compute loss
+    loss, recon_loss, kl_loss = loss_function(beta, x_recon, x, mu, logvar)
+
+    # Print results
+    print("Reconstructed shape:", x_recon.shape)
+    print("Loss:", loss.item())
+    print("Reconstruction Loss:", recon_loss.item())
+    print("KL Divergence Loss:", kl_loss.item())
+
+if __name__ =="__main__":
+    test_conv1d_vae()
