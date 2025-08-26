@@ -19,11 +19,13 @@ class Conv1dVAE(nn.Module):
         
         # =============== Encoder =====================
         self.encoder = Encoder(encoder_layers_specs)
-         # Find shape after encoding
-        dummy_input = torch.zeros(1, self.in_channels, self.input_length)
-        self.encode_out = self.encoder(dummy_input)
-        conv_out_dim= self.encode_out.shape[1] * self.encode_out.shape[2] #(out_channels*factor * L_out = 1+ (L_in - kernel_size + 2*padding) / stride)
         
+        # Find shape after encoding
+        self.conv_out_channels, self.conv_out_length = _compute_conv_output_dim(
+            self.in_channels,
+            self.input_length, 
+            encoder_layers_specs)
+        conv_out_dim=  self.conv_out_channels *  self.conv_out_length 
         
         # =============== VAE =====================
         # Linear map from encoder output to the latent space.
@@ -49,7 +51,7 @@ class Conv1dVAE(nn.Module):
 
     def decode(self, z):
         decoded = self.fc_decode(z)
-        decoded = decoded.view(decoded.size(0), self.encode_out.shape[1], self.encode_out.shape[2])
+        decoded = decoded.view(decoded.size(0), self.conv_out_channels, self.conv_out_length)
         x_recon = self.decoder(decoded)
         return x_recon
 
@@ -79,6 +81,40 @@ def loss_function(beta, reconstruction, target, mu, logvar):
     return total_loss, reconstruction_loss, kl_loss
     
             
+
+def _compute_conv_output_dim(in_channels, input_length, layer_specs):
+    """
+    Compute the output dimensions after a sequence of Conv1d layers.
+
+    Parameters
+    ----------
+    input_length : int
+        Length of the input signal.
+    layer_specs : list
+        List of layer specifications (dicts) for Conv1d layers.
+
+    Returns
+    -------
+    final_channels : int
+        Number of output channels after last Conv1d.
+    final_length : int
+        Length of the output signal after all Conv1d layers.
+    """
+    current_length = input_length
+    current_channels = in_channels
+
+    for spec in layer_specs["layers"]:
+        if spec["name"] == "conv_1d":
+            kwargs = spec.get("kwargs", {})
+            kernel_size = kwargs.get("kernel_size", 1)
+            stride = kwargs.get("stride", 1)
+            padding = kwargs.get("padding", 0)
+            out_channels = kwargs.get("out_channels", current_channels)
+
+            current_length = (current_length - kernel_size + 2 * padding) // stride + 1
+            current_channels = out_channels
+
+    return current_channels, current_length
 
 def test_conv1d_vae():
     # Model hyperparameters
