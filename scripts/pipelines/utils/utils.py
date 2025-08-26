@@ -1,7 +1,7 @@
 import joblib
 import os
 import pandas as pd
-from torch.utils.data._utils.collate import default_collate  # noqa
+from torch.utils.data._utils.collate import default_collate 
 # from typing import List, Tuple, Dict
 import torch
 
@@ -47,7 +47,7 @@ def flatten_then_collate(batch):
         print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
 
     # Use the default collate function
-    return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
+    return default_collate(flattened_batch) if flattened_batch is not None else None
 
 
 # ----------------------------------------------------------------------------------------------------------------------
