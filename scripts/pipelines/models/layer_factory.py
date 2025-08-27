@@ -50,8 +50,30 @@ class MakeLayer:
     def __call__(self, *args, **kwargs):
         return self.layer_class().forward(*args, **kwargs)
 
-# Compose multiple layers into a sequential model
+
 class ComposeLayers(nn.Module):
+    """Compose multiple layers into a sequential model
+
+    Parameters
+    ----------
+    layer_specs : dictionary
+    example to set-up a model with one nn.Conv1d and nn.ReLU layer:
+    {
+        "layers": [
+            {
+                "name": "conv_1d", 
+                "kwargs": {
+                    "in_channels": in_channels,
+                    "out_channels": out_channels,
+                    "kernel_size": kernel_size,
+                    "stride": stride, 
+                    "padding": padding}
+            },
+            
+            {"name": "relu"}
+        ]
+    }
+    """
     def __init__(self, layer_specs: list):
         super().__init__()
         layers = []
