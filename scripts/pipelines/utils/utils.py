@@ -41,13 +41,13 @@ def flatten_then_collate(batch):
     print(f"Collating batch of size {len(batch)}")
     
     # Flatten the batch of lists into a single list
-    flattened_batch = None
+    flattened_batch = []
     if isinstance(batch[0], list):
         flattened_batch = [item for sublist in batch for item in sublist]
         print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
 
     # Use the default collate function
-    return default_collate(flattened_batch) if flattened_batch is not None else None
+    return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
 
 # ----------------------------------------------------------------------------------------------------------------------
