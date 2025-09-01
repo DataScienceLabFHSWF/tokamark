@@ -8,6 +8,10 @@ scripts/pipelines/best_model.pth
 prediction_evolution_example_0.gif
 optuna_results.png
 
+# Models test output
+scripts/pipelines/models/output_figures
+output_figures/
+
 # Local supporting folder
 zz/
 *output/
@@ -179,3 +183,8 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
+/scripts/pipelines/ft_transformer_v3/
+
+cnn_cecile_gpujob.wilkes3
+time_cnn_cecile_gpujob.wilkes3
+

@@ -1,7 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from scripts.MAST_tools.signal_utils import MASTSignalManager
-
+from .signal_utils import MASTSignalManager
 
 # ======================================================================================================================
 class MastDataset(Dataset):
@@ -69,23 +68,25 @@ class MastDataset(Dataset):
             
             if shot_profile is not None:
                 try:
-                    if not np.isnan(shot_profile.time.values).any():
-                        shot_time = shot_profile.time.values
-                    else:
-                        print(f"Nan in the timescale of shot {self.shots_list[idx]} ! ")
-                        shot_time = None
-                except AttributeError:
+                    shot_time, _ = self.sig.get_signal_times_and_time_type(
+                                signal,
+                                store,
+                                source
+                                )
+                except Exception as e:
+                    print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
                     shot_time = None
                 try:
                     if f"{source}-{signal}" == "equilibrium-psi":
                         print("Transposing values because equilibrium-psi not saved the same way as others")
-                        print(shot_profile.values.shape)
+                        # print(shot_profile.values.shape)
                         shot_vals = np.moveaxis(shot_profile.values, 0, -1)
-                        print(shot_vals.shape)
+                        # print(shot_vals.shape)
                     else:
                         shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
                                     else shot_profile.values)
-                        print(shot_vals.shape)
+                        # print(shot_vals.shape)
+
                 except AttributeError:
                     shot_vals = None
             else:
@@ -99,7 +100,7 @@ class MastDataset(Dataset):
                 )
             else:
                 shot[f'{source}-{signal}'] = {"time": shot_time, "values": shot_vals}
-            
+
         # Apply shot-level transforms to obtain a list of training objects
         if self.shot_level_transform:
             if all(subval is not None

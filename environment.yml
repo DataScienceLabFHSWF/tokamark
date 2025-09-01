@@ -25,3 +25,4 @@ dependencies:
     - tensorboard
     - optuna
     - seaborn
+    - rtdl_revisiting_models
