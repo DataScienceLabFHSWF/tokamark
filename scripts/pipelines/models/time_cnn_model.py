@@ -161,7 +161,7 @@ class MultiBranchTimeCNNModel(nn.Module):
             out = branch(x)
             branch_outputs.append(out)
         
-        print('\nCommon Layer')     
+        print('\nCommon Layer to flatten time')     
         merged = torch.cat(branch_outputs, dim=1)
         print(merged.shape)   
         merged = Conv1DBranch(merged.shape[1], 2*self.D)(merged)

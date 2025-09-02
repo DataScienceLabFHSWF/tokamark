@@ -2,6 +2,9 @@ import os
 import sys
 import csv
 
+import yaml
+import argparse
+
 import pickle
 import torch
 import torch.multiprocessing as mp
@@ -27,6 +30,7 @@ from scripts.pipelines.utils.utils import read_data_split_csv, flatten_then_coll
 from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 from scripts.pipelines.utils.utils import ComposeTransforms
+from utils.cnn_utils import get_train_test_val_shots, initialize_datasets, initialize_dataloaders
 
 from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform
@@ -63,187 +67,12 @@ else:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_train_test_val_shots(max_index=None):
-    train_sh, test_sh, val_sh = read_data_split_csv()
-
-    if max_index:
-        train_sh = train_sh[0:max_index]
-        val_sh = val_sh[0:max_index]
-        test_sh = test_sh[0:max_index]
-
-    return train_sh, test_sh, val_sh
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def fit_mean_and_std_for_signal_transform(output_sub_dir, train_shots, source_signal_list, verbose=False, local=False):
-
-    if verbose:
-        print('\n\n----------TRANSFORM FITTING----------\n')
-
-    preprocessing_train_dataset = MastDataset(
-        local=local,
-        shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
-        source_signal_list=source_signal_list,
-        signal_level_transform_map=None,
-        shot_level_transform=None
-    )
-
-    if verbose:
-        print(f"len(preprocessing_train_dataset): {len(preprocessing_train_dataset)}")
-
-    dict_mean_ = get_mean_shot(preprocessing_train_dataset)
-    if verbose: 
-        print(f"dict_mean_ is {dict_mean_}")
-    dict_std_ = get_std_shot(preprocessing_train_dataset)
-    if verbose: 
-        print(f"dict_std_ is {dict_std_}")
-
-    # Save dict_mean and dict_std used!
-
-    output_dir_ = os.path.join("output", output_sub_dir)
-    os.makedirs(output_dir_, exist_ok=True)
-    if verbose:
-        print(f"Output folder to save fitted mean and std dicts: {output_dir_}")
-
-    with open(output_dir_ + 'dict_mean_shot.pkl', 'wb') as f_:
-        pickle.dump(dict_mean_, f_)
-    with open(output_dir_ + 'dict_std_shot.pkl', 'wb') as f_:
-        pickle.dump(dict_std_, f_)
-
-    return dict_mean_, dict_std_
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def initialize_datasets(
-        sources_and_signals,
-        shots,
-        sig_tran_map,
-        shot_tran,
-        local_flag=False,
-        verbose=False
-
-):
-
-    datasets_ = {"train": None, "val": None, "test": None}
-
-    # ..................................................................................................................
-    # Train
-
-    if shots["train"]:
-        datasets_["train"] = MastDataset(
-            local=local_flag,
-            shots_list=shots["train"],
-            source_signal_list=sources_and_signals,
-            signal_level_transform_map=sig_tran_map,
-            shot_level_transform=shot_tran
-        )
-        if verbose:
-            print(f"len(mast_train_dataset): {len(datasets_['train'])}")
-
-    # ..................................................................................................................
-    # Val
-
-    if shots["val"]:
-        datasets_["val"] = MastDataset(
-            local=local_flag,
-            shots_list=shots["val"],
-            source_signal_list=sources_and_signals,
-            signal_level_transform_map=sig_tran_map,
-            shot_level_transform=shot_tran
-        )
-        if verbose:
-            print(f"len(val_dataset): {len(datasets_['val'])}")
-
-    # ..................................................................................................................
-    # Test
-
-    if shots["test"]:
-        datasets_["test"] = MastDataset(
-            local=local_flag,
-            shots_list=shots["test"],
-            source_signal_list=sources_and_signals,
-            signal_level_transform_map=sig_tran_map,
-            shot_level_transform=shot_tran
-        )
-        if verbose:
-            print(f"len(test_dataset): {len(datasets_['test'])}")
-
-    # ..................................................................................................................
-    # Return
-
-    return datasets_
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def initialize_dataloaders(
-        datasets,
-        collate_function,
-        batch_size,
-        num_workers,
-        shuffle=True,
-        drop_last=False,
-        verbose=False
-):
-
-    dataloaders_ = {"train": None, "val": None, "test": None}
-
-    if verbose:
-        print('\n\n----------DATASET & DATALOADER INITIALIZATION----------\n')
-
-    # ..................................................................................................................
-    # Train
-
-    if datasets["train"]:
-        dataloaders_["train"] = DataLoader(
-            dataset=datasets["train"],
-            batch_size=batch_size,
-            # batch_size=len(datasets['train']),
-            num_workers=num_workers,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            collate_fn=collate_function
-        )
-
-    # ..................................................................................................................
-    # Val
-
-    if datasets["val"]:
-        dataloaders_["val"] = DataLoader(
-            dataset=datasets["val"],
-            batch_size=batch_size,
-            # batch_size=len(datasets["val"]),
-            num_workers=num_workers,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            collate_fn=collate_function
-        )
-
-    # ..................................................................................................................
-    # Test
-
-    if datasets["test"]:
-        dataloaders_["test"] = DataLoader(
-            dataset=datasets["test"],
-            batch_size=batch_size,
-            # batch_size=len(datasets["test"]),
-            num_workers=num_workers,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            collate_fn=collate_function
-        )
-
-    # ..................................................................................................................
-    # Return
-
-    return dataloaders_
-
-
-# ----------------------------------------------------------------------------------------------------------------------
 def create_cnn_architecture(
         train_dataloader_,
+        D,
         verbose=False
 ):
-
+    print(D)
     if verbose:
         print("\n\n----------MODEL INITIALIZATION----------\n")
 
@@ -255,35 +84,38 @@ def create_cnn_architecture(
     if verbose:
         print(f"output_shape: {output_shape}")
 
-    return MultiBranchCNNModel(input_shapes, output_shape).to(device)
+    return MultiBranchCNNModel(input_shapes, output_shape, D).to(device)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def loop_for_cnn_training(
         base_cnn_model,
+        train_dataloader, 
+        val_dataloader,
         lr,
-        best_val_loss,
+        max_epochs,
         loss_criterion,
         patience,
-        output_sub_dir,
-        verbose=False
+        output_dir,
+        verbose=True
 
 ):
 
     if verbose:
         print('\n\n----------CNN TRAINING----------\n')
 
-    output_dir_ = os.path.join("output", output_sub_dir)
-    os.makedirs(output_dir_, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     if verbose:
-        print(f"Output folder to save trained model: {output_dir_}")
+        print(f"Output folder to save trained model: {output_dir}")
 
     optimizer = torch.optim.Adam(base_cnn_model.parameters(), lr=lr)
 
     best_model_state_ = None
+    best_val_loss = float('inf')
     early_stop_ = False
     epochs_no_improve = 0
-    for epoch in range(MAX_EPOCHS):
+
+    for epoch in range(max_epochs):
         base_cnn_model.train()
         running_loss = 0.0
         num_batches = 0
@@ -294,13 +126,12 @@ def loop_for_cnn_training(
         for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
 
             x_train = [arr.to(torch.float32).to(device) for arr in x_train]
-            # print([arr.shape for arr in x_train])
-            # print(y_train.min().item(), y_train.max().item())
-
             y_train = y_train[0].to(torch.float32).to(device)
+
+            actual_batch_size = len(y_train)
             if verbose:
                 # print(y_train.shape)
-                print(f'Batch {batch_idx} size is {len(y_train)}')
+                print(f'Batch {batch_idx} size is {actual_batch_size}')
 
             outputs_ = base_cnn_model(*x_train).squeeze()
             loss_ = loss_criterion(outputs_, y_train)
@@ -312,13 +143,13 @@ def loop_for_cnn_training(
             loss_.backward()
             optimizer.step()
 
-            running_loss += loss_.item()
-            num_batches += len(y_train)
-            if verbose:
-                print(f'Actual num_batches is {num_batches}')
+            running_loss += loss_.item() * actual_batch_size
+            num_batches += actual_batch_size
 
         avg_loss = running_loss / num_batches
-        # print(f"Epoch [{epoch+1}/{MAX_EPOCHS}], Average Loss: {avg_loss:.4f}")
+
+        if verbose:
+            print(f"Epoch [{epoch+1}/{max_epochs}], Average Loss: {avg_loss:.4f}")
 
         # Validation phase & Early stopping check
 
@@ -334,12 +165,15 @@ def loop_for_cnn_training(
                 val_outputs = base_cnn_model(*x_val).squeeze()
                 val_loss = loss_criterion(val_outputs, y_val)
 
-                val_running_loss += val_loss.item()
-                val_batches += len(y_val)
+                actual_batch_size = len(y_val)
+
+                val_running_loss += val_loss.item() * actual_batch_size
+                val_batches += actual_batch_size
 
         avg_val_loss = val_running_loss / val_batches
+        
         if verbose:
-            print(f"Epoch [{epoch+1}/{MAX_EPOCHS}], Average Loss: {avg_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
+            print(f"Epoch [{epoch+1}/{max_epochs}], Average Loss: {avg_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
 
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
@@ -347,7 +181,7 @@ def loop_for_cnn_training(
             best_model_state_ = base_cnn_model.state_dict()
 
             # Save best model state
-            torch.save(best_model_state_, output_dir_ + "best_model.pt")
+            torch.save(best_model_state_, output_dir + "best_model.pt")
 
         else:
             epochs_no_improve += 1
@@ -362,96 +196,97 @@ def loop_for_cnn_training(
     return best_model_state_, early_stop_
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+def cnn_evaluation_per_shot(
+        cnn_model,
+        test_dataloader,
+    ):
+        cnn_model.eval()
+
+        test_loss_per_var = torch.tensor(
+            [0 for i in range(test_dataloader.dataset[0][0][1][0].shape[0])]
+        ).to(device)
+    
+        test_batches = 0
+
+        with torch.no_grad():  # Disable gradient calculation for efficiency
+            for x_test, y_test in test_dataloader:
+                x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+                y_test = y_test[0].to(torch.float32).to(device)
+
+                outputs = cnn_model(*x_test).squeeze()
+
+                loss_per_var = torch.nn.MSELoss(reduction='none')(outputs, y_test).mean(dim=0)
+                test_loss_per_var = test_loss_per_var + loss_per_var
+
+                test_batches += len(y_test)
+
+        avg_test_loss = test_loss_per_var / test_batches
+        print(f"Test Loss: {avg_test_loss}")
+
+        return(avg_test_loss)
+
+
 # ======================================================================================================================
 if __name__ == "__main__":
 
     print(f"\nNumber of available cores: {cpu_count()}\n")
+    # mp.set_start_method("spawn", force=True)
 
     # ------------------------------------------------------------------------------------------------------------------
     # GENERAL SETTINGS
     # ------------------------------------------------------------------------------------------------------------------
 
-    LOCAL_FLAG = False
-    mp.set_start_method("spawn", force=True)
+    parser = argparse.ArgumentParser(description="Data Augmentation")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/scripts/pipelines/configs/config_cnn_test.yaml",
+        help="Path to the config YAML file"
+    )
+    args, unknown = parser.parse_known_args()
+
+    # Load parameters from YAML configuration
+    with open(args.config, "r") as f:
+        parameters = yaml.safe_load(f)
+    print(parameters)  # optional, to verify contents
 
     # ..................................................................................................................
-    # For common pipeline
+    # Parameters Setting
 
-    SUBSET_OF_SHOTS = None  # <- This can be None for the entire dataset, or a small integer.
-    OUTPUT_SUB_FOLDER = 'cnn_output/'  # <- Sub-folder within /output/
-    BATCH_SIZE = 500  # 500
-    NUM_WORKERS = 64  # 64
-    MAX_EPOCHS = 500  # 500
+    # General parameters
+    LOCAL_FLAG = parameters["local"]  
+    SUBSET_OF_SHOTS = parameters["subset_of_shots"] 
+    OUTPUT_FOLDER = parameters["paths"]["data_output_directory"]
+    RUN_EVALUATION = parameters["run_evaluation"]
+    
+    # Data
+    source_signal_list = parameters["input"]["data_names"] + parameters["input"]["target_names"] 
 
-    REF_FREQ = 0.005
+    # Preprocessing parameters
+    ref_freq = parameters["ref_freq"]
+    parameters_window_segementer = parameters["window_segmenter_setting"]
+    parameters_window_segementer["x_keys"] = [ f"{source}-{signal}" for source, signal 
+                                              in parameters_window_segementer["x_keys"] ]
+    parameters_window_segementer["y_keys"] = [ f"{source}-{signal}" for source, signal 
+                                              in parameters_window_segementer["y_keys"] ]
+    # Model Architecture parameters
+    cnn_args = parameters["cnn_model"]
 
-    source_signal_list_ = [
-        ('magnetics', 'flux_loop_flux'),
-        ('magnetics', 'b_field_pol_probe_ccbv_field'),
-        ('magnetics', 'b_field_pol_probe_obr_field'),
-        ('magnetics', 'b_field_pol_probe_obv_field'),
-        ('pf_active', 'solenoid_current'),
-        ('pf_active', 'coil_voltage'),
-        ('pf_active', 'coil_current'),
-        ('pulse_schedule', 'i_plasma'),
-        ('summary', 'power_nbi'),
-        ('equilibrium', 'elongation'),
-        ('equilibrium', 'elongation_axis'),
-        ('equilibrium', 'triangularity_upper'),
-        ('equilibrium', 'triangularity_lower'),
-        ('equilibrium', 'minor_radius'),
-        ('equilibrium', 'magnetic_axis_r'),
-        ('equilibrium', 'magnetic_axis_z')
-    ]
+    # Dataloader paraneters
+    dataloader_setting = parameters["dataloader_setting"]
 
-    # ..................................................................................................................
-    # For CNN pipeline
+    # Training parameters
+    training_args = parameters["training"]
+    training_args['loss_criterion'] = torch.nn.MSELoss()
 
-    PARAMETERS_WINDOWS_SEGMENTER = {
-        'x_keys': [
-            'magnetics-flux_loop_flux',
-            'magnetics-b_field_pol_probe_ccbv_field',
-            'magnetics-b_field_pol_probe_obr_field',
-            'magnetics-b_field_pol_probe_obv_field',
-            'pf_active-solenoid_current',
-            'pf_active-coil_voltage',
-            'pf_active-coil_current',
-            'pulse_schedule-i_plasma',
-            'summary-power_nbi',
-        ],
-        'y_keys': [
-            'equilibrium-elongation',
-            'equilibrium-elongation_axis',
-            'equilibrium-triangularity_upper',
-            'equilibrium-triangularity_lower',
-            'equilibrium-minor_radius',
-            'equilibrium-magnetic_axis_r',
-            'equilibrium-magnetic_axis_z',
-        ],
-        'x_window_sec': 0,
-        'y_window_sec': 0,
-        'dt_sec': 0.025,
-        'stride_sec': None,
-        'stride_unitary': True,
-        'min_samples_per_window': 1,
-        'verbose': False,
-    }
-
-    # ..................................................................................................................
-    # For CNN training
-
-    LOSS_CRITERION = torch.nn.MSELoss()
-    LEARNING_RATE = 1e-4
-    BEST_VALUE_LOSS = float('inf')
-    PATIENCE = 5  # <- Maximum number of admissible epochs without improvement
-    RUN_EVALUATION = True
 
     # ------------------------------------------------------------------------------------------------------------------
     # PRELIMINARY TASKS
     # ------------------------------------------------------------------------------------------------------------------
 
     # ..................................................................................................................
-    # For common pipeline
+    # Preprocessing pipeline
 
     # Create sets of shot IDs for training, validation and testing
     train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
@@ -459,24 +294,18 @@ if __name__ == "__main__":
     )
 
     # Fit mean and std for signal transformation
-    dict_mean, dict_std = fit_mean_and_std_for_signal_transform(
-        train_shots=train_shots_,
-        local=LOCAL_FLAG,
-        source_signal_list=source_signal_list_,
-        output_sub_dir=OUTPUT_SUB_FOLDER,
-        verbose=True
-    )
+    with open(parameters["standardscaling_setting"]["mean_path"], "rb") as f:
+        dict_mean = pickle.load(f)
+    with open(parameters["standardscaling_setting"]["std_path"], "rb") as f:
+        dict_std = pickle.load(f)
 
     # Get the user-defined composite signal transform map
     signal_transform_map = {var: ComposeTransforms([
-        # ForwardFillImputerTransform(),
-        # SamplewiseNormalizeTransform(),
         FillProfileWithZerosTransform(),
         StdScalingTransform(dict_mean[var], dict_std[var]),
-        # FillWithZerosImputerTransform(),
-        SamplingToReferenceTimeTransform(REF_FREQ),
+        SamplingToReferenceTimeTransform(ref_freq),
     ])
-        for var in [f'{source}-{signal}' for source, signal in source_signal_list_]
+        for var in [f'{source}-{signal}' for source, signal in source_signal_list]
     }
 
     # ..................................................................................................................
@@ -484,14 +313,14 @@ if __name__ == "__main__":
 
     shot_transform = ComposeTransforms([  # shape-consistent transform
         TruncationTransform(),
-        WindowSegmenterTransform(**PARAMETERS_WINDOWS_SEGMENTER),  # shape-modifying transform
+        WindowSegmenterTransform(**parameters_window_segementer),  # shape-modifying transform
         DropSampleWithNans(),
         CNNTransform()  # shape-modifying transform
         ])
 
     # Prepare datasets
     datasets_train_val_test = initialize_datasets(
-        sources_and_signals=source_signal_list_,
+        sources_and_signals=source_signal_list,
         shots={"train": train_shots_, "val": val_shots_, "test": test_shots_},
         sig_tran_map=signal_transform_map,
         shot_tran=shot_transform,
@@ -503,8 +332,7 @@ if __name__ == "__main__":
     dataloaders_train_val_test = initialize_dataloaders(
         datasets=datasets_train_val_test,
         collate_function=flatten_then_collate,
-        batch_size=BATCH_SIZE,
-        num_workers=NUM_WORKERS,
+        **dataloader_setting,
         verbose=True
     )
     train_dataloader = dataloaders_train_val_test["train"]
@@ -514,6 +342,7 @@ if __name__ == "__main__":
     # Create CNN architecture
     cnn_model = create_cnn_architecture(
         train_dataloader_=train_dataloader,
+        **cnn_args,
         verbose=True
     )
     
@@ -526,84 +355,66 @@ if __name__ == "__main__":
 
     best_model_state, early_stop = loop_for_cnn_training(
         base_cnn_model=cnn_model,
-        lr=LEARNING_RATE,
-        best_val_loss=BEST_VALUE_LOSS,
-        loss_criterion=LOSS_CRITERION,
-        patience=PATIENCE,
-        output_sub_dir=OUTPUT_SUB_FOLDER,
+        train_dataloader=train_dataloader, 
+        val_dataloader=val_dataloader,
+        **training_args,
+        output_dir=OUTPUT_FOLDER,
         verbose=True
     )
 
-    # ..................................................................................................................
-    # Evaluation
-    # ..................................................................................................................
 
-    output_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
+    # ------------------------------------------------------------------------------------------------------------------
+    # CNN Evaluation PER SHOT
+    # ------------------------------------------------------------------------------------------------------------------
+
+    test_dataset = datasets_train_val_test["test"]
+    best_model_path = OUTPUT_FOLDER + "best_model.pt"
+    # Restore best model weights
+    cnn_model.load_state_dict(torch.load(best_model_path, map_location=device))  
+    cnn_model.eval()
+
+    # Evaluation per shot
 
     if RUN_EVALUATION:
 
-        if best_model_state is not None:
+        with open(OUTPUT_FOLDER + 'test_loss_per_var.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['shot_id', f"MSE for {parameters_window_segementer['y_keys']}"])  # Header
 
-            # Restore best model weights
-            cnn_model.load_state_dict(best_model_state)
+            for shot_id in test_shots_:
+                print(f'Evaluating shot {shot_id}')
+            
+                test_shot_dataset = MastDataset(
+                    local=LOCAL_FLAG,
+                    shots_list=[shot_id],
+                    source_signal_list=source_signal_list,
+                    signal_level_transform_map=signal_transform_map,
+                    shot_level_transform=shot_transform
+                )
 
-            # Set the model to evaluation mode
-            cnn_model.eval()
+                test_shot_dataloader = DataLoader(
+                    dataset=test_shot_dataset,
+                    batch_size=1,
+                    num_workers=0,
+                    shuffle=True,
+                    drop_last=False,
+                    collate_fn=flatten_then_collate
+                )
+            
+                if len(test_shot_dataloader.dataset[0]) > 0:  # I.e. if this is a valid shot with windows
 
-            # Evaluation per shot
+                    avg_test_loss = cnn_evaluation_per_shot(
+                                        cnn_model,
+                                        test_shot_dataloader,
+                                    )
+                    print(f"Test Loss: {avg_test_loss}")
 
-            with open(output_dir + 'test_loss_per_var.csv', 'w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(['shot_id', f"MSE for {PARAMETERS_WINDOWS_SEGMENTER['y_keys']}"])  # Header
-
-                for shot_id in test_shots_:
-                    print(f'Evaluating shot {shot_id}')
+                    writer.writerow([shot_id, avg_test_loss.cpu().tolist()])
+                    f.flush()
                 
-                    test_shot_dataset = MastDataset(
-                        local=LOCAL_FLAG,
-                        shots_list=[shot_id],
-                        source_signal_list=source_signal_list_,
-                        signal_level_transform_map=signal_transform_map,
-                        shot_level_transform=shot_transform
-                    )
-                    
-                    test_shot_dataloader = DataLoader(
-                        dataset=test_shot_dataset,
-                        batch_size=1,
-                        num_workers=16,
-                        shuffle=True,
-                        drop_last=False,
-                        collate_fn=flatten_then_collate
-                    )
-                
-                    if len(test_shot_dataloader.dataset[0]) > 0:  # I.e. if this is a valid shot with windows
+                else:
+                    print(f"Shot {shot_id} not run properly, likely empty slice")
+                    continue
 
-                        test_loss_per_var = torch.tensor(
-                            [0 for i in range(test_shot_dataloader.dataset[0][0][1][0].shape[0])]
-                        ).to(device)
-                    
-                        test_batches = 0
-
-                        with torch.no_grad():  # Disable gradient calculation for efficiency
-                            for x_test, y_test in test_shot_dataloader:
-                                x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-                                y_test = y_test[0].to(torch.float32).to(device)
-
-                                outputs = cnn_model(*x_test).squeeze()
-
-                                loss_per_var = torch.nn.MSELoss(reduction='none')(outputs, y_test).mean(dim=0)
-                                test_loss_per_var = test_loss_per_var + loss_per_var
-
-                                test_batches += len(y_test)
-
-                        avg_test_loss = test_loss_per_var / test_batches
-                        print(f"Test Loss: {avg_test_loss}")
-
-                        writer.writerow([shot_id, avg_test_loss.cpu().tolist()])
-                        f.flush()
-                    
-                    else:
-                        print(f"Shot {shot_id} not run properly, likely empty slice")
-                        continue
 
     # ------------------------------------------------------------------------------------------------------------------
