@@ -252,7 +252,8 @@ class MASTStorageManager:
             data_origin: Union[dict, cc.ZarrStoreType],
     ):
         """Check MAST data origin."""
-        assert isinstance(data_origin, cc.DataSourceType), "Type error: invalid data_origin. It must be dict or store."
+        assert isinstance(data_origin, (dict,cc.DataSourceType, cc.ZarrStoreType)), "Type error: invalid data_origin. It must be dict or store."
+        #assert isinstance(data_origin, cc.DataSourceType), "Type error: invalid data_origin. It must be dict or store."
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod

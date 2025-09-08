@@ -301,22 +301,28 @@ def test():
 
     # ..................................................................................................................
 
-    shot_info = {"shot_id": 30421, "level": 2, "test_data": False, "local": False, "via_parquet": False}
-    source_name = "magnetics"
-    signal_name = "flux_loop_flux"
+    shot_info = {"shot_id": 12088, "level": 2, "test_data": False, "local": True, "via_parquet": False}
+    source_name = "pf_active"
+    signal_name = "coil_current"
+    #shot_info = {"shot_id": 30421, "level": 2, "test_data": False, "local": True, "via_parquet": False}
+    #source_name = "magnetics"
+    #signal_name = "flux_loop_flux"
+
 
     # ..................................................................................................................
     # Get signal values from store
     if TESTS_TO_RUN["signal_values_from_store"]:
 
-        store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=shot_info)
+        store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=shot_info,verbose=True)
         signal_values = signal_manager.get_signal_values(
             signal_name=signal_name,
             data_origin=store_from_shot_info,
-            source_name=source_name
+            source_name=source_name,
+            verbose=True
         )
 
-        print(f"Signal values: {signal_values}\n")
+        print(f"Signal shape: {signal_values.shape}\n")
+        #print(f"Signal values: {signal_values}\n")
 
     # ..................................................................................................................
     # Get signal values from shot info
@@ -326,10 +332,12 @@ def test():
         signal_values = signal_manager.get_signal_values(
             signal_name=signal_name,
             data_origin=shot_info,
-            source_name=source_name
+            source_name=source_name,
+            verbose=True
         )
 
-        print(f"Signal values: {signal_values}\n")
+        print(f"Signal shape: {signal_values.shape}\n")
+        #print(f"Signal values: {signal_values}\n")
 
     # ..................................................................................................................
     # Get signal times from shot info
@@ -339,9 +347,11 @@ def test():
         signal_times, signal_type = signal_manager.get_signal_times_and_time_type(
             signal_name=signal_name,
             data_origin=shot_info,
-            source_name=source_name
+            source_name=source_name,
+            verbose=True
         )
 
+        print(f"Signal shape: {signal_values.shape}\n")
         print(f"Signal type: '{signal_type}'\n")
         print(f"Signal times: {signal_times}\n")
 
