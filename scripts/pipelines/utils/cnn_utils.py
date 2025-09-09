@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import imageio
+import matplotlib.gridspec as gridspec
 from torch.utils.data._utils.collate import default_collate 
 
 
