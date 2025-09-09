@@ -265,7 +265,10 @@ if __name__ == "__main__":
             y_trues.append(true)
 
             # Save the image
-            plot_shot(pred, true, i, ref_freq, out_dir = OUTPUT_FOLDER )
+            # plot_shot(pred, true, i, ref_freq, out_dir = OUTPUT_FOLDER )
+            
+            # Save the gif
+            plot_shot_gif(pred, true, i, ref_freq, out_dir=OUTPUT_FOLDER)
     
             # gif_path = plot_shot_gif(
             #     pred,
