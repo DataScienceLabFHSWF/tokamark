@@ -77,7 +77,7 @@ class MastDataset(Dataset):
                     print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
                     shot_time = None
                 try:
-                    if f"{source}-{signal}" == "equilibrium-psi" and self.local == False:
+                    if (f"{source}-{signal}" in ["equilibrium-psi", "equilibrium-lcfs_z", "equilibrium-lcfs_r"]) and self.local == False:
                         print("Transposing values bc psi not saved the same in remote location")
                         shot_vals = np.moveaxis(shot_profile.values, 0, -1)
                     else:
