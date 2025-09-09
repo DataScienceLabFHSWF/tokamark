@@ -1,4 +1,4 @@
-subset_of_shots: 25
+subset_of_shots: 10
 local: true
 run_evaluation: true
 
@@ -65,4 +65,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: /home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/output/cnn_output_subtest/
+  data_output_directory: output/cnn_output_subtest/

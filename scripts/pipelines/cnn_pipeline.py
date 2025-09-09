@@ -5,6 +5,8 @@ import argparse
 
 import pickle
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.multiprocessing as mp
 from multiprocessing import cpu_count
 
@@ -202,6 +204,23 @@ def loop_for_cnn_training(
     return best_model_state_, early_stop_
 
 
+class MultiOutputMSELoss(nn.Module):
+    def __init__(self, reduction="mean", weights=None):
+        super().__init__()
+        self.reduction = reduction
+        self.weights = weights  # e.g. [1.0, 0.5, 0.1, 2.0]
+
+    def forward(self, y_preds, y_trues):
+        assert len(y_preds) == len(y_trues), "Mismatch in number of outputs"
+        losses = []
+        for i, (yp, yt) in enumerate(zip(y_preds, y_trues)):
+            assert yp.shape == yt.shape, f"Shape mismatch at output {i}: {yp.shape} vs {yt.shape}"
+            l = F.mse_loss(yp, yt, reduction=self.reduction)
+            if self.weights is not None:
+                l = self.weights[i] * l
+            losses.append(l)
+        return sum(losses)
+
 # ----------------------------------------------------------------------------------------------------------------------
 # def cnn_evaluation_per_shot(
 #         cnn_model,
@@ -287,27 +306,6 @@ if __name__ == "__main__":
     # Training parameters
     training_args = parameters["training"]
     # training_args['loss_criterion'] = torch.nn.MSELoss()
-
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-
-    class MultiOutputMSELoss(nn.Module):
-        def __init__(self, reduction="mean", weights=None):
-            super().__init__()
-            self.reduction = reduction
-            self.weights = weights  # e.g. [1.0, 0.5, 0.1, 2.0]
-
-        def forward(self, y_preds, y_trues):
-            assert len(y_preds) == len(y_trues), "Mismatch in number of outputs"
-            losses = []
-            for i, (yp, yt) in enumerate(zip(y_preds, y_trues)):
-                assert yp.shape == yt.shape, f"Shape mismatch at output {i}: {yp.shape} vs {yt.shape}"
-                l = F.mse_loss(yp, yt, reduction=self.reduction)
-                if self.weights is not None:
-                    l = self.weights[i] * l
-                losses.append(l)
-            return sum(losses)
     
     training_args['loss_criterion'] = MultiOutputMSELoss()
 

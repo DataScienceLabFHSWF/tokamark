@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
     cnn_shot_dataset = MastDataset(
                             local=True,
-                            shots_list=test_shots_[0:5],
+                            shots_list=test_shots_[0:2],
                             source_signal_list=source_signal_list,
                             signal_level_transform_map=signal_transform_map,
                             shot_level_transform=shot_transform
