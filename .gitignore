@@ -185,6 +185,13 @@ cython_debug/
 .idea/
 /scripts/pipelines/ft_transformer_v3/
 
-cnn_cecile_gpujob.wilkes3
-time_cnn_cecile_gpujob.wilkes3
+output_saved_by_cecile/
+
+scripts/pipelines/shot_gifs/
+
+machine.file*
+slurm-*
+*.wilkes3
+
+
 
