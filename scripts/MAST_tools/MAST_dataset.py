@@ -105,13 +105,9 @@ class MastDataset(Dataset):
                    for subdict in shot.values()
                    for subval in subdict.values()):
                 list_chunks = self.shot_level_transform(shot)
-                if list_chunks == "error in shape":
-                    print(f"\n\n\nError in shapes for shot {self.shots_list[idx]}\n\n\n")
-                    return []
-                else:
-                    return list_chunks
+                return list_chunks
             else:
-                # print('Nan still present in shot')
+                print('Nan still present in shot')
                 return []
         else:
             return shot
