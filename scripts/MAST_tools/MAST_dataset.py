@@ -77,15 +77,15 @@ class MastDataset(Dataset):
                     print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
                     shot_time = None
                 try:
-                    if f"{source}-{signal}" == "equilibrium-psi":
-                        print("Transposing values because equilibrium-psi not saved the same way as others")
-                        # print(shot_profile.values.shape)
-                        shot_vals = np.moveaxis(shot_profile.values, 0, -1)
-                        # print(shot_vals.shape)
-                    else:
-                        shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
-                                    else shot_profile.values)
-                        # print(shot_vals.shape)
+                    # if f"{source}-{signal}" == "equilibrium-psi":
+                    #     print("Transposing values because equilibrium-psi not saved the same way as others")
+                    #     # print(shot_profile.values.shape)
+                    #     shot_vals = np.moveaxis(shot_profile.values, 0, -1)
+                    #     # print(shot_vals.shape)
+                    # else:
+                    shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
+                                else shot_profile.values)
+                    # print(shot_vals.shape)
 
                 except AttributeError:
                     shot_vals = None
@@ -107,9 +107,13 @@ class MastDataset(Dataset):
                    for subdict in shot.values()
                    for subval in subdict.values()):
                 list_chunks = self.shot_level_transform(shot)
-                return list_chunks
+                if list_chunks == "error in shape":
+                    print(f"\n\n\nError in shapes for shot {self.shots_list[idx]}\n\n\n")
+                    return []
+                else:
+                    return list_chunks
             else:
-                print('Nan still present in shot')
+                # print('Nan still present in shot')
                 return []
         else:
             return shot
