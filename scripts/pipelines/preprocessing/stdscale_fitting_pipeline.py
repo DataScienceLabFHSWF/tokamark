@@ -185,6 +185,7 @@ def compute_mean_std(dataset, batch_size=64, num_workers=4):
         where_are_NaNs = np.isnan(std[var])
         std[var][where_are_NaNs] = 1
 
+
     return mean, std
 
 

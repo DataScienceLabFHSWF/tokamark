@@ -1,7 +1,7 @@
 import joblib
 import os
 import pandas as pd
-from torch.utils.data._utils.collate import default_collate  # noqa
+from torch.utils.data._utils.collate import default_collate 
 # from typing import List, Tuple, Dict
 import torch
 
@@ -41,7 +41,7 @@ def flatten_then_collate(batch):
     print(f"Collating batch of size {len(batch)}")
     
     # Flatten the batch of lists into a single list
-    flattened_batch = None
+    flattened_batch = []
     if isinstance(batch[0], list):
         flattened_batch = [item for sublist in batch for item in sublist]
         print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')

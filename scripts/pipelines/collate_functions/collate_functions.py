@@ -98,3 +98,30 @@ def beta_vae_collate_fn(batch):
             continue
 
     return batched_signals
+
+
+def conv1d_vae_collate_fn(batch):
+    """
+    batch: list of samples
+    sample = {
+        "signal1": [Tensor(C, T_x), Tensor(C, T_x), ...],  # one per window
+        "signal2": [Tensor(C, T_x), Tensor(C, T_x), ...],
+        ...
+    }
+    For each signal, there is a list of tensors that collects all 
+    temporal windows for that signal. 
+    """
+    collated_batch = defaultdict(list)
+    
+    for sample in batch:
+        for signal_name, list_of_tensors in sample.items():
+            collated_batch[signal_name].extend(list_of_tensors)
+    
+    
+    # stack into a single tensor per signal
+    for signal_name in collated_batch:
+        collated_batch[signal_name] = torch.stack(flat_list, dim=0) # shape (tot_Nr_windows, C, T)
+
+    return {"x": collated_batch, "y":collated_batch}
+            
+        

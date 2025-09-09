@@ -151,7 +151,7 @@ class MASTpca:
         # Save pca model to output_dir 
         os.makedirs(self.output_directory, exist_ok=True)
         
-        my_pca_file_name = self.output_directory+f"/pca_{signal_name}.joblib"
+        my_pca_file_name = self.output_directory+f"pca_{signal_name}.joblib"
         print(f"Saving PCA model to {my_pca_file_name}")
         
         joblib.dump({
