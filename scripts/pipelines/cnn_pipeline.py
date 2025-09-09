@@ -26,17 +26,18 @@ if REPO_ROOT not in sys.path:
 # print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.pipelines.utils.utils import read_data_split_csv, flatten_then_collate
-from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
+from scripts.pipelines.utils.utils import flatten_then_collate
 from scripts.pipelines.utils.utils import ComposeTransforms
-from utils.cnn_utils import get_train_test_val_shots, initialize_datasets, initialize_dataloaders
+from scripts.pipelines.utils.cnn_utils import get_train_test_val_shots, initialize_datasets, initialize_dataloaders
 
 from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform
 )
 from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
     SamplingToReferenceTimeTransform
+)
+from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform import (
+ReshapeLcfsTransform
 )
 from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
     TruncationTransform
@@ -75,7 +76,7 @@ def create_cnn_architecture(
     print(D)
     if verbose:
         print("\n\n----------MODEL INITIALIZATION----------\n")
-
+    print("len(train_dataloader_)", len(train_dataloader_))
     input_shapes = [arr.shape for arr in train_dataloader_.dataset[0][0][0]]
     if verbose:
         print(f"input_shapes: {input_shapes}")
@@ -126,14 +127,17 @@ def loop_for_cnn_training(
         for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
 
             x_train = [arr.to(torch.float32).to(device) for arr in x_train]
-            y_train = y_train[0].to(torch.float32).to(device)
+            # y_train = y_train[0].to(torch.float32).to(device)
+            y_train = [arr.to(torch.float32).to(device) for arr in y_train]
 
-            actual_batch_size = len(y_train)
+            actual_batch_size = y_train[0].shape[0]
             if verbose:
                 # print(y_train.shape)
                 print(f'Batch {batch_idx} size is {actual_batch_size}')
 
-            outputs_ = base_cnn_model(*x_train).squeeze()
+            # outputs_ = base_cnn_model(*x_train).squeeze()
+            outputs_ = base_cnn_model(*x_train)
+
             loss_ = loss_criterion(outputs_, y_train)
             if verbose:
                 # print(f"outputs' shape: {outputs_.shape}")
@@ -160,12 +164,15 @@ def loop_for_cnn_training(
         with torch.no_grad():
             for x_val, y_val in val_dataloader:
                 x_val = [arr.to(torch.float32).to(device) for arr in x_val]
-                y_val = y_val[0].to(torch.float32).to(device)
+                # y_val = y_val[0].to(torch.float32).to(device)
+                y_val = [arr.to(torch.float32).to(device) for arr in y_val]
 
-                val_outputs = base_cnn_model(*x_val).squeeze()
+                # val_outputs = base_cnn_model(*x_val).squeeze()
+                val_outputs = base_cnn_model(*x_val)
+
                 val_loss = loss_criterion(val_outputs, y_val)
 
-                actual_batch_size = len(y_val)
+                actual_batch_size = y_val[0].shape[0]
 
                 val_running_loss += val_loss.item() * actual_batch_size
                 val_batches += actual_batch_size
@@ -197,41 +204,43 @@ def loop_for_cnn_training(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def cnn_evaluation_per_shot(
-        cnn_model,
-        test_dataloader,
-    ):
-        cnn_model.eval()
+# def cnn_evaluation_per_shot(
+#         cnn_model,
+#         test_dataloader,
+#     ):
+#         cnn_model.eval()
 
-        test_loss_per_var = torch.tensor(
-            [0 for i in range(test_dataloader.dataset[0][0][1][0].shape[0])]
-        ).to(device)
+#         test_loss_per_var = torch.tensor(
+#             [0 for i in range(test_dataloader.dataset[0][0][1][0].shape[0])]
+#         ).to(device)
     
-        test_batches = 0
+#         test_batches = 0
 
-        with torch.no_grad():  # Disable gradient calculation for efficiency
-            for x_test, y_test in test_dataloader:
-                x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-                y_test = y_test[0].to(torch.float32).to(device)
+#         with torch.no_grad():  # Disable gradient calculation for efficiency
+#             for x_test, y_test in test_dataloader:
+#                 x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+#                 # y_test = y_test[0].to(torch.float32).to(device)
+#                 y_test = [arr.to(torch.float32).to(device) for arr in y_test]
 
-                outputs = cnn_model(*x_test).squeeze()
+#                 # outputs = cnn_model(*x_test).squeeze()
+#                 outputs = cnn_model(*x_test)
 
-                loss_per_var = torch.nn.MSELoss(reduction='none')(outputs, y_test).mean(dim=0)
-                test_loss_per_var = test_loss_per_var + loss_per_var
+#                 loss_per_var = torch.nn.MSELoss(reduction='none')(outputs, y_test).mean(dim=0)
+#                 test_loss_per_var = test_loss_per_var + loss_per_var
 
-                test_batches += len(y_test)
+#                 test_batches += len(y_test)
 
-        avg_test_loss = test_loss_per_var / test_batches
-        print(f"Test Loss: {avg_test_loss}")
+#         avg_test_loss = test_loss_per_var / test_batches
+#         print(f"Test Loss: {avg_test_loss}")
 
-        return(avg_test_loss)
+#         return(avg_test_loss)
 
 
 # ======================================================================================================================
 if __name__ == "__main__":
 
     print(f"\nNumber of available cores: {cpu_count()}\n")
-    # mp.set_start_method("spawn", force=True)
+    mp.set_start_method("spawn", force=True)
 
     # ------------------------------------------------------------------------------------------------------------------
     # GENERAL SETTINGS
@@ -278,7 +287,30 @@ if __name__ == "__main__":
 
     # Training parameters
     training_args = parameters["training"]
-    training_args['loss_criterion'] = torch.nn.MSELoss()
+    # training_args['loss_criterion'] = torch.nn.MSELoss()
+
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+
+    class MultiOutputMSELoss(nn.Module):
+        def __init__(self, reduction="mean", weights=None):
+            super().__init__()
+            self.reduction = reduction
+            self.weights = weights  # e.g. [1.0, 0.5, 0.1, 2.0]
+
+        def forward(self, y_preds, y_trues):
+            assert len(y_preds) == len(y_trues), "Mismatch in number of outputs"
+            losses = []
+            for i, (yp, yt) in enumerate(zip(y_preds, y_trues)):
+                assert yp.shape == yt.shape, f"Shape mismatch at output {i}: {yp.shape} vs {yt.shape}"
+                l = F.mse_loss(yp, yt, reduction=self.reduction)
+                if self.weights is not None:
+                    l = self.weights[i] * l
+                losses.append(l)
+            return sum(losses)
+    
+    training_args['loss_criterion'] = MultiOutputMSELoss()
 
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -301,12 +333,29 @@ if __name__ == "__main__":
 
     # Get the user-defined composite signal transform map
     signal_transform_map = {var: ComposeTransforms([
-        FillProfileWithZerosTransform(),
         StdScalingTransform(dict_mean[var], dict_std[var]),
         SamplingToReferenceTimeTransform(ref_freq),
     ])
         for var in [f'{source}-{signal}' for source, signal in source_signal_list]
     }
+    
+    for var in ['magnetics-flux_loop_flux', 'magnetics-b_field_pol_probe_ccbv_field',
+                'magnetics-b_field_pol_probe_obr_field', 'magnetics-b_field_pol_probe_obv_field']:
+        
+        signal_transform_map[var] = ComposeTransforms([
+            FillProfileWithZerosTransform(),
+            StdScalingTransform(dict_mean[var], dict_std[var]), # nan on one channel in std
+            # FillProfileWithZerosTransform(),
+            SamplingToReferenceTimeTransform(ref_freq),
+        ])
+    
+    for var in ['equilibrium-lcfs_r', 'equilibrium-lcfs_z']:
+        
+        signal_transform_map[var] = ComposeTransforms([
+            ReshapeLcfsTransform(),
+            StdScalingTransform(dict_mean[var], dict_std[var]),
+            SamplingToReferenceTimeTransform(ref_freq),
+        ])
 
     # ..................................................................................................................
     # For CNN pipeline
@@ -314,7 +363,7 @@ if __name__ == "__main__":
     shot_transform = ComposeTransforms([  # shape-consistent transform
         TruncationTransform(),
         WindowSegmenterTransform(**parameters_window_segementer),  # shape-modifying transform
-        DropSampleWithNans(),
+        DropSampleWithNans(verbose = False),
         CNNTransform()  # shape-modifying transform
         ])
 
@@ -375,46 +424,46 @@ if __name__ == "__main__":
 
     # Evaluation per shot
 
-    if RUN_EVALUATION:
+    # if RUN_EVALUATION:
 
-        with open(OUTPUT_FOLDER + 'test_loss_per_var.csv', 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['shot_id', f"MSE for {parameters_window_segementer['y_keys']}"])  # Header
+    #     with open(OUTPUT_FOLDER + 'test_loss_per_var.csv', 'w', newline='') as f:
+    #         writer = csv.writer(f)
+    #         writer.writerow(['shot_id', f"MSE for {parameters_window_segementer['y_keys']}"])  # Header
 
-            for shot_id in test_shots_:
-                print(f'Evaluating shot {shot_id}')
+    #         for shot_id in test_shots_:
+    #             print(f'Evaluating shot {shot_id}')
             
-                test_shot_dataset = MastDataset(
-                    local=LOCAL_FLAG,
-                    shots_list=[shot_id],
-                    source_signal_list=source_signal_list,
-                    signal_level_transform_map=signal_transform_map,
-                    shot_level_transform=shot_transform
-                )
+    #             test_shot_dataset = MastDataset(
+    #                 local=LOCAL_FLAG,
+    #                 shots_list=[shot_id],
+    #                 source_signal_list=source_signal_list,
+    #                 signal_level_transform_map=signal_transform_map,
+    #                 shot_level_transform=shot_transform
+    #             )
 
-                test_shot_dataloader = DataLoader(
-                    dataset=test_shot_dataset,
-                    batch_size=1,
-                    num_workers=0,
-                    shuffle=True,
-                    drop_last=False,
-                    collate_fn=flatten_then_collate
-                )
+    #             test_shot_dataloader = DataLoader(
+    #                 dataset=test_shot_dataset,
+    #                 batch_size=1,
+    #                 num_workers=0,
+    #                 shuffle=True,
+    #                 drop_last=False,
+    #                 collate_fn=flatten_then_collate
+    #             )
             
-                if len(test_shot_dataloader.dataset[0]) > 0:  # I.e. if this is a valid shot with windows
+    #             if len(test_shot_dataloader.dataset[0]) > 0:  # I.e. if this is a valid shot with windows
 
-                    avg_test_loss = cnn_evaluation_per_shot(
-                                        cnn_model,
-                                        test_shot_dataloader,
-                                    )
-                    print(f"Test Loss: {avg_test_loss}")
+    #                 avg_test_loss = cnn_evaluation_per_shot(
+    #                                     cnn_model,
+    #                                     test_shot_dataloader,
+    #                                 )
+    #                 print(f"Test Loss: {avg_test_loss}")
 
-                    writer.writerow([shot_id, avg_test_loss.cpu().tolist()])
-                    f.flush()
+    #                 writer.writerow([shot_id, avg_test_loss.cpu().tolist()])
+    #                 f.flush()
                 
-                else:
-                    print(f"Shot {shot_id} not run properly, likely empty slice")
-                    continue
+    #             else:
+    #                 print(f"Shot {shot_id} not run properly, likely empty slice")
+    #                 continue
 
 
     # ------------------------------------------------------------------------------------------------------------------

@@ -4,7 +4,7 @@ run_evaluation: true
 
 input:
   data_names: &x_keys
-    - [magnetics, flux_loop_flux] 
+    # - [magnetics, flux_loop_flux] 
     - [magnetics, b_field_pol_probe_ccbv_field]
     - [magnetics, b_field_pol_probe_obr_field]
     - [magnetics, b_field_pol_probe_obv_field]
@@ -15,6 +15,8 @@ input:
     - [summary, power_nbi]
 
   target_names: &y_keys
+    # - [equilibrium, psi]
+    - [magnetics, flux_loop_flux] 
     - [equilibrium, elongation]
     - [equilibrium, elongation_axis]
     - [equilibrium, triangularity_upper]
@@ -22,21 +24,12 @@ input:
     - [equilibrium, minor_radius]
     - [equilibrium, magnetic_axis_r]
     - [equilibrium, magnetic_axis_z]
-    - [equilibrium, q95]
-    - [equilibrium, beta_tor]
-    - [equilibrium, beta_pol]
-    - [equilibrium, beta_normal]
-    - [equilibrium, bvac_rmag]
-    - [equilibrium, bphi_rmag]
-    - [summary, ip]
-    - [equilibrium, lcfs_r]
-    - [equilibrium, lcfs_z]
 
 ref_freq: 0.005
 
 standardscaling_setting:
-  mean_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/scripts/pipelines/preprocessing/dict_mean_shot.pkl"
-  std_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/scripts/pipelines/preprocessing/dict_std_shot.pkl"
+  mean_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/output_saved_by_cecile/cnn_output/dict_mean_shot.pkl"
+  std_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/output_saved_by_cecile/cnn_output/dict_std_shot.pkl"
 
 window_segmenter_setting:
   x_keys: *x_keys
