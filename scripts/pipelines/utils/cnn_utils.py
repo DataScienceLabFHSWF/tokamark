@@ -23,34 +23,6 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 # print(f"REPO_ROOT: {REPO_ROOT}")
 
-from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.pipelines.utils.utils import read_data_split_csv, flatten_then_collate
-from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
-from scripts.pipelines.utils.utils import ComposeTransforms
-
-from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
-    StdScalingTransform
-)
-from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
-    SamplingToReferenceTimeTransform
-)
-from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
-    TruncationTransform
-)
-from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
-    WindowSegmenterTransform
-)
-from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
-    FillProfileWithZerosTransform
-)
-from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans import (
-    DropSampleWithNans
-)
-from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import CNNTransform
-
-from scripts.pipelines.models.cnn_model import MultiBranchCNNModel
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
@@ -62,7 +34,11 @@ elif torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-# ----------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------
+# COLLATE FUNCTION
+# ------------------------------------------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------------------------
 def flatten_then_collate(batch):
 
     print(f"Collating batch of size {len(batch)}")
@@ -77,14 +53,12 @@ def flatten_then_collate(batch):
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
 
-
-
 # ------------------------------------------------------------------------------------------------------------------
 # VISUALISATION
 # ------------------------------------------------------------------------------------------------------------------
 
 
-# ----------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------
 def plot_shot(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_images"):
     """
     Plot model predictions vs ground truth for 1D time series and 2D profiles,
@@ -197,7 +171,7 @@ def plot_shot(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_images
     print(f"Saved: {out_path}")
 
 
-# ----------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------
 def plot_shot_gif(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_gifs", fps=10, cleanup=True):
     """
     Create an animated GIF showing predictions vs ground truth over time for a given shot.

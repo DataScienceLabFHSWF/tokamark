@@ -1,14 +1,11 @@
 import os
 import sys
-import csv
-
 import yaml
 import argparse
 
 import pickle
 import torch
 import torch.multiprocessing as mp
-from torch.utils.data import DataLoader
 from multiprocessing import cpu_count
 
 
@@ -25,10 +22,13 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 # print(f"REPO_ROOT: {REPO_ROOT}")
 
-from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.pipelines.utils.utils import flatten_then_collate
-from scripts.pipelines.utils.utils import ComposeTransforms
-from scripts.pipelines.utils.cnn_utils import get_train_test_val_shots, initialize_datasets, initialize_dataloaders
+from scripts.pipelines.utils.utils import (
+    get_train_test_val_shots, 
+    initialize_datasets, 
+    initialize_dataloaders,
+    ComposeTransforms
+)
+from scripts.pipelines.utils.cnn_utils import flatten_then_collate
 
 from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
     StdScalingTransform
@@ -52,7 +52,6 @@ from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans im
     DropSampleWithNans
 )
 from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import CNNTransform
-
 from scripts.pipelines.models.cnn_model import MultiBranchCNNModel
 
 
