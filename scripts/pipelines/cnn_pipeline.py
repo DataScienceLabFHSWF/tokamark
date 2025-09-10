@@ -337,7 +337,8 @@ if __name__ == "__main__":
     }
     
     for var in ['magnetics-flux_loop_flux', 'magnetics-b_field_pol_probe_ccbv_field',
-                'magnetics-b_field_pol_probe_obr_field', 'magnetics-b_field_pol_probe_obv_field']:
+                'magnetics-b_field_pol_probe_obr_field', 'magnetics-b_field_pol_probe_obv_field', 
+                'magnetics-b_field_tor_probe_saddle_voltage']:
         
         signal_transform_map[var] = ComposeTransforms([
             FillProfileWithZerosTransform(),
