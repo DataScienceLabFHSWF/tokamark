@@ -1,5 +1,5 @@
-subset_of_shots: 10
-local: true
+subset_of_shots: 4
+local: false
 run_evaluation: true
 
 input:
@@ -10,21 +10,37 @@ input:
     - [magnetics, b_field_pol_probe_obv_field]
     - [magnetics, b_field_tor_probe_saddle_voltage]
     - [pf_active, solenoid_current]
-    - [pf_active, coil_voltage]
-    - [pf_active, coil_current]
+#    - [pf_active, coil_voltage]  # Standard scaling for remote version not implemented
+#    - [pf_active, coil_current]  # Standard scaling for remote version not implemented
     - [pulse_schedule, i_plasma]
     - [summary, power_nbi]
 
   target_names: &y_keys
-    - [equilibrium, psi]
+#    - [ equilibrium, elongation ]
+#    - [ equilibrium, elongation_axis ]
+#    - [ equilibrium, triangularity_upper ]
+#    - [ equilibrium, triangularity_lower ]
+#    - [ equilibrium, minor_radius ]
+#    - [ equilibrium, magnetic_axis_r ]
+#    - [ equilibrium, magnetic_axis_z ]
+#    - [ equilibrium, q95 ]
+#    - [ equilibrium, beta_tor ]
+#    - [ equilibrium, beta_pol ]
+#    - [ equilibrium, beta_normal ]
+#    - [ equilibrium, bvac_rmag ]
+#    - [ equilibrium, bphi_rmag ]
+#    - [ summary, ip ]
+#    - [ equilibrium, lcfs_r ]
+#    - [ equilibrium, lcfs_z ]
+    - [ equilibrium, psi ]  # this is the video for task two
 
 ref_freq: 0.005
 
 standardscaling_setting:
-  mean_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/flattened_dict_mean_shot.pkl"
-  std_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/flattened_dict_std_shot.pkl"
-  # mean_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/dict_mean_shot.pkl"
-  # std_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/dict_std_shot.pkl"
+  mean_path: "/metadata/2025-09-09_stdscaling/flattened_dict_mean_shot.pkl"
+  std_path: "/metadata/2025-09-09_stdscaling/flattened_dict_std_shot.pkl"
+  # mean_path: "/metadata/2025-09-09_stdscaling/dict_mean_shot.pkl"
+  # std_path: "/metadata/2025-09-09_stdscaling/dict_std_shot.pkl"
 
 window_segmenter_setting:
   x_keys: *x_keys
@@ -46,7 +62,7 @@ dataloader_setting:
 
 training:
   lr: 0.0001
-  max_epochs: 500
+  max_epochs: 2
   patience: 2
 
 paths:

@@ -85,7 +85,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/scripts/pipelines/configs/config_cnn_test.yaml",
+        default= REPO_ROOT + "/scripts/pipelines/configs/config_cnn_test.yaml",
         help="Path to the config YAML file"
     )
     args, unknown = parser.parse_known_args()

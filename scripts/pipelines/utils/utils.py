@@ -1,17 +1,16 @@
+
 import os
-import sys
-import csv
-
 import pickle
-import torch
-import torch.multiprocessing as mp
-from torch.utils.data import DataLoader
-
 import joblib
 import pandas as pd
-from torch.utils.data._utils.collate import default_collate 
-# from typing import List, Tuple, Dict
 import torch
+import random
+import numpy as np
+from torch.utils.data import DataLoader
+
+from scripts.MAST_tools.MAST_dataset import MastDataset
+from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
+from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 
 # Compute project root relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(
@@ -19,11 +18,71 @@ REPO_ROOT = os.path.abspath(os.path.join(
     "..", "..", ".."
 ))  # noqa: E402
 
-# print(REPO_ROOT)
 
-from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
-from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
+# ----------------------------------------------------------------------------------------------------------------------
+def set_seed(seed: int, deterministic: bool = True, warn_only: bool = True):
+    """
+    Global reproducibility across Python, NumPy, and PyTorch (CPU/CUDA/MPS).
+    Call once at startup, before building datasets/loaders/models.
+    """
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    # Needed for strict cuBLAS determinism (matmul). Safe if CUDA isn't present.
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    # cuDNN + global deterministic guard
+    try:
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = bool(deterministic)
+    except Exception as ee:
+        print(f"WARNING - torch exception triggered: {ee}")
+        pass
+
+    torch.use_deterministic_algorithms(bool(deterministic), warn_only=bool(warn_only))
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def seed_worker(worker_id: int):
+    """
+    Top-level (picklable) worker init. Derives a per-worker seed from
+    PyTorch's worker seed so it's consistent with DataLoader's Generator.
+    """
+    worker_seed = (torch.initial_seed() + worker_id) % 2 ** 32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def make_data_generator(seed: int) -> torch.Generator:
+    """
+    Top-level helper to create a reproducible DataLoader generator.
+    """
+    g = torch.Generator()
+    g.manual_seed(seed)
+    return g
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def dataloader_seed_parts(seed: int):
+    # reuse the top-level function so it's picklable under 'spawn'
+    return seed_worker, make_data_generator(seed)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def get_train_test_val_shots(max_index=None):
+    train_sh, test_sh, val_sh = read_data_split_csv()
+
+    if max_index:
+        train_sh = train_sh[0:max_index]
+        val_sh = val_sh[0:max_index]
+        test_sh = test_sh[0:max_index]
+
+    return train_sh, test_sh, val_sh
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -45,18 +104,6 @@ def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
     shot_ids_for_val = df[df['val'] == True]['shot_id'].tolist()  # noqa
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def get_train_test_val_shots(max_index=None):
-    train_sh, test_sh, val_sh = read_data_split_csv()
-
-    if max_index:
-        train_sh = train_sh[0:max_index]
-        val_sh = val_sh[0:max_index]
-        test_sh = test_sh[0:max_index]
-
-    return train_sh, test_sh, val_sh
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -108,7 +155,6 @@ def initialize_datasets(
         verbose=False
 
 ):
-
     datasets_ = {"train": None, "val": None, "test": None}
 
     # ..................................................................................................................
@@ -167,111 +213,72 @@ def initialize_dataloaders(
         num_workers,
         shuffle=True,
         drop_last=False,
-        verbose=False
+        verbose=False,
+        seed: int | None = None,
+        pin_memory: bool | None = None,
 ):
-
     dataloaders_ = {"train": None, "val": None, "test": None}
 
     if verbose:
         print('\n\n----------DATASET & DATALOADER INITIALIZATION----------\n')
 
+    # ▶ Prepare reproducible seeding parts for DataLoader
+    worker_fn = None
+    generator = None
+    if seed is not None:
+        worker_fn = seed_worker
+        generator = make_data_generator(seed)
+
+    # sensible default for pin_memory
+    if pin_memory is None:
+        pin_memory = torch.cuda.is_available()
+
     # ..................................................................................................................
     # Train
-
     if datasets["train"]:
         dataloaders_["train"] = DataLoader(
             dataset=datasets["train"],
             batch_size=batch_size,
-            # batch_size=len(datasets['train']),
             num_workers=num_workers,
             shuffle=shuffle,
             drop_last=drop_last,
-            collate_fn=collate_function
+            collate_fn=collate_function,
+            worker_init_fn=worker_fn,  # ▶
+            generator=generator,  # ▶ controls shuffle order deterministically
+            pin_memory=pin_memory,
         )
 
     # ..................................................................................................................
     # Val
-
     if datasets["val"]:
         dataloaders_["val"] = DataLoader(
             dataset=datasets["val"],
             batch_size=batch_size,
-            # batch_size=len(datasets["val"]),
             num_workers=num_workers,
             shuffle=shuffle,
             drop_last=drop_last,
-            collate_fn=collate_function
+            collate_fn=collate_function,
+            worker_init_fn=worker_fn,  # ▶ ensures worker RNG is fixed
+            generator=generator,  # ▶ reproducible order if shuffle=True
+            pin_memory=pin_memory,
         )
 
     # ..................................................................................................................
     # Test
-
     if datasets["test"]:
         dataloaders_["test"] = DataLoader(
             dataset=datasets["test"],
             batch_size=batch_size,
-            # batch_size=len(datasets["test"]),
             num_workers=num_workers,
             shuffle=shuffle,
             drop_last=drop_last,
-            collate_fn=collate_function
+            collate_fn=collate_function,
+            worker_init_fn=worker_fn,
+            generator=generator,
+            pin_memory=pin_memory,
         )
 
-    # ..................................................................................................................
-    # Return
-
     return dataloaders_
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def collate_fttransform(batch, dtype: torch.dtype = torch.float32): # TO MOVE TOBIA
-    """
-    Custom collate for FTTransformer-prepared data.
-
-    Parameters
-    ----------
-    batch : list
-        Each element is a tuple:
-          (Xs, active_targets, y_native)
-          - Xs: list of np.ndarray (n_inputs)
-          - active_targets: list of str
-          - y_native: dict {target_name: np.ndarray (d1,d2,d3)}
-    dtype : torch.dtype
-        Target tensor dtype.
-
-    Returns
-    -------
-    X_batch       : list of list[np.ndarray]  # (B, n_inputs)
-    active_targets: list[str]  # shared for the whole batch
-    y_native      : dict[target_name, torch.Tensor]  # (B, d1, d2, d3)
-    """
-
-    if not batch:
-        return [], [], {}
-
-    # Flatten if this is [ [sample, sample, ...], [sample, ...], ... ]
-    if isinstance(batch[0], list):
-        flat = []
-        for sub in batch:
-            flat.extend(sub)
-        batch = flat
-
-    # Check targets consistency
-    active_targets = batch[0][1]
-    for _, names, _ in batch:
-        if names != active_targets:
-            raise ValueError("Mixed active_targets in batch — bucket by task before batching.")
-
-    # Collect inputs and outputs
-    X_batch = [sample[0] for sample in batch]
-    stacked = {t: [] for t in active_targets}
-
-    for _, _, y_nat in batch:
-        for t in active_targets:
-            stacked[t].append(torch.as_tensor(y_nat[t], dtype=dtype))
-
-    y_native = {t: torch.stack(vals, dim=0) for t, vals in stacked.items()}
-    return X_batch, active_targets, y_native
 
 
 # ======================================================================================================================

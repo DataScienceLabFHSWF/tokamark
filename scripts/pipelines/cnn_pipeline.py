@@ -268,7 +268,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/scripts/pipelines/configs/config_cnn_test.yaml",
+        default= REPO_ROOT + "/scripts/pipelines/configs/config_cnn_test.yaml",
         help="Path to the config YAML file"
     )
     args, unknown = parser.parse_known_args()
@@ -323,9 +323,9 @@ if __name__ == "__main__":
     )
 
     # Fit mean and std for signal transformation
-    with open(parameters["standardscaling_setting"]["mean_path"], "rb") as f:
+    with open(REPO_ROOT + parameters["standardscaling_setting"]["mean_path"], "rb") as f:
         dict_mean = pickle.load(f)
-    with open(parameters["standardscaling_setting"]["std_path"], "rb") as f:
+    with open(REPO_ROOT + parameters["standardscaling_setting"]["std_path"], "rb") as f:
         dict_std = pickle.load(f)
 
     # Get the user-defined composite signal transform map

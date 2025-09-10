@@ -36,10 +36,10 @@ input:
 ref_freq: 0.005
 
 standardscaling_setting:
-  # mean_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/flattened_dict_mean_shot.pkl"
-  # std_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/flattened_dict_std_shot.pkl"
-  mean_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/dict_mean_shot.pkl"
-  std_path: "/home/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing/metadata/2025-09-09_stdscaling/dict_std_shot.pkl"
+  mean_path: "/metadata/2025-09-09_stdscaling/flattened_dict_mean_shot.pkl"
+  std_path: "/metadata/2025-09-09_stdscaling/flattened_dict_std_shot.pkl"
+  # mean_path: "/metadata/2025-09-09_stdscaling/dict_mean_shot.pkl"
+  # std_path: "/metadata/2025-09-09_stdscaling/dict_std_shot.pkl"
 
 window_segmenter_setting:
   x_keys: *x_keys
