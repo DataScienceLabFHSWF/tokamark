@@ -30,6 +30,7 @@ from scripts.pipelines.utils.utils import (
     ComposeTransforms
 )
 from scripts.pipelines.utils.cnn_utils import (
+    flatten_blocks,
     flatten_then_collate,
     plot_shot,
     plot_shot_gif
@@ -254,12 +255,15 @@ if __name__ == "__main__":
             pred = [arr.cpu().numpy() for arr in outputs]
             # true = y_test[0].cpu().squeeze(0).numpy()
             true = [arr.cpu().numpy() for arr in y_test]
-            y_preds.append(pred) 
-            y_trues.append(true)
+
+            # Flatten each block into individual series
+            flat_pred = flatten_blocks(pred)
+            flat_true = flatten_blocks(true)
 
             # Save the image
-            plot_shot(pred, true, i, ref_freq, out_dir = OUTPUT_FOLDER )
+            # plot_shot(flat_pred, flat_true, i, ref_freq, out_dir = OUTPUT_FOLDER )
             
             # Save the gif
-            plot_shot_gif(pred, true, i, ref_freq, out_dir=OUTPUT_FOLDER)
+            plot_shot_gif(flat_pred, flat_true, i, ref_freq, out_dir=OUTPUT_FOLDER)
+    
     

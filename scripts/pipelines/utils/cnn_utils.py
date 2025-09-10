@@ -58,9 +58,28 @@ def flatten_then_collate(batch):
 # VISUALISATION
 # ------------------------------------------------------------------------------------------------------------------
 
+import numpy as np
+
+def flatten_blocks(list_y):
+    """
+    Flattens each block of predictions into individual series.
+
+    """
+    new_list_y = []
+    for block in list_y:
+        block = np.asarray(block)
+        if block.ndim == 1:
+            new_list_y.append(block)
+        else:
+            new_list_y += [
+                np.squeeze(s, axis=1)
+                for s in np.split(block, block.shape[1], axis=1)
+            ]
+    return new_list_y
+
 
 # ------------------------------------------------------------------------------------------------------------------
-def plot_shot(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_images"):
+def plot_shot(new_y_pred, new_y_true, shot_idx, ref_freq, out_dir="shot_images"):
     """
     Plot model predictions vs ground truth for 1D time series and 2D profiles,
     all outputs on a single image with subplots. Ground Truth on left, Prediction on right.
@@ -77,25 +96,6 @@ def plot_shot(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_images
     """
     out_folder = Path(out_dir) / "shot_images"
     out_folder.mkdir(parents=True, exist_ok=True)
-
-    # Flatten each block into individual series
-    new_y_pred = []
-    for block in list_y_pred:
-        block = np.asarray(block)
-        if block.ndim == 1:
-            new_y_pred.append(block)
-        else:
-            new_y_pred += [np.squeeze(s, axis=1)
-                           for s in np.split(block, block.shape[1], axis=1)]
-
-    new_y_true = []
-    for block in list_y_true:
-        block = np.asarray(block)
-        if block.ndim == 1:
-            new_y_true.append(block)
-        else:
-            new_y_true += [np.squeeze(s, axis=1)
-                           for s in np.split(block, block.shape[1], axis=1)]
 
     n_outputs = len(new_y_pred)
     
@@ -173,7 +173,7 @@ def plot_shot(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_images
 
 
 # ------------------------------------------------------------------------------------------------------------------
-def plot_shot_gif(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_gifs", fps=10, cleanup=True):
+def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs", fps=10, cleanup=True):
     """
     Create an animated GIF showing predictions vs ground truth over time for a given shot.
 
@@ -195,21 +195,6 @@ def plot_shot_gif(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_gi
     out_folder = Path(out_dir) / f"shot_gifs"
     frame_dir = out_folder / "frames"
     frame_dir.mkdir(parents=True, exist_ok=True)
-
-    # Flatten outputs into individual series (same logic as in plot_shot)
-    def flatten_outputs(list_arr):
-        new_list = []
-        for block in list_arr:
-            block = np.asarray(block)
-            if block.ndim == 1:
-                new_list.append(block)
-            else:
-                new_list += [np.squeeze(s, axis=1)
-                             for s in np.split(block, block.shape[1], axis=1)]
-        return new_list
-
-    flat_preds = flatten_outputs(list_y_pred)
-    flat_trues = flatten_outputs(list_y_true)
 
     n_outputs = len(flat_preds)
     T = min(y.shape[0] for y in flat_preds)  # number of time steps (shortest sequence)
@@ -283,6 +268,25 @@ def plot_shot_gif(list_y_pred, list_y_true, shot_idx, ref_freq, out_dir="shot_gi
                 ax_pred.set_title(f"Output {j} - Prediction")
                 ax_pred.set_xlabel("Time (ms)")
                 ax_pred.set_ylabel("Profile index")
+            
+            elif yp.ndim == 3:
+                # 3D image
+                
+                img = yt[-1]
+                print(img)
+                ax_gt.imshow(
+                    img, aspect="auto",
+                    cmap="viridis",
+                )
+                ax_gt.set_title(f"Output {j} - Ground Truth")
+
+                img = yp[-1]
+                print(img)
+                ax_pred.imshow(
+                    img, aspect="auto",
+                    cmap="viridis",
+                )
+                ax_pred.set_title(f"Output {j} - Prediction")
 
             else:
                 raise ValueError(f"Unsupported shape {yp.shape} (expected (T,) or (T,D))")
