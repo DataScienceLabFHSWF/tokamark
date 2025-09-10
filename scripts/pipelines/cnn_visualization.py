@@ -135,9 +135,9 @@ if __name__ == "__main__":
     )
 
     # Fit mean and std for signal transformation
-    with open(parameters["standardscaling_setting"]["mean_path"], "rb") as f:
+    with open(REPO_ROOT + parameters["standardscaling_setting"]["mean_path"], "rb") as f:
         dict_mean = pickle.load(f)
-    with open(parameters["standardscaling_setting"]["std_path"], "rb") as f:
+    with open(REPO_ROOT + parameters["standardscaling_setting"]["std_path"], "rb") as f:
         dict_std = pickle.load(f)
 
     # Get the user-defined composite signal transform map
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     os.makedirs("shot_images", exist_ok=True)
 
     cnn_shot_dataset = MastDataset(
-                            local=True,
+                            local=LOCAL_FLAG,
                             shots_list=test_shots_[0:10],
                             source_signal_list=source_signal_list,
                             signal_level_transform_map=signal_transform_map,

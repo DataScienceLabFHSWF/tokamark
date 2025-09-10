@@ -273,7 +273,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
                 # 3D image
                 
                 img = yt[-1]
-                print(img)
+                # print(img)
                 ax_gt.imshow(
                     img, aspect="auto",
                     cmap="viridis",
@@ -281,7 +281,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
                 ax_gt.set_title(f"Output {j} - Ground Truth")
 
                 img = yp[-1]
-                print(img)
+                # print(img)
                 ax_pred.imshow(
                     img, aspect="auto",
                     cmap="viridis",

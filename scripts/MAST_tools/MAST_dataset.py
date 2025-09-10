@@ -1,6 +1,9 @@
 import numpy as np
 from torch.utils.data import Dataset
 from .signal_utils import MASTSignalManager
+import warnings
+warnings.simplefilter("once")
+
 
 # ======================================================================================================================
 class MastDataset(Dataset):
@@ -107,7 +110,7 @@ class MastDataset(Dataset):
                 list_chunks = self.shot_level_transform(shot)
                 return list_chunks
             else:
-                print('Nan still present in shot')
+                warnings.warn("SHOT SKIPPED BECAUSE ONE OR MORE VARIABLES ARE MISSING", UserWarning)
                 return []
         else:
             return shot
