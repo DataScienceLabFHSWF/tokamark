@@ -1,5 +1,5 @@
 subset_of_shots: 4
-local: false
+local: true
 run_evaluation: true
 
 input:
