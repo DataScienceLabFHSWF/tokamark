@@ -6,6 +6,7 @@ import argparse
 import pickle
 import torch
 import torch.multiprocessing as mp
+import numpy as np
 from multiprocessing import cpu_count
 from torch.utils.data import DataLoader
 
@@ -20,7 +21,7 @@ REPO_ROOT = os.path.abspath(os.path.join(
 
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
-# print(f"REPO_ROOT: {REPO_ROOT}")
+print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipelines.utils.utils import (
@@ -91,8 +92,9 @@ if __name__ == "__main__":
     )
     args, unknown = parser.parse_known_args()
 
+    print(args.config)
     # Load parameters from YAML configuration
-    with open(args.config, "r") as f:
+    with open(REPO_ROOT + args.config, "r") as f:
         parameters = yaml.safe_load(f)
     print(parameters)  # optional, to verify contents
 
@@ -243,6 +245,24 @@ if __name__ == "__main__":
     y_preds = []
     y_trues = []
 
+    # Get order for standardscaling
+    shot_transform_without_CNN = ComposeTransforms([  # shape-consistent transform
+        TruncationTransform(),
+        WindowSegmenterTransform(**parameters_window_segementer),  # shape-modifying transform
+        DropSampleWithNans(),
+        # CNNTransform()
+        ])
+    transform_temp = CNNTransform()
+    data_temp = MastDataset(
+                            local=LOCAL_FLAG,
+                            shots_list=test_shots_[0:10],
+                            source_signal_list=source_signal_list,
+                            signal_level_transform_map=signal_transform_map,
+                            shot_level_transform=shot_transform_without_CNN
+                        )[0]
+    data_temp = transform_temp(data_temp)
+    order_var_for_inv_std = [item for arr in flatten_blocks(transform_temp.var_groups['y']) for item in arr]
+
     with torch.no_grad():
         for i, (x_test, y_test) in enumerate(shot_dataloader):
             
@@ -260,10 +280,33 @@ if __name__ == "__main__":
             flat_pred = flatten_blocks(pred)
             flat_true = flatten_blocks(true)
 
-            # Save the image
-            # plot_shot(flat_pred, flat_true, i, ref_freq, out_dir = OUTPUT_FOLDER )
+            new_flat_pred = []
+            for (var, data) in zip(order_var_for_inv_std, flat_pred):
+                mean = dict_mean[var]
+                std = dict_std[var]
+                # if std = 0 
+                std_is_zero = ( std[..., None] == 0 )
+                std[..., None][std_is_zero] = 1.0
+                new_data = data.T * std[..., None] + mean[..., None]
+                new_flat_pred.append(np.squeeze(new_data.T))
+            
+            print( [arr.shape for arr in flat_pred])
+            print( [arr.shape for arr in new_flat_pred])
+
+            new_flat_true = []
+            for (var, data) in zip(order_var_for_inv_std, flat_true):
+                mean = dict_mean[var]
+                std = dict_std[var]
+                # if std = 0 
+                std_is_zero = ( std[..., None] == 0 )
+                std[..., None][std_is_zero] = 1.0
+                new_data = data.T * std[..., None] + mean[..., None]
+                new_flat_true.append(np.squeeze(new_data.T))
+
+    #         # Save the image
+    #         # plot_shot(new_flat_pred, new_flat_true, i, ref_freq, out_dir = OUTPUT_FOLDER )
             
             # Save the gif
-            plot_shot_gif(flat_pred, flat_true, i, ref_freq, out_dir=OUTPUT_FOLDER)
+            plot_shot_gif(new_flat_pred, new_flat_true, order_var_for_inv_std, i, ref_freq, out_dir=OUTPUT_FOLDER)
     
     

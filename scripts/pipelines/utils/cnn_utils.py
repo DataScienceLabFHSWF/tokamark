@@ -173,7 +173,7 @@ def plot_shot(new_y_pred, new_y_true, shot_idx, ref_freq, out_dir="shot_images")
 
 
 # ------------------------------------------------------------------------------------------------------------------
-def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs", fps=10, cleanup=True):
+def plot_shot_gif(flat_preds, flat_trues, order_var_list, shot_idx, ref_freq, out_dir="shot_gifs", fps=10, cleanup=True):
     """
     Create an animated GIF showing predictions vs ground truth over time for a given shot.
 
@@ -228,7 +228,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
 
         time_ms = np.arange(t) * ref_freq
 
-        for j, (y_pred, y_true) in enumerate(zip(flat_preds, flat_trues)):
+        for j, (var, y_pred, y_true) in enumerate(zip(order_var_list, flat_preds, flat_trues)):
             yp = y_pred[:t]
             yt = y_true[:t]
 
@@ -238,12 +238,12 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
             if yp.ndim == 1:
                 # 1D time series
                 ax_gt.plot(time_ms, yt, lw=2, color="blue")
-                ax_gt.set_title(f"Output {j} - Ground Truth")
+                ax_gt.set_title(f"{var} - Ground Truth")
                 ax_gt.set_xlabel("Time (ms)")
                 ax_gt.set_ylabel("Value")
 
                 ax_pred.plot(time_ms, yp, lw=2, color="orange")
-                ax_pred.set_title(f"Output {j} - Prediction")
+                ax_pred.set_title(f"{var} - Prediction")
                 ax_pred.set_xlabel("Time (ms)")
                 ax_pred.set_ylabel("Value")
 
@@ -256,7 +256,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
                     extent=[time_ms[0], time_ms[-1], 0, D],
                     cmap="viridis", vmin=profile_min, vmax=profile_max
                 )
-                ax_gt.set_title(f"Output {j} - Ground Truth")
+                ax_gt.set_title(f"{var} - Ground Truth")
                 ax_gt.set_xlabel("Time (ms)")
                 ax_gt.set_ylabel("Profile index")
 
@@ -265,7 +265,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
                     extent=[time_ms[0], time_ms[-1], 0, D],
                     cmap="viridis", vmin=profile_min, vmax=profile_max
                 )
-                ax_pred.set_title(f"Output {j} - Prediction")
+                ax_pred.set_title(f"{var} - Ground Truth")
                 ax_pred.set_xlabel("Time (ms)")
                 ax_pred.set_ylabel("Profile index")
             
@@ -278,7 +278,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
                     img, aspect="auto",
                     cmap="viridis",
                 )
-                ax_gt.set_title(f"Output {j} - Ground Truth")
+                ax_gt.set_title(f"{var} - Ground Truth")
 
                 img = yp[-1]
                 # print(img)
@@ -286,7 +286,7 @@ def plot_shot_gif(flat_preds, flat_trues, shot_idx, ref_freq, out_dir="shot_gifs
                     img, aspect="auto",
                     cmap="viridis",
                 )
-                ax_pred.set_title(f"Output {j} - Prediction")
+                ax_pred.set_title(f"{var} - Ground Truth")
 
             else:
                 raise ValueError(f"Unsupported shape {yp.shape} (expected (T,) or (T,D))")

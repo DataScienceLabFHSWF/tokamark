@@ -274,7 +274,7 @@ if __name__ == "__main__":
     args, unknown = parser.parse_known_args()
 
     # Load parameters from YAML configuration
-    with open(args.config, "r") as f:
+    with open(REPO_ROOT + args.config, "r") as f:
         parameters = yaml.safe_load(f)
     print(parameters)  # optional, to verify contents
 
