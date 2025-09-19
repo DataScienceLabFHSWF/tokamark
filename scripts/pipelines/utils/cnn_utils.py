@@ -5,20 +5,26 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-import imageio
+import imageio.v3 as iio
 import matplotlib.gridspec as gridspec
-from torch.utils.data._utils.collate import default_collate 
+from torch.utils.data._utils.collate import default_collate
 
-
+from scripts.MAST_tools.MAST_dataset import MastDataset
+from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import (
+    CNNTransform,
+)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Repo-specific imports
 
 # Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
-REPO_ROOT = os.path.abspath(os.path.join(
-    os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
-    "..", ".."
-))  # noqa: E402
+REPO_ROOT = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__) if "__file__" in globals() else os.getcwd(),
+        "..",
+        "..",
+    )
+)  # noqa: E402
 
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -35,31 +41,33 @@ elif torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-# ------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 # COLLATE FUNCTION
-# ------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------------------------
 def flatten_then_collate(batch):
-
     print(f"Collating batch of size {len(batch)}")
-    
+
     # Flatten the batch of lists into a single list
     flattened_batch = []
     if isinstance(batch[0], list):
         flattened_batch = [item for sublist in batch for item in sublist]
-        print(f'Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}')
+        print(
+            f"Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}"
+        )
 
     # Use the default collate function
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
 
-# ------------------------------------------------------------------------------------------------------------------
-# VISUALISATION
-# ------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
+# INVERSE STDSCALING
+# ----------------------------------------------------------------------------------------------------------------------
 
-import numpy as np
 
+# ----------------------------------------------------------------------------------------------------------------------
 def flatten_blocks(list_y):
     """
     Flattens each block of predictions into individual series.
@@ -72,108 +80,80 @@ def flatten_blocks(list_y):
             new_list_y.append(block)
         else:
             new_list_y += [
-                np.squeeze(s, axis=1)
-                for s in np.split(block, block.shape[1], axis=1)
+                np.squeeze(s, axis=1) for s in np.split(block, block.shape[1], axis=1)
             ]
     return new_list_y
 
 
-# ------------------------------------------------------------------------------------------------------------------
-def plot_shot(new_y_pred, new_y_true, shot_idx, ref_freq, out_dir="shot_images"):
+# ----------------------------------------------------------------------------------------------------------------------
+def get_cnn_order_scaling(
+    LOCAL_FLAG,
+    test_shots_,
+    source_signal_list,
+    signal_transform_map,
+    shot_transform_without_CNN,
+):
+    transform_temp = CNNTransform()
+    data_temp = MastDataset(
+        local=LOCAL_FLAG,
+        shots_list=test_shots_[0:10],
+        source_signal_list=source_signal_list,
+        signal_level_transform_map=signal_transform_map,
+        shot_level_transform=shot_transform_without_CNN,
+    )[0]
+    data_temp = transform_temp(data_temp)
+    order_var_for_inv_std = [
+        item for arr in flatten_blocks(transform_temp.var_groups["y"]) for item in arr
+    ]
+    return order_var_for_inv_std
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def inverse_standardize(flat_data, order_vars, dict_mean, dict_std):
     """
-    Plot model predictions vs ground truth for 1D time series and 2D profiles,
-    all outputs on a single image with subplots. Ground Truth on left, Prediction on right.
-    1D time series rows are half the height of 2D profile rows. No colorbars.
+    Inverse standardize a list of flattened arrays using provided means and stds.
 
-    Parameters
-    ----------
-    list_y_pred, list_y_true : list of arrays
-        Each array shape (T, N) or (T,)
-    shot_idx : int or str
-    ref_freq : float
-        Time step in ms
-    out_dir : str
+    Args:
+        flat_data (list of np.ndarray): Flattened predicted/true arrays.
+        order_vars (list): Variable names, aligned with flat_data.
+        dict_mean (dict): Mapping var -> mean.
+        dict_std (dict): Mapping var -> std.
+
+    Returns:
+        list of np.ndarray: Inverse standardized arrays.
     """
-    out_folder = Path(out_dir) / "shot_images"
-    out_folder.mkdir(parents=True, exist_ok=True)
+    new_flat = []
+    for var, data in zip(order_vars, flat_data):
+        mean = dict_mean[var]
+        std = dict_std[var]
 
-    n_outputs = len(new_y_pred)
-    
-    # Determine global min/max for 2D profiles
-    profile_min, profile_max = None, None
-    for y_pred, y_true in zip(new_y_pred, new_y_true):
-        if y_pred.ndim == 2:
-            vmin = min(y_true.min(), y_pred.min())
-            vmax = max(y_true.max(), y_pred.max())
-            if profile_min is None or vmin < profile_min:
-                profile_min = vmin
-            if profile_max is None or vmax > profile_max:
-                profile_max = vmax
+        # prevent division by zero (replace 0 with 1)
+        std_safe = np.where(std == 0, 1.0, std)
 
-    # Determine row height ratios
-    row_heights = [0.5 if y.ndim == 1 else 1.0 for y in new_y_pred]
-    fig_height = sum(row_heights) * 4
-    fig = plt.figure(figsize=(18, fig_height))
-    # fig.suptitle(f"Shot {shot_idx}: Model Predictions vs Ground Truth", fontsize=16)
+        # inverse transform
+        new_data = data.T * std_safe[..., None] + mean[..., None]
+        new_flat.append(np.squeeze(new_data.T))
 
-    gs = gridspec.GridSpec(n_outputs, 2, width_ratios=[1,1], height_ratios=row_heights, hspace=0.4)
-
-    for j, (y_pred, y_true) in enumerate(zip(new_y_pred, new_y_true)):
-        if y_pred.shape != y_true.shape:
-            raise ValueError(f"Shape mismatch: pred {y_pred.shape}, true {y_true.shape}")
-
-        T = y_pred.shape[0]
-        time_ms = np.arange(T) * ref_freq
-
-        ax_gt = fig.add_subplot(gs[j, 0])
-        ax_pred = fig.add_subplot(gs[j, 1])
-
-        if y_pred.ndim == 1:
-            # 1D time series
-            ax_gt.plot(time_ms, y_true, lw=2, color='blue')
-            ax_gt.set_title(f"Output {j} - Ground Truth")
-            ax_gt.set_xlabel("Time (ms)")
-            ax_gt.set_ylabel("Value")
-
-            ax_pred.plot(time_ms, y_pred, lw=2, color='orange')
-            ax_pred.set_title(f"Output {j} - Prediction")
-            ax_pred.set_xlabel("Time (ms)")
-            ax_pred.set_ylabel("Value")
-
-        elif y_pred.ndim == 2:
-            # 2D profile
-            D = y_pred.shape[1]
-
-            ax_gt.imshow(
-                y_true.T, aspect="auto", origin="lower",
-                extent=[time_ms[0], time_ms[-1], 0, D],
-                cmap="viridis", vmin=profile_min, vmax=profile_max
-            )
-            ax_gt.set_title(f"Output {j} - Ground Truth")
-            ax_gt.set_xlabel("Time (ms)")
-            ax_gt.set_ylabel("Profile index")
-
-            ax_pred.imshow(
-                y_pred.T, aspect="auto", origin="lower",
-                extent=[time_ms[0], time_ms[-1], 0, D],
-                cmap="viridis", vmin=profile_min, vmax=profile_max
-            )
-            ax_pred.set_title(f"Output {j} - Prediction")
-            ax_pred.set_xlabel("Time (ms)")
-            ax_pred.set_ylabel("Profile index")
-
-        else:
-            raise ValueError(f"Unsupported shape {y_pred.shape} (expected (T,) or (T,D))")
-
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    out_path = out_folder / f"shot_{shot_idx}.png"
-    plt.savefig(out_path, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved: {out_path}")
+    return new_flat
 
 
-# ------------------------------------------------------------------------------------------------------------------
-def plot_shot_gif(flat_preds, flat_trues, order_var_list, shot_idx, ref_freq, out_dir="shot_gifs", fps=10, cleanup=True):
+# ----------------------------------------------------------------------------------------------------------------------
+# VISUALISATION
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def plot_shot_gif(
+    flat_preds,
+    flat_trues,
+    order_var_list,
+    avg_test_loss,
+    shot_idx,
+    ref_freq,
+    out_dir="shot_gifs",
+    fps=8,
+    cleanup=True,
+):
     """
     Create an animated GIF showing predictions vs ground truth over time for a given shot.
 
@@ -220,15 +200,22 @@ def plot_shot_gif(flat_preds, flat_trues, order_var_list, shot_idx, ref_freq, ou
     for t in range(1, T + 1):
         fig = plt.figure(figsize=(18, fig_height))
         gs = gridspec.GridSpec(
-            n_outputs, 2,
-            width_ratios=[1, 1],
-            height_ratios=row_heights,
-            hspace=0.4
+            n_outputs, 2, width_ratios=[1, 1], height_ratios=row_heights, hspace=0.4
         )
 
+        viz_max_t = T * ref_freq
         time_ms = np.arange(t) * ref_freq
 
-        for j, (var, y_pred, y_true) in enumerate(zip(order_var_list, flat_preds, flat_trues)):
+        for j, (var, y_pred, y_true, mse) in enumerate(
+            zip(order_var_list, flat_preds, flat_trues, avg_test_loss)
+        ):
+            viz_min_y = min(y_true.min(), y_pred.min()) - abs(
+                min(y_true.min(), y_pred.min()) * 0.05
+            )
+            viz_max_y = max(y_true.max(), y_pred.max()) + abs(
+                max(y_true.max(), y_pred.max()) * 0.05
+            )
+
             yp = y_pred[:t]
             yt = y_true[:t]
 
@@ -239,43 +226,58 @@ def plot_shot_gif(flat_preds, flat_trues, order_var_list, shot_idx, ref_freq, ou
                 # 1D time series
                 ax_gt.plot(time_ms, yt, lw=2, color="blue")
                 ax_gt.set_title(f"{var} - Ground Truth")
-                ax_gt.set_xlabel("Time (ms)")
-                ax_gt.set_ylabel("Value")
+                ax_gt.set_xlim(0, viz_max_t)
+                ax_gt.set_ylim(viz_min_y, viz_max_y)
+                # ax_gt.set_xlabel("Time (ms)")
+                # ax_gt.set_ylabel("Value")
 
                 ax_pred.plot(time_ms, yp, lw=2, color="orange")
-                ax_pred.set_title(f"{var} - Prediction")
-                ax_pred.set_xlabel("Time (ms)")
-                ax_pred.set_ylabel("Value")
+                ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
+                ax_pred.set_xlim(0, viz_max_t)
+                ax_pred.set_ylim(viz_min_y, viz_max_y)
+                # ax_pred.set_xlabel("Time (ms)")
+                # ax_pred.set_ylabel("Value")
 
             elif yp.ndim == 2:
                 # 2D profile
                 D = yp.shape[1]
 
                 ax_gt.imshow(
-                    yt.T, aspect="auto", origin="lower",
+                    yt.T,
+                    aspect="auto",
+                    origin="lower",
                     extent=[time_ms[0], time_ms[-1], 0, D],
-                    cmap="viridis", vmin=profile_min, vmax=profile_max
+                    cmap="viridis",
+                    vmin=profile_min,
+                    vmax=profile_max,
                 )
                 ax_gt.set_title(f"{var} - Ground Truth")
-                ax_gt.set_xlabel("Time (ms)")
-                ax_gt.set_ylabel("Profile index")
+                ax_gt.set_xlim(0, viz_max_t)
+                # ax_gt.set_xlabel("Time (ms)")
+                # ax_gt.set_ylabel("Profile index")
 
                 ax_pred.imshow(
-                    yp.T, aspect="auto", origin="lower",
+                    yp.T,
+                    aspect="auto",
+                    origin="lower",
                     extent=[time_ms[0], time_ms[-1], 0, D],
-                    cmap="viridis", vmin=profile_min, vmax=profile_max
+                    cmap="viridis",
+                    vmin=profile_min,
+                    vmax=profile_max,
                 )
-                ax_pred.set_title(f"{var} - Ground Truth")
-                ax_pred.set_xlabel("Time (ms)")
-                ax_pred.set_ylabel("Profile index")
-            
+                ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
+                ax_pred.set_xlim(0, viz_max_t)
+                # ax_pred.set_xlabel("Time (ms)")
+                # ax_pred.set_ylabel("Profile index")
+
             elif yp.ndim == 3:
                 # 3D image
-                
+
                 img = yt[-1]
                 # print(img)
                 ax_gt.imshow(
-                    img, aspect="auto",
+                    img,
+                    aspect="auto",
                     cmap="viridis",
                 )
                 ax_gt.set_title(f"{var} - Ground Truth")
@@ -283,15 +285,18 @@ def plot_shot_gif(flat_preds, flat_trues, order_var_list, shot_idx, ref_freq, ou
                 img = yp[-1]
                 # print(img)
                 ax_pred.imshow(
-                    img, aspect="auto",
+                    img,
+                    aspect="auto",
                     cmap="viridis",
                 )
-                ax_pred.set_title(f"{var} - Ground Truth")
+                ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
 
             else:
-                raise ValueError(f"Unsupported shape {yp.shape} (expected (T,) or (T,D))")
+                raise ValueError(
+                    f"Unsupported shape {yp.shape} (expected (T,) or (T,D))"
+                )
 
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        # plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         frame_path = frame_dir / f"frame_{t:04d}.png"
         plt.savefig(frame_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
@@ -300,9 +305,23 @@ def plot_shot_gif(flat_preds, flat_trues, order_var_list, shot_idx, ref_freq, ou
 
     # Build GIF
     gif_path = out_folder / f"shot_{shot_idx}.gif"
-    with imageio.get_writer(gif_path, mode="I", fps=fps, loop=0) as writer:
-        for frame in frame_paths:
-            writer.append_data(imageio.imread(frame))
+    # Duration per frame in secondst    frames = [iio.imread(frame) for frame in frame_paths]
+    frames = [iio.imread(frame) for frame in frame_paths] + [
+        iio.imread(frame_paths[-1])
+    ]
+    durations = [1 / fps] * (len(frames) - 2) + [5] + [1 / fps]  # last frame = 5 sec
+    iio.imwrite(
+        gif_path,
+        frames,
+        format="GIF",
+        duration=durations,
+        # loop=0
+    )
+
+    # durations = [1 / fps] * (len(frame_paths) - 1) + [5]  # last frame = 5 sec
+    # with iio.get_writer(gif_path, mode="I", loop=0) as writer:
+    #     for frame, dur in zip(frame_paths, durations):
+    #         writer.append_data(iio.imread(frame), duration=dur)
 
     # Optional cleanup
     if cleanup:
