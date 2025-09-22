@@ -492,14 +492,14 @@ if __name__ == "__main__":
     # ..................................................................................................................
     # Training loop
 
-    # best_model_state, early_stop = loop_for_cnn_training(
-    #     base_cnn_model=cnn_model,
-    #     train_dataloader=train_dataloader,
-    #     val_dataloader=val_dataloader,
-    #     **training_args,
-    #     output_dir=OUTPUT_FOLDER,
-    #     verbose=True,
-    # )
+    best_model_state, early_stop = loop_for_cnn_training(
+        base_cnn_model=cnn_model,
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
+        **training_args,
+        output_dir=OUTPUT_FOLDER,
+        verbose=True,
+    )
 
     # ------------------------------------------------------------------------------------------------------------------
     # CNN Evaluation PER SHOT
