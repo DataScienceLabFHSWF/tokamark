@@ -21,18 +21,18 @@ input:
 ref_freq: 0.005
 
 standardscaling_setting:
-  # mean_path: "/metadata/2025-09-09_stdscaling/flattened_dict_mean_shot.pkl"
-  # std_path: "/metadata/2025-09-09_stdscaling/flattened_dict_std_shot.pkl"
-  mean_path: "/metadata/2025-09-09_stdscaling/dict_mean_shot.pkl"
-  std_path: "/metadata/2025-09-09_stdscaling/dict_std_shot.pkl"
+  # mean_path: "/metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
+  # std_path: "/metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
+  mean_path: "/metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
+  std_path: "/metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
 
 window_segmenter_setting:
   x_keys: *x_keys
   y_keys: *y_keys
   x_window_sec: 0
   y_window_sec: 0
-  dt_sec: 0
-  # dt_sec: 0.025
+  # dt_sec: 0
+  dt_sec: 0.025
   stride_sec: null
   stride_unitary: true
   min_samples_per_window: 1
@@ -44,7 +44,7 @@ cnn_model:
 dataloader_setting:
   batch_size: 16
   # batch_size: 500
-  num_workers: 32
+  num_workers: 16
 
 training:
   lr: 0.0001
@@ -53,4 +53,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: output/cnn_output_task_2_10_septembre_night/
+  data_output_directory: output/cnn_output_task_2_septembre_22/

@@ -9,29 +9,21 @@ input:
     - [magnetics, b_field_pol_probe_obr_field]
     - [magnetics, b_field_pol_probe_obv_field]
     - [magnetics, b_field_tor_probe_saddle_voltage]
+    - [magnetics, b_field_tor_probe_cc_field]
+    - [magnetics, b_field_pol_probe_omv_voltage]
+    # - [magnetics, b_field_tor_probe_omaha_voltage]
     - [pf_active, solenoid_current]
     - [pf_active, coil_voltage]
     - [pf_active, coil_current]
     - [pulse_schedule, i_plasma]
     - [summary, power_nbi]
+    - [pulse_schedule, n_e_line]
+    - ['thomson_scattering', 't_e']
+    - ['thomson_scattering', 'n_e']
 
   target_names: &y_keys
-    - [equilibrium, elongation]
-    - [equilibrium, elongation_axis]
-    - [equilibrium, triangularity_upper]
-    - [equilibrium, triangularity_lower]
-    - [equilibrium, minor_radius]
-    - [equilibrium, magnetic_axis_r]
-    - [equilibrium, magnetic_axis_z]
-    - [equilibrium, q95]
-    - [equilibrium, beta_tor]
-    - [equilibrium, beta_pol]
-    - [equilibrium, beta_normal]
-    - [equilibrium, bvac_rmag]
-    - [equilibrium, bphi_rmag]
-    - [summary, ip]
-    - [equilibrium, lcfs_r]
-    - [equilibrium, lcfs_z]
+    - ['thomson_scattering', 't_e']
+    - ['thomson_scattering', 'n_e']
 
 ref_freq: 0.005
 
@@ -68,4 +60,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: output/cnn_output_task_1_septembre_22/
+  data_output_directory: output/cnn_output_task_3_septembre_22/
