@@ -78,6 +78,14 @@ source_signal_list_ = [
     ('equilibrium', 'bvac_rmag'),
     ('equilibrium', 'bphi_rmag'),
     ('summary', 'ip'),
+    ('spectrometer_visible', 'filter_spectrometer_dalpha_voltage'), 
+    ('soft_x_rays', 'horizontal_cam_lower'), 
+    ('soft_x_rays', 'horizontal_cam_upper'), 
+    ('pulse_schedule', 'n_e_line'), 
+    ('magnetics', 'b_field_tor_probe_cc_field'), 
+    ('magnetics', 'b_field_pol_probe_omv_voltage'), 
+    ('thomson_scattering', 't_e'), 
+    ('thomson_scattering', 'n_e')
 ]
 
 train_sh, test_sh, val_sh = read_data_split_csv()
@@ -86,38 +94,6 @@ train_sh, test_sh, val_sh = read_data_split_csv()
 import numpy as np 
 
 def collate_preprocessing (batch):
-
-    source_signal_list_ = [
-    ('magnetics', 'flux_loop_flux'),
-    ('magnetics', 'b_field_pol_probe_ccbv_field'),
-    ('magnetics', 'b_field_pol_probe_obr_field'),
-    ('magnetics', 'b_field_pol_probe_obv_field'),
-    ('magnetics', 'b_field_tor_probe_saddle_voltage'),
-    ('pf_active', 'coil_voltage'),
-    ('pf_active', 'coil_current'),
-    ('pf_active', 'solenoid_current'),
-    ('pulse_schedule', 'i_plasma'),
-    ('summary', 'power_nbi'),
-    ('equilibrium', 'psi'),
-    ('equilibrium', 'elongation'),
-    ('equilibrium', 'elongation_axis'),
-    ('equilibrium', 'triangularity_upper'),
-    ('equilibrium', 'triangularity_lower'),
-    ('equilibrium', 'lcfs_r'),
-    ('equilibrium', 'lcfs_z'),
-    ('equilibrium', 'x_point_r'),
-    ('equilibrium', 'x_point_z'),
-    ('equilibrium', 'minor_radius'),
-    ('equilibrium', 'magnetic_axis_r'),
-    ('equilibrium', 'magnetic_axis_z'),
-    ('equilibrium', 'q95'),
-    ('equilibrium', 'beta_tor'),
-    ('equilibrium', 'beta_pol'),
-    ('equilibrium', 'beta_normal'),
-    ('equilibrium', 'bvac_rmag'),
-    ('equilibrium', 'bphi_rmag'),
-    ('summary', 'ip'),
-]
     
     formatted_batch = {f"{source}-{signal}": [] for source, signal in source_signal_list_}
     
@@ -211,8 +187,8 @@ if __name__ == "__main__":
         shot_level_transform=None
     )
 
-    BATCH_SIZE = 300
-    NUM_WORKERS = 32
+    BATCH_SIZE = 100
+    NUM_WORKERS = 8
     # BATCH_SIZE = 3
     # NUM_WORKERS = 0
 

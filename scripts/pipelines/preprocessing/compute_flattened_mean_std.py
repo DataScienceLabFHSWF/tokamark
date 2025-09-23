@@ -1,8 +1,8 @@
 import pickle
 import numpy as np 
 
-mean_path = "../../metadata/2025-09-09_stdscaling/dict_mean_shot.pkl"
-std_path = "../../metadata/2025-09-09_stdscaling/dict_std_shot.pkl"
+mean_path = "../../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
+std_path = "../../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
 
 with open(mean_path, "rb") as f:  # 'rb' = read binary
     dict_mean = pickle.load(f)
