@@ -1,28 +1,32 @@
-subset_of_shots: 100
+subset_of_shots: 25
 local: true
 run_evaluation: true
 
 input:
     data_names: &x_keys
-    # - [magnetics, flux_loop_flux] 
+    - [magnetics, flux_loop_flux] 
     # - [magnetics, b_field_pol_probe_ccbv_field]
     # - [magnetics, b_field_pol_probe_obr_field]
     # - [magnetics, b_field_pol_probe_obv_field]
     # - [magnetics, b_field_tor_probe_saddle_voltage]
-    - [magnetics, b_field_tor_probe_cc_field]
-    - [magnetics, b_field_pol_probe_omv_voltage]
-    # # # - [magnetics, b_field_tor_probe_omaha_voltage]
+    # - [magnetics, b_field_tor_probe_cc_field]
+    # - [magnetics, b_field_pol_probe_omv_voltage]
+    # # - [magnetics, b_field_tor_probe_omaha_voltage]
     # - [pf_active, solenoid_current]
     # - [pf_active, coil_voltage]
     # - [pf_active, coil_current]
     # - [pulse_schedule, i_plasma]
     # - [summary, power_nbi]
     # - [pulse_schedule, n_e_line]
+    # - ['thomson_scattering', 't_e']
+    # - ['thomson_scattering', 'n_e']
 
     target_names: &y_keys
-    # - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage']
-    - [soft_x_rays, horizontal_cam_lower]
+    - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage']
+    # - [soft_x_rays, horizontal_cam_lower]
     # - [soft_x_rays, horizontal_cam_upper] # PROBLEM
+    # - ['thomson_scattering', 't_e']
+    # - ['thomson_scattering', 'n_e']
     # - [equilibrium, psi]
     # - [equilibrium, elongation_axis]
     # - [equilibrium, triangularity_upper]
@@ -63,8 +67,8 @@ cnn_model:
   D: 32
 
 dataloader_setting:
-  batch_size: 50
-  num_workers: 16
+  batch_size: 5
+  num_workers: 2
 
 training:
   lr: 0.00001
