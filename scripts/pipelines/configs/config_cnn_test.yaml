@@ -5,9 +5,9 @@ run_evaluation: true
 input:
     data_names: &x_keys
     - [magnetics, flux_loop_flux] 
-    # - [magnetics, b_field_pol_probe_ccbv_field]
-    # - [magnetics, b_field_pol_probe_obr_field]
-    # - [magnetics, b_field_pol_probe_obv_field]
+    - [magnetics, b_field_pol_probe_ccbv_field]
+    - [magnetics, b_field_pol_probe_obr_field]
+    - [magnetics, b_field_pol_probe_obv_field]
     # - [magnetics, b_field_tor_probe_saddle_voltage]
     # - [magnetics, b_field_tor_probe_cc_field]
     # - [magnetics, b_field_pol_probe_omv_voltage]
@@ -22,13 +22,13 @@ input:
     # - ['thomson_scattering', 'n_e']
 
     target_names: &y_keys
-    - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage']
+    # - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage']
     # - [soft_x_rays, horizontal_cam_lower]
     # - [soft_x_rays, horizontal_cam_upper] # PROBLEM
     # - ['thomson_scattering', 't_e']
     # - ['thomson_scattering', 'n_e']
     # - [equilibrium, psi]
-    # - [equilibrium, elongation_axis]
+    - [equilibrium, elongation_axis]
     # - [equilibrium, triangularity_upper]
     # - [equilibrium, triangularity_lower]
     # - [equilibrium, minor_radius]
@@ -41,7 +41,7 @@ input:
     # - [equilibrium, bvac_rmag]
     # - [equilibrium, bphi_rmag]
     # - [summary, ip]
-    # - [equilibrium, lcfs_r]
+    - [equilibrium, lcfs_r]
     # - [equilibrium, lcfs_z]
 
 ref_freq: 0.005
