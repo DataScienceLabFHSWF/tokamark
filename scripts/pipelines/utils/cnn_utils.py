@@ -57,6 +57,10 @@ def flatten_then_collate(batch):
         print(
             f"Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}"
         )
+        # for bat in flattened_batch:
+        #     print(
+        #         f"Shapes in batch = {[arr.shape for arr in bat[0]]} and {[arr.shape for arr in bat[1]]}"
+        #     )
 
     # Use the default collate function
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
@@ -75,7 +79,11 @@ def flatten_blocks(list_y):
     """
     new_list_y = []
     for block in list_y:
-        block = np.asarray(block)
+        if isinstance(block, torch.Tensor):
+            block = block.detach().cpu().numpy()  # detach, move to CPU, convert to numpy
+        else:
+            block = np.asarray(block)
+            
         if block.ndim == 1:
             new_list_y.append(block)
         else:
