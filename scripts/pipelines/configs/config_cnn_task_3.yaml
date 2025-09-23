@@ -22,7 +22,7 @@ input:
   target_names: &y_keys
     - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage']
     - [soft_x_rays, horizontal_cam_lower]
-    - [soft_x_rays, horizontal_cam_upper]
+    # - [soft_x_rays, horizontal_cam_upper]
     # - [soft_x_rays, horizontal_cam_tangential]
 
 ref_freq: 0.005
@@ -50,7 +50,6 @@ cnn_model:
 
 dataloader_setting:
   batch_size: 500
-  # batch_size: 500
   num_workers: 32
 
 training:
@@ -60,4 +59,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: output/cnn_output_task_3_septembre_22/
+  data_output_directory: /output/cnn_output_task_3_septembre_22/

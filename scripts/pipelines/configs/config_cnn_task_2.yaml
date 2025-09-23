@@ -53,4 +53,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: output/cnn_output_task_2_septembre_22/
+  data_output_directory: /output/cnn_output_task_2_septembre_22/
