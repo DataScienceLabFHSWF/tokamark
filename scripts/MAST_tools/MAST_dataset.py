@@ -80,12 +80,8 @@ class MastDataset(Dataset):
                     print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
                     shot_time = None
                 try:
-                    if (f"{source}-{signal}" in ["equilibrium-lcfs_z", "equilibrium-lcfs_r"]) and self.local == False:
-                        print(f"Transposing values bc {source}-{signal} not saved the same in remote location")
-                        shot_vals = np.moveaxis(shot_profile.values, 0, -1)
-                    else:
-                        shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
-                                    else shot_profile.values)
+                    shot_vals = (np.expand_dims(shot_profile.values, axis=0) if shot_profile.values.ndim == 1
+                                 else shot_profile.values)
                     # print(shot_vals.shape)
 
                 except AttributeError:
@@ -110,7 +106,7 @@ class MastDataset(Dataset):
                 list_chunks = self.shot_level_transform(shot)
                 return list_chunks
             else:
-                warnings.warn("SHOT SKIPPED BECAUSE ONE OR MORE VARIABLES ARE MISSING", UserWarning)
+                # warnings.warn("SHOT SKIPPED BECAUSE ONE OR MORE VARIABLES ARE MISSING", UserWarning)
                 return []
         else:
             return shot
