@@ -194,7 +194,9 @@ slurm-*
 *.wilkes3
 
 WIP_CNN/
-
+logs/
+output_chronos/
+output_chronos_test/
 
 
 

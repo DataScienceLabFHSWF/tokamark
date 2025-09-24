@@ -62,6 +62,9 @@ from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transfo
 from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform,
 )
+from scripts.pipelines.transforms.signal_level_transforms.fill_thomson_with_zeros_imputer_transform import (
+FillThomsonWithZerosTransform
+)
 from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans import (
     DropSampleWithNans,
 )
@@ -88,14 +91,17 @@ def create_cnn_architecture(train_dataloader_, D, verbose=False):
     print(D)
     if verbose:
         print("\n\n----------MODEL INITIALIZATION----------\n")
-    print("len(train_dataloader_)", len(train_dataloader_))
-    input_shapes = [arr.shape for arr in train_dataloader_.dataset[0][0][0]]
-    if verbose:
-        print(f"input_shapes: {input_shapes}")
-
-    output_shape = [arr.shape for arr in train_dataloader_.dataset[0][0][1]]
-    if verbose:
-        print(f"output_shape: {output_shape}")
+    for l in range(len(train_dataloader_.dataset)):
+        try:
+            input_shapes = [arr.shape for arr in train_dataloader_.dataset[l][0][0]]
+            output_shape = [arr.shape for arr in train_dataloader_.dataset[l][0][1]]
+            if verbose:
+                print(f"input_shapes: {input_shapes}")
+                print(f"output_shape: {output_shape}")
+            break
+        except Exception as e:
+            continue
+            # print(f"Skipping {l} because shot not trainable: {e}")
 
     return MultiBranchCNNModel(input_shapes, output_shape, D).to(device)
 
@@ -422,6 +428,15 @@ if __name__ == "__main__":
             [
                 ReshapeLcfsTransform(),
                 StdScalingTransform(dict_mean[var], dict_std[var]),
+                SamplingToReferenceTimeTransform(ref_freq),
+            ]
+        )
+    
+    for var in ["thomson_scattering-t_e", "thomson_scattering-n_e"]:
+        signal_transform_map[var] = ComposeTransforms(
+            [
+                StdScalingTransform(dict_mean[var], dict_std[var]),
+                FillThomsonWithZerosTransform(),
                 SamplingToReferenceTimeTransform(ref_freq),
             ]
         )
