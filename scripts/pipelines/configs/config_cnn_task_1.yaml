@@ -57,7 +57,7 @@ cnn_model:
   D: 32
 
 dataloader_setting:
-  batch_size: 500
+  batch_size: 1000
   # batch_size: 500
   num_workers: 32
 
@@ -68,4 +68,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: /output/cnn_output_task_1_septembre_22/
+  data_output_directory: /output/cnn_output_task_1_septembre_24/

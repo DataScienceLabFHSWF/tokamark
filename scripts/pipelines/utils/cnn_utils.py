@@ -100,20 +100,27 @@ def get_cnn_order_scaling(
     source_signal_list,
     signal_transform_map,
     shot_transform_without_CNN,
+    verbose = True
 ):
     transform_temp = CNNTransform()
-    data_temp = MastDataset(
+    dataset_temp = MastDataset(
         local=LOCAL_FLAG,
-        shots_list=test_shots_[0:10],
+        shots_list=test_shots_,
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=shot_transform_without_CNN,
-    )[0]
-    data_temp = transform_temp(data_temp)
-    order_var_for_inv_std = [
-        item for arr in flatten_blocks(transform_temp.var_groups["y"]) for item in arr
-    ]
-    return order_var_for_inv_std
+    )
+
+    for l in range(len(dataset_temp)):
+        try:
+            order_var_for_inv_std = [
+                item for arr in flatten_blocks(transform_temp.var_groups["y"]) for item in arr
+            ]
+            return order_var_for_inv_std
+        except Exception as e:
+            continue
+            # print(f"Skipping {l} because shot not trainable: {e}")
+
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -188,15 +195,17 @@ def plot_shot_gif(
     T = min(y.shape[0] for y in flat_preds)  # number of time steps (shortest sequence)
 
     # Determine global min/max for 2D profiles
-    profile_min, profile_max = None, None
-    for y_pred, y_true in zip(flat_preds, flat_trues):
-        if y_pred.ndim == 2:
-            vmin = min(y_true.min(), y_pred.min())
-            vmax = max(y_true.max(), y_pred.max())
-            if profile_min is None or vmin < profile_min:
-                profile_min = vmin
-            if profile_max is None or vmax > profile_max:
-                profile_max = vmax
+    # profile_min, profile_max = None, None
+    max_list = [ max(v_pred, v_true) for v_pred, v_true in zip([arr.max() for arr in flat_preds], [arr.max() for arr in flat_trues]) ]
+    min_list = [ min(v_pred, v_true) for v_pred, v_true in zip([arr.min() for arr in flat_preds], [arr.min() for arr in flat_trues]) ]
+    # for y_pred, y_true in zip(flat_preds, flat_trues):
+    #     if y_pred.ndim == 2:
+    #         vmin = min(y_true.min(), y_pred.min())
+    #         vmax = max(y_true.max(), y_pred.max())
+    #         if profile_min is None or vmin < profile_min:
+    #             profile_min = vmin
+    #         if profile_max is None or vmax > profile_max:
+    #             profile_max = vmax
 
     # Row height ratios for subplot layout
     row_heights = [0.5 if y.ndim == 1 else 1.0 for y in flat_preds]
@@ -214,8 +223,8 @@ def plot_shot_gif(
         viz_max_t = T * ref_freq
         time_ms = np.arange(t) * ref_freq
 
-        for j, (var, y_pred, y_true, mse) in enumerate(
-            zip(order_var_list, flat_preds, flat_trues, avg_test_loss)
+        for j, (var, y_pred, y_true, mse, var_min, var_max) in enumerate(
+            zip(order_var_list, flat_preds, flat_trues, avg_test_loss, min_list, max_list)
         ):
             viz_min_y = min(y_true.min(), y_pred.min()) - abs(
                 min(y_true.min(), y_pred.min()) * 0.05
@@ -256,8 +265,8 @@ def plot_shot_gif(
                     origin="lower",
                     extent=[time_ms[0], time_ms[-1], 0, D],
                     cmap="viridis",
-                    vmin=profile_min,
-                    vmax=profile_max,
+                    vmin=var_min,
+                    vmax=var_max,
                 )
                 ax_gt.set_title(f"{var} - Ground Truth")
                 ax_gt.set_xlim(0, viz_max_t)
@@ -270,8 +279,8 @@ def plot_shot_gif(
                     origin="lower",
                     extent=[time_ms[0], time_ms[-1], 0, D],
                     cmap="viridis",
-                    vmin=profile_min,
-                    vmax=profile_max,
+                    vmin=var_min,
+                    vmax=var_max,
                 )
                 ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
                 ax_pred.set_xlim(0, viz_max_t)
@@ -287,6 +296,8 @@ def plot_shot_gif(
                     img,
                     aspect="auto",
                     cmap="viridis",
+                    vmin=var_min,
+                    vmax=var_max,
                 )
                 ax_gt.set_title(f"{var} - Ground Truth")
 
@@ -296,6 +307,8 @@ def plot_shot_gif(
                     img,
                     aspect="auto",
                     cmap="viridis",
+                    vmin=var_min,
+                    vmax=var_max,
                 )
                 ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
 

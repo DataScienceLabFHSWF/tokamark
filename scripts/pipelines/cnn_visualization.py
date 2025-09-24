@@ -242,7 +242,7 @@ if __name__ == "__main__":
     )
     order_var_for_inv_std = get_cnn_order_scaling(
         LOCAL_FLAG,
-        test_shots_,
+        train_shots_,
         source_signal_list,
         signal_transform_map,
         shot_transform_without_CNN,
@@ -270,7 +270,7 @@ if __name__ == "__main__":
 
     cnn_shot_dataset = MastDataset(
         local=LOCAL_FLAG,
-        shots_list=test_shots_[0:10],
+        shots_list=test_shots_[0:50],
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=shot_transform,
@@ -290,41 +290,50 @@ if __name__ == "__main__":
     y_trues = []
 
     with torch.no_grad():
-        for i, (x_test, y_test) in enumerate(shot_dataloader):
-            # Convert inputs to tensors with batch dim = 1
-            x_test = [arr.to(torch.float32).to(device) for arr in x_test]
-            y_test = [arr.to(torch.float32).to(device) for arr in y_test]
-            outputs = cnn_model(*x_test)
+        
+        for i, (batch) in enumerate(shot_dataloader):
 
-            pred = [arr.cpu().numpy() for arr in outputs]
-            true = [arr.cpu().numpy() for arr in y_test]
+            if batch is None:
+                print(f"Cannot evaluate shot {i}")
 
-            # Flatten each block into individual series
-            flat_pred = flatten_blocks(pred)
-            flat_true = flatten_blocks(true)
+            else : 
+                x_test, y_test = batch
 
-            new_flat_pred = inverse_standardize(
-                flat_pred, order_var_for_inv_std, dict_mean, dict_std
-            )
-            new_flat_true = inverse_standardize(
-                flat_true, order_var_for_inv_std, dict_mean, dict_std
-            )
+                # Convert inputs to tensors with batch dim = 1
+                x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+                y_test = [arr.to(torch.float32).to(device) for arr in y_test]
+                outputs = cnn_model(*x_test)
 
-            avg_test_loss = [
-                torch.nn.MSELoss(reduction="mean")(pred, true).mean(dim=0).item()
-                for pred, true in zip(
-                    [torch.from_numpy(arr).float().to(device) for arr in new_flat_pred],
-                    [torch.from_numpy(arr).float().to(device) for arr in new_flat_true],
+                pred = [arr.cpu().numpy() for arr in outputs]
+                true = [arr.cpu().numpy() for arr in y_test]
+
+                # Flatten each block into individual series
+                flat_pred = flatten_blocks(pred)
+                flat_true = flatten_blocks(true)
+
+                new_flat_pred = inverse_standardize(
+                    flat_pred, order_var_for_inv_std, dict_mean, dict_std
                 )
-            ]
+                new_flat_true = inverse_standardize(
+                    flat_true, order_var_for_inv_std, dict_mean, dict_std
+                )
 
-            # Save the gif
-            plot_shot_gif(
-                new_flat_pred,
-                new_flat_true,
-                order_var_for_inv_std,
-                avg_test_loss,
-                i,
-                ref_freq,
-                out_dir=OUTPUT_FOLDER,
-            )
+                avg_test_loss = [
+                    torch.nn.MSELoss(reduction="mean")(pred, true).mean(dim=0).item()
+                    for pred, true in zip(
+                        [torch.from_numpy(arr).float().to(device) for arr in new_flat_pred],
+                        [torch.from_numpy(arr).float().to(device) for arr in new_flat_true],
+                    )
+                ]
+
+                # Save the gif
+                plot_shot_gif(
+                    new_flat_pred,
+                    new_flat_true,
+                    order_var_for_inv_std,
+                    avg_test_loss,
+                    i,
+                    ref_freq,
+                    out_dir=OUTPUT_FOLDER,
+                )
+        
