@@ -112,6 +112,8 @@ def get_cnn_order_scaling(
     )
 
     for l in range(len(dataset_temp)):
+        data_temp = dataset_temp[l]
+        data_temp = transform_temp(data_temp)
         try:
             order_var_for_inv_std = [
                 item for arr in flatten_blocks(transform_temp.var_groups["y"]) for item in arr

@@ -6,8 +6,8 @@ input:
   data_names: &x_keys
     # - [magnetics, flux_loop_flux] 
     # - [magnetics, b_field_pol_probe_ccbv_field]
-    # - [magnetics, b_field_pol_probe_obr_field]
-    - [magnetics, b_field_pol_probe_obv_field]
+    - [magnetics, b_field_pol_probe_obr_field]
+    # - [magnetics, b_field_pol_probe_obv_field]
     # - [magnetics, b_field_tor_probe_saddle_voltage]
     # - [magnetics, b_field_tor_probe_cc_field]
     # - [magnetics, b_field_pol_probe_omv_voltage]

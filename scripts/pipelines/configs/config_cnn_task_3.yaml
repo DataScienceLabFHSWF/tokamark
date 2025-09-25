@@ -9,9 +9,9 @@ input:
     - [magnetics, b_field_pol_probe_obr_field]
     - [magnetics, b_field_pol_probe_obv_field]
     - [magnetics, b_field_tor_probe_saddle_voltage]
-    - [magnetics, b_field_tor_probe_cc_field]
+    # - [magnetics, b_field_tor_probe_cc_field] # TOO MUCH MISSING DATA FOR CNN
     - [magnetics, b_field_pol_probe_omv_voltage]
-    # - [magnetics, b_field_tor_probe_omaha_voltage]
+    # - [magnetics, b_field_tor_probe_omaha_voltage] # TOO MUCH MISSING DATA FOR CNN
     - [pf_active, solenoid_current]
     - [pf_active, coil_voltage]
     - [pf_active, coil_current]
@@ -59,4 +59,4 @@ training:
 
 paths:
   data_split_csv_path: metadata/2025-05-12/data_splits.csv
-  data_output_directory: /output/cnn_output_task_3_septembre_24/
+  data_output_directory: /output/cnn_output_task_3_septembre_25/
