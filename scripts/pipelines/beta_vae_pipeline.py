@@ -8,6 +8,7 @@ import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 from collections import defaultdict
+import json
 
 REPO_ROOT = os.path.abspath(
     os.path.join(
@@ -65,13 +66,25 @@ else:
     device = torch.device("cpu")
 
 
-def get_train_test_val_shots(max_index=None):
+def get_train_test_val_shots(max_index=None,num_train=None, num_val=None,num_test=None):
     train_sh, test_sh, val_sh = read_data_split_csv()
 
     if max_index:
+        np.random.shuffle(train_sh)
+        np.random.shuffle(val_sh)
+        np.random.shuffle(test_sh)
         train_sh = train_sh[0:max_index]
         val_sh = val_sh[0:max_index]
         test_sh = test_sh[0:max_index]
+    if num_train:
+        np.random.shuffle(train_sh)
+        train_sh = train_sh[0:num_train]
+    if num_val:
+        np.random.shuffle(val_sh)
+        val_sh = val_sh[0:num_val]
+    if num_test:
+        np.random.shuffle(test_sh)
+        test_sh = test_sh[0:num_test]
 
     return train_sh, test_sh, val_sh
 
@@ -789,7 +802,9 @@ if __name__ == "__main__":
 
     # Create sets of shot IDs for training, validation and testing
     train_shots, test_shots, val_shots = get_train_test_val_shots(
-        SETTINGS.TRAINING.num_train_samples
+        num_train=SETTINGS.TRAINING.num_train_samples,
+        num_val=SETTINGS.TRAINING.num_val_samples,
+        num_test=SETTINGS.TRAINING.num_test_samples
     )
 
     # Fit mean and std for signal transformation

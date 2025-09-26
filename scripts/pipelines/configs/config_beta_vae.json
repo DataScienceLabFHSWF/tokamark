@@ -18,6 +18,7 @@
     "num_epochs": 2,
     "num_train_samples": 10,
     "num_val_samples": 10,
+    "num_test_samples": 20,
     "dataloader_batch_size": 1,
     "training_batch_size":10,
     "min_batch_size": 4,
