@@ -135,7 +135,7 @@ def fit_mean_and_std_for_signal_transform(
 
     preprocessing_train_dataset = MastDataset(
         local=LOCAL_FLAG,
-        shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
+        shots_list=train_shots,
         source_signal_list=source_signal_list,
         signal_level_transform_map=None,
         shot_level_transform=None,
