@@ -793,8 +793,9 @@ if __name__ == "__main__":
     OUTPUT_SUB_FOLDER = SETTINGS.LOCAL_PATHS.data_output_directory + "beta_vae_output/"
 
     # Save input file to output folder
-    os.makedirs(OUTPUT_SUB_FOLDER, exist_ok=True)
-    shutil.copy(config_filename,OUTPUT_SUB_FOLDER)
+    output_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
+    os.makedirs(output_dir, exist_ok=True)
+    shutil.copy(config_filename,output_dir)
 
 
 
