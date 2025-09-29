@@ -9,6 +9,8 @@ import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 from collections import defaultdict
 import json
+import argparse
+import shutil
 
 REPO_ROOT = os.path.abspath(
     os.path.join(
@@ -288,12 +290,13 @@ def create_beta_vae_models(
 
 
 def train_beta_vae_models(
-    models, train_dataloader, val_dataloader, output_dir, verbose=False
+    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False
 ):
     """Train β-VAE models for each signal"""
     if verbose:
         print("\n\n----------β-VAE TRAINING----------\n")
 
+    output_dir = os.path.join("output", output_sub_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     # Create optimizers for each model
@@ -777,13 +780,23 @@ Signal List:
 if __name__ == "__main__":
 
     # Initialize SETTINGS object
-    SETTINGS = get_settings("scripts/pipelines/configs/config_beta_vae.json")
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--config_file",type=str,default="scripts/pipelines/configs/config_beta_vae.json")
+    args=parser.parse_args()
+    config_filename=args.config_file
+    SETTINGS = get_settings(config_filename)
     
     LOCAL_FLAG = SETTINGS.DATA.local
     mp.set_start_method("spawn", force=True)
 
     # For common pipeline
     OUTPUT_SUB_FOLDER = SETTINGS.LOCAL_PATHS.data_output_directory + "beta_vae_output/"
+
+    # Save input file to output folder
+    os.makedirs(OUTPUT_SUB_FOLDER, exist_ok=True)
+    shutil.copy(config_filename,OUTPUT_SUB_FOLDER)
+
+
 
     source_signal_list = SETTINGS.DATA.data_names + SETTINGS.DATA.target_names
 
