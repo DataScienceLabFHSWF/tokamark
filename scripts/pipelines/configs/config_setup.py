@@ -140,6 +140,6 @@ class DataInput:
 if __name__ == "__main__":
     import json
 
-    config_file_path_ = "scripts/main_pipeline/configs/config_lr_0_0001.json"
+    config_file_path_ = "scripts/pipelines/configs/config_beta_vae.json"
     settings = get_settings(config_file_path_)
     print(settings.NEURALNET.lr)
