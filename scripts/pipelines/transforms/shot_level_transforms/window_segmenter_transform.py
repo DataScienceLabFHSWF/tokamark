@@ -279,34 +279,46 @@ class WindowSegmenterTransform:
             if t_y_end > end_time:
                 break
 
-            # X: allow missing if drop_incomplete=False
+            strict = self.drop_incomplete
+
+            # X: strict → require all; tolerant → allow per-key missing
             x = self._collect_per_signal_windows(
                 shot, self.x_keys, t_x_start, t_x_end,
-                allow_missing=(not self.drop_incomplete)
+                allow_missing=(not strict)
             )
-            # Y: require presence (no missing labels)
+            # Y: strict → require all; tolerant → allow per-key missing
             y = self._collect_per_signal_windows(
                 shot, self.y_keys, t_y_start, t_y_end,
-                allow_missing=False
+                allow_missing=(not strict)
             )
 
-            if self.drop_incomplete:
-                # strict: require both dicts present
-                if (x is not None) and (y is not None):
+            def _present_count(d):
+                if d is None:
+                    return 0
+                return sum(1 for v in d.values() if v is not None)
+
+            n_x_present = _present_count(x)
+            n_y_present = _present_count(y)
+
+            if strict:
+                # STRICT: all X and all Y must be present
+                if (x is not None) and (y is not None) \
+                        and (n_x_present == len(self.x_keys)) \
+                        and (n_y_present == len(self.y_keys)):
                     results.append({"x": x, "y": y, "window_index": i})
                 elif self.verbose:
-                    print(f"[seg] shot_window[{i}] skipped (missing targets or not enough samples)")
+                    reasons = []
+                    if (x is None) or (n_x_present < len(self.x_keys)):
+                        reasons.append("X incomplete")
+                    if (y is None) or (n_y_present < len(self.y_keys)):
+                        reasons.append("Y incomplete")
+                    print(f"[seg] shot_window[{i}] skipped ({', '.join(reasons)})")
             else:
-                # tolerant: if x is None, replace with per-key None entries; if y is None → skip (we need labels)
-                if y is None:
-                    if self.verbose:
-                        print(f"[seg] shot_window[{i}] skipped (y missing)")
-                else:
-                    if x is None:
-                        x = {k: None for k in self.x_keys}
+                # TOLERANT: keep if at least one X and at least one Y present
+                if (n_x_present >= 1) and (n_y_present >= 1):
+                    # keep per-key None entries for missing X/Y
                     results.append({"x": x, "y": y, "window_index": i})
                     if self.verbose:
-                        # light per-window summary
                         def _lens(d):
                             out = {}
                             for k, v in d.items():
@@ -318,6 +330,12 @@ class WindowSegmenterTransform:
                             return out
 
                         print(f"[Window {i}] x_len: {_lens(x)}, y_len: {_lens(y)}")
+                else:
+                    if self.verbose:
+                        why = []
+                        if n_x_present < 1: why.append("no X present")
+                        if n_y_present < 1: why.append("no Y present")
+                        print(f"[seg] shot_window[{i}] skipped ({' & '.join(why)})")
 
             t_x_start += stride
             i += 1
