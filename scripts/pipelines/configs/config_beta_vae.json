@@ -1,7 +1,7 @@
 {
   "input": {
-    "data_names": [["magnetics","flux_loop_flux"]],
-    "target_names": [["magnetics","flux_loop_flux"]]
+    "data_names": [["pf_active","coil_current"]],
+    "target_names": [["pf_active","coil_current"]]
   },
   "time_settings":{
     "time_window_sec": 0.025,
@@ -15,14 +15,14 @@
     "min_samples_per_window": 1
   },
   "training": {
-    "num_epochs": 2,
-    "num_train_samples": 10,
-    "num_val_samples": 10,
-    "num_test_samples": 20,
-    "dataloader_batch_size": 1,
-    "training_batch_size":10,
-    "min_batch_size": 4,
-    "num_workers": 1
+    "num_epochs": 50,
+    "num_train_samples": 200,
+    "num_val_samples": 100,
+    "num_test_samples": 100,
+    "dataloader_batch_size": 20,
+    "training_batch_size": 20,
+    "min_batch_size": 5,
+    "num_workers": 4 
   },
   "nn_model":{
     "lr": 0.001,
@@ -31,16 +31,16 @@
   },
   "beta-vae":{
     "latent_dim":32,
-    "beta":1,
-    "lr": 1e-3,
-    "ref_freq": 0.001,
-    "existing_fitted_params": true
+    "beta":0.5,
+    "lr": 2e-3,
+    "ref_freq": 0.01,
+    "existing_fitted_params": false
   },
   "paths": {
     "data_split_csv_path": "metadata/2025-05-12/data_splits.csv",
     "joblib_directory": "scripts/pipelines/data/input/",
-    "average_values_file_path": "scripts/pipelines/data/input/averaged_arrays_N_100.json",
-    "data_output_directory": "scripts/pipelines/data/output/"
+    "average_values_file_path": "scripts/pipelines/data/input/averaged_arrays_N_9259.json",
+    "data_output_directory": "scripts/pipelines/data/output_1/"
   },
-  "local": false
+  "local": true
 }
