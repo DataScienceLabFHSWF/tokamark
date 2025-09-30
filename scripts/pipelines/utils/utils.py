@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 import random
 import numpy as np
+import itertools
 from torch.utils.data import DataLoader
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
@@ -124,10 +125,10 @@ def fit_mean_and_std_for_signal_transform(output_sub_dir, train_shots, source_si
         print(f"len(preprocessing_train_dataset): {len(preprocessing_train_dataset)}")
 
     dict_mean_ = get_mean_shot(preprocessing_train_dataset)
-    if verbose: 
+    if verbose:
         print(f"dict_mean_ is {dict_mean_}")
     dict_std_ = get_std_shot(preprocessing_train_dataset)
-    if verbose: 
+    if verbose:
         print(f"dict_std_ is {dict_std_}")
 
     # Save dict_mean and dict_std used!
@@ -152,6 +153,7 @@ def initialize_datasets(
         sig_tran_map,
         shot_tran,
         local_flag=False,
+        return_incomplete_shots=False,
         verbose=False
 
 ):
@@ -166,7 +168,8 @@ def initialize_datasets(
             shots_list=shots["train"],
             source_signal_list=sources_and_signals,
             signal_level_transform_map=sig_tran_map,
-            shot_level_transform=shot_tran
+            shot_level_transform=shot_tran,
+            return_incomplete_shots=return_incomplete_shots,
         )
         if verbose:
             print(f"len(mast_train_dataset): {len(datasets_['train'])}")
@@ -180,7 +183,8 @@ def initialize_datasets(
             shots_list=shots["val"],
             source_signal_list=sources_and_signals,
             signal_level_transform_map=sig_tran_map,
-            shot_level_transform=shot_tran
+            shot_level_transform=shot_tran,
+            return_incomplete_shots=return_incomplete_shots,
         )
         if verbose:
             print(f"len(val_dataset): {len(datasets_['val'])}")
@@ -194,7 +198,8 @@ def initialize_datasets(
             shots_list=shots["test"],
             source_signal_list=sources_and_signals,
             signal_level_transform_map=sig_tran_map,
-            shot_level_transform=shot_tran
+            shot_level_transform=shot_tran,
+            return_incomplete_shots=return_incomplete_shots,
         )
         if verbose:
             print(f"len(test_dataset): {len(datasets_['test'])}")
