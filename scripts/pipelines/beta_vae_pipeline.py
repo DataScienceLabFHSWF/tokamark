@@ -290,7 +290,7 @@ def create_beta_vae_models(
 
 
 def train_beta_vae_models(
-    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False
+    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False,use_cosineLr=False,cos_lr_min = 10**-6
 ):
     """Train β-VAE models for each signal"""
     if verbose:
@@ -303,6 +303,8 @@ def train_beta_vae_models(
     optimizers = {}
     for signal_name, model in models.items():
         optimizers[signal_name] = torch.optim.Adam(model.parameters(), lr=SETTINGS.BETA_VAE.lr)
+        if use_cosineLr:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizers[signal_name], T_max=SETTINGS.TRAINING.num_epochs,eta_min = cos_lr_min)
 
     # Training tracking
     best_losses = {signal_name: float("inf") for signal_name in models.keys()}
@@ -885,7 +887,8 @@ if __name__ == "__main__":
         train_dataloader,
         val_dataloader,
         OUTPUT_SUB_FOLDER,
-        verbose=True
+        verbose=True,
+        use_cosineLr=SETTINGS.BETA_VAE.use_cosine_lr
     )
 
     visualize_beta_vae_results(

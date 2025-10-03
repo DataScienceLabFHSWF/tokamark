@@ -15,7 +15,7 @@
     "min_samples_per_window": 1
   },
   "training": {
-    "num_epochs": 50,
+    "num_epochs": 2,
     "num_train_samples": 200,
     "num_val_samples": 100,
     "num_test_samples": 100,
@@ -30,17 +30,18 @@
     "l2_size": 64
   },
   "beta-vae":{
-    "latent_dim":32,
+    "latent_dim":64,
     "beta":0.5,
     "lr": 2e-3,
-    "ref_freq": 0.01,
+    "use_cosine_lr": false,
+    "ref_freq": 0.005,
     "existing_fitted_params": false
   },
   "paths": {
     "data_split_csv_path": "metadata/2025-05-12/data_splits.csv",
     "joblib_directory": "scripts/pipelines/data/input/",
     "average_values_file_path": "scripts/pipelines/data/input/averaged_arrays_N_9259.json",
-    "data_output_directory": "scripts/pipelines/data/output_1/"
+    "data_output_directory": "scripts/pipelines/data/output_test/"
   },
   "local": true
 }

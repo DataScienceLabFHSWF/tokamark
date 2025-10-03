@@ -43,6 +43,7 @@ class BetaVae:
             self.latent_dim = config["beta-vae"]["latent_dim"]
             self.beta = config["beta-vae"]["beta"]
             self.lr = config["beta-vae"]["lr"]
+            self.use_cosine_lr = config["beta-vae"]["use_cosine_lr"]
             self.ref_freq = config["beta-vae"]["ref_freq"]
             self.existing_fitted_params = config["beta-vae"]["existing_fitted_params"]
         except KeyError as e:
