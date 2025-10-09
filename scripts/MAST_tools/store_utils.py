@@ -159,7 +159,7 @@ class MASTStorageManager:
 
         Parameters
         ----------
-        data_origin : Union[dict, ZarrStoreType]
+        data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for group creation. It can be a dictionary with shot information (as in the class method
             self.make_shot_store()) or a Zarr store.
 
@@ -252,8 +252,7 @@ class MASTStorageManager:
             data_origin: Union[dict, cc.ZarrStoreType],
     ):
         """Check MAST data origin."""
-        assert isinstance(data_origin, (dict,cc.DataSourceType, cc.ZarrStoreType)), "Type error: invalid data_origin. It must be dict or store."
-        #assert isinstance(data_origin, cc.DataSourceType), "Type error: invalid data_origin. It must be dict or store."
+        assert isinstance(data_origin, cc.DataSourceType), "Type error: invalid data_origin. It must be dict or store."
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -450,7 +449,7 @@ class MASTStorageManager:
             source_signals_to_have += ([f"{kk}__{val}" for val in vv])
 
         # REMARK: Suggested "is True" for line below causes error due to misbehaviour, thus noqa in place.
-        composite_condition = availability_data[source_signals_to_have[0]] == True  # noqa.
+        composite_condition = availability_data[source_signals_to_have[0]] == True  # noqa
 
         for signal in source_signals_to_have[1:]:
             # REMARK: Suggested "is True" for line below causes error due to misbehaviour, thus noqa in place.
