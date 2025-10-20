@@ -1,6 +1,13 @@
 import numpy as np
+from typing import Union
 from torch.utils.data import Dataset
-from .signal_utils import MASTSignalManager
+try:
+    from . import signal_utils
+    from . import constants as cc
+except ImportError:
+    import signal_utils
+    import constants as cc
+
 
 # ======================================================================================================================
 class MastDataset(Dataset):
@@ -20,7 +27,8 @@ class MastDataset(Dataset):
         signal_level_transform_map=None,
         shot_level_transform=None,
         return_incomplete_shots: bool = False,
-        verbose: bool = False,
+        store_manager_settings: Union[dict, cc.NoneType] = None,
+        verbose: bool = False
     ):
         """
         Parameters
@@ -35,9 +43,14 @@ class MastDataset(Dataset):
             Map of transforms to apply at signal level.
         shot_level_transform : Callable, optional
             Transform to apply at shot level; typically builds windows.
-        return_incomplete_shot : bool
-            If True, do NOT drop shots with missing variables; pass them through so that
-            the windowing transform can insert `None` for missing inputs per window.
+        return_incomplete_shots : bool
+            If True, do NOT drop shots with missing variables; pass them through so that the windowing transform can
+            insert `None` for missing inputs per window.
+        store_manager_settings : Union[dict, None]
+            Settings for the store manager instance. If None, a generic store manage instance is created with default
+            values as defined in the docstrings of store_utils.MASTStorageManager.
+            Optional. Default: None.
+
         """
         self.local = local
         self.shots_list = shots_list
@@ -45,7 +58,8 @@ class MastDataset(Dataset):
         self.signal_level_transform_map = signal_level_transform_map
         self.shot_level_transform = shot_level_transform
         self.return_incomplete_shots = return_incomplete_shots  # NEW
-        self.sig = MASTSignalManager()
+        self.sig = signal_utils.MASTSignalManager(store_manager_settings=store_manager_settings)
+        self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
     def __len__(self):
@@ -55,7 +69,8 @@ class MastDataset(Dataset):
     def __getitem__(self, idx):
         store_manager = self.sig.store_manager
         store = store_manager.make_shot_store(
-            shot_info={"shot_id": self.shots_list[idx], "local": self.local}
+            shot_info={"shot_id": self.shots_list[idx], "local": self.local},
+            verbose=self.verbose
         )
 
         shot = {}
@@ -63,12 +78,13 @@ class MastDataset(Dataset):
         # Collect variables (i.e. source-signal) of interest
         for source, signal in self.source_signal_list:
             shot_profile = self.sig.get_signal_profile(
-                data_origin=store, source_name=source, signal_name=signal
+                data_origin=store, source_name=source, signal_name=signal,
+                verbose=self.verbose
             )
 
             if shot_profile is not None:
                 try:
-                    shot_time, _ = self.sig.get_signal_times_and_time_type(signal, store, source)
+                    shot_time, _ = self.sig.get_signal_times_and_time_type(signal, store, source, self.verbose)
                 except Exception as e:
                     print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
                     shot_time = None
@@ -111,7 +127,7 @@ class MastDataset(Dataset):
             return shot
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Minimal additions for caching/baking support
+    # Minimal additions for caching/backing support
     # ------------------------------------------------------------------------------------------------------------------
     def get_shot_id(self, idx: int):
         return self.shots_list[idx]
@@ -120,8 +136,9 @@ class MastDataset(Dataset):
         """Return the list of windows for the given shot index ([] if empty/missing)."""
         try:
             obj = self.__getitem__(idx)
-        except Exception:
+        except IndexError:
             return []
+
         if isinstance(obj, list):
             return obj
         elif isinstance(obj, dict):
@@ -130,5 +147,5 @@ class MastDataset(Dataset):
         else:
             return []
 
-    def get_window_index_within_shot(self, idx: int):
+    def get_window_index_within_shot(self, idx: int):  # TODO: Ask Tobia about it.
         return None

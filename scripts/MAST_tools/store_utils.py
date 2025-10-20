@@ -535,17 +535,14 @@ class MASTStorageManager:
 
             source_info = {}
             for id_ in shot_ids:
-                if local:
-                    local_path = f"{self.base_local_zarr_path}/{test_and_level_case}/{id_}.zarr"
-                    group = zarr.open_group(store=local_path, mode="r")
-                else:
-                    remote_shot_path = f"/mast/{test_and_level_case}/shots/{id_}.zarr"
-                    group = zarr.open_group(
-                        store=f"{self.target_fsspec_protocol}:/{remote_shot_path}",
-                        mode="r",
-                        storage_options={"anon": True, "endpoint_url": self.s3_endpoint_url}
-                    )
-
+                group = self.make_shot_group(
+                    data_origin={
+                        "shot_id": id_,
+                        "level": level,
+                        "test_data": test_data,
+                        "local": local,
+                    }
+                )
                 source_info[id_] = list(group.keys())
 
             return source_info
@@ -629,16 +626,15 @@ class MASTStorageManager:
 
             signal_info = {}
             for shot_id in shot_ids:
-                if local:
-                    local_path = f"{self.base_local_zarr_path}/{test_and_level_case}/{shot_id}.zarr"
-                    group = zarr.open_group(store=local_path, mode="r")
-                else:
-                    remote_shot_path = f"/mast/{test_and_level_case}/shots/{shot_id}.zarr"
-                    group = zarr.open_group(
-                        store=f"{self.target_fsspec_protocol}:/{remote_shot_path}",
-                        mode="r",
-                        storage_options={"anon": True, "endpoint_url": self.s3_endpoint_url}
-                    )
+
+                group = self.make_shot_group(
+                    data_origin={
+                        "shot_id": shot_id,
+                        "level": level,
+                        "test_data": test_data,
+                        "local": local,
+                    }
+                )
 
                 group_members = group.members(1)
                 for item in group_members:

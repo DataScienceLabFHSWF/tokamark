@@ -276,7 +276,12 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
-    def get_channel_names(store, group, signal_name, verbose=False):
+    def get_channel_names(
+            store,
+            group: str,  # TODO: This must be renamed source_name
+            signal_name: str,
+            verbose: bool = False
+    ):
         try:
             profile = xr.open_zarr(store=store, group=group)
             data_array = profile[signal_name]
