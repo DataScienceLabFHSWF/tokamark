@@ -258,6 +258,7 @@ def initialize_dataloaders(
 def create_beta_vae_models(
     train_dataloader_, 
     latent_dim,
+    hidden_dim,
     beta,
     verbose=False
     ):
@@ -277,7 +278,7 @@ def create_beta_vae_models(
                 f"Signal: {signal_name}, Shape: {signal_data.shape}, Input length: {input_length}"
             )
 
-        model = BetaVAE(input_length=input_length, latent_dim=latent_dim, beta=beta).to(
+        model = BetaVAE(input_length=input_length, latent_dim=latent_dim, hidden_dim=hidden_dim,beta=beta).to(
             device
         )
 
@@ -511,6 +512,10 @@ def visualize_beta_vae_results(
             # Get reconstructions and latent representations
             train_recon, train_mu, train_logvar, train_z = model(train_x)
             val_recon, val_mu, val_logvar, val_z = model(val_x)
+            print("train_x.size()",train_x.size())
+            print("np.shape(train_x[0].cpu().numpy())",np.shape(train_x[0].cpu().numpy()))
+            print("train_recon.size()",train_recon.size())
+            print("np.shape(train_recon[0].cpu().numpy())",np.shape(train_recon[0].cpu().numpy()))
             
             # Calculate losses for display
             train_loss, train_recon_loss, train_kl_loss = model.loss_function(
@@ -878,6 +883,7 @@ if __name__ == "__main__":
     beta_vae_models = create_beta_vae_models(
         train_dataloader,
         SETTINGS.BETA_VAE.latent_dim,
+        SETTINGS.BETA_VAE.hidden_dim,
         SETTINGS.BETA_VAE.beta,
         verbose=True
     )

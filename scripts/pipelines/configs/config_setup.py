@@ -46,6 +46,11 @@ class BetaVae:
             self.use_cosine_lr = config["beta-vae"]["use_cosine_lr"]
             self.ref_freq = config["beta-vae"]["ref_freq"]
             self.existing_fitted_params = config["beta-vae"]["existing_fitted_params"]
+            
+            if "hidden_dim" in config["beta-vae"].keys():
+                self.hidden_dim = config["beta-vae"]["hidden_dim"]
+            else:
+                self.hidden_dim = 128
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
