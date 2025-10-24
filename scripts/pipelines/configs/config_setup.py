@@ -27,12 +27,16 @@ class Settings:
     def __init__(self, config):
         # Set up individual settings classes
         self.config = config
-        self.NEURALNET = NNSettings(config)
+
+        if "nn_model" in config.keys():
+            self.NEURALNET = NNSettings(config)
+        if "beta-vae" in config.keys():
+            self.BETA_VAE = BetaVae(config)
+
         self.TIME_SEGMENTATION = TimeSettings(config)
         self.TRAINING = TrainingSettings(config)
         self.LOCAL_PATHS = LocalPaths(config)
         self.DATA = DataInput(config)
-        self.BETA_VAE = BetaVae(config)
 
 
 # ======================================================================================================================
