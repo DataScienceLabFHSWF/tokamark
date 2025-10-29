@@ -127,10 +127,13 @@ class LocalPaths:
     def __init__(self, config):
         try:
             # Local paths
-            self.average_values_file_path = config["paths"]["average_values_file_path"]
-            self.joblib_directory = config["paths"]["joblib_directory"]
-            self.data_split_csv_path = config["paths"]["data_split_csv_path"]
             self.data_output_directory = config["paths"]["data_output_directory"]
+            if "average_values_file_path" in config["paths"].keys():
+                self.average_values_file_path = config["paths"]["average_values_file_path"]
+            if "joblib_directory" in config["paths"].keys():
+                self.joblib_directory = config["paths"]["joblib_directory"]
+            if "data_split_csv_path" in config["paths"].keys():
+                self.data_split_csv_path = config["paths"]["data_split_csv_path"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
