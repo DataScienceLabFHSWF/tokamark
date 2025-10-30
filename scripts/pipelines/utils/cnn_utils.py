@@ -62,11 +62,11 @@ from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans im
 from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import (
     CNNTransform,
 )
-from scripts.pipelines.transforms.shot_level_transforms.time_cnn_transform import (
-    TimeCNNTransform,
-)
+# from scripts.pipelines.transforms.shot_level_transforms.time_cnn_transform import (
+#     TimeCNNTransform,
+# )
 from scripts.pipelines.models.cnn_model import MultiBranchCNNModel
-from scripts.pipelines.models.time_cnn_model_update import MultiBranchTimeCNNModel
+# from scripts.pipelines.models.time_cnn_model_update import MultiBranchTimeCNNModel
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Repo-specific imports
@@ -187,40 +187,40 @@ def build_cnn_shot_transform_map(
     return shot_transform
 
 # ----------------------------------------------------------------------------------------------------------------------
-def build_time_cnn_shot_transform_map(
-    ref_freq,
-    parameters_window_segmenter: Dict[str, float],
-    remove_CNN_transform: bool = False,
-):
-    """Builds the shot transform map for all variable."""
+# def build_time_cnn_shot_transform_map(
+#     ref_freq,
+#     parameters_window_segmenter: Dict[str, float],
+#     remove_CNN_transform: bool = False,
+# ):
+#     """Builds the shot transform map for all variable."""
 
-    if remove_CNN_transform:
-        shot_transform = ComposeTransforms([  
-            TruncationTransform(),
-            WindowSegmenterTransform(
-                **parameters_window_segmenter
-            ), 
-            DropSampleWithNans(verbose=True),
-            WindowTruncationTransform(
-                x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
-                y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
-            ),
-            ])
-    else:
-        shot_transform = ComposeTransforms([  
-            TruncationTransform(),
-            WindowSegmenterTransform(
-                **parameters_window_segmenter
-            ), 
-            DropSampleWithNans(verbose=True),
-            WindowTruncationTransform(
-                x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
-                y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
-            ),
-            TimeCNNTransform() ,
-        ])
+#     if remove_CNN_transform:
+#         shot_transform = ComposeTransforms([  
+#             TruncationTransform(),
+#             WindowSegmenterTransform(
+#                 **parameters_window_segmenter
+#             ), 
+#             DropSampleWithNans(verbose=True),
+#             WindowTruncationTransform(
+#                 x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
+#                 y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
+#             ),
+#             ])
+#     else:
+#         shot_transform = ComposeTransforms([  
+#             TruncationTransform(),
+#             WindowSegmenterTransform(
+#                 **parameters_window_segmenter
+#             ), 
+#             DropSampleWithNans(verbose=True),
+#             WindowTruncationTransform(
+#                 x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
+#                 y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
+#             ),
+#             TimeCNNTransform() ,
+#         ])
 
-    return shot_transform
+#     return shot_transform
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -271,23 +271,23 @@ def create_cnn_architecture(train_dataloader_, D, verbose=False):
 
     return MultiBranchCNNModel(input_shapes, output_shape, D).to(device)
 
-def create_time_cnn_architecture(train_dataloader_, D, verbose=False):
-    print(D)
-    if verbose:
-        print("\n\n----------MODEL INITIALIZATION----------\n")
-    for l in range(len(train_dataloader_.dataset)):
-        try:
-            input_shapes = [arr.shape for arr in train_dataloader_.dataset[l][0][0]]
-            output_shape = [arr.shape for arr in train_dataloader_.dataset[l][0][1]]
-            if verbose:
-                print(f"input_shapes: {input_shapes}")
-                print(f"output_shape: {output_shape}")
-            break
-        except Exception as e:
-            continue
-            # print(f"Skipping {l} because shot not trainable: {e}")
+# def create_time_cnn_architecture(train_dataloader_, D, verbose=False):
+#     print(D)
+#     if verbose:
+#         print("\n\n----------MODEL INITIALIZATION----------\n")
+#     for l in range(len(train_dataloader_.dataset)):
+#         try:
+#             input_shapes = [arr.shape for arr in train_dataloader_.dataset[l][0][0]]
+#             output_shape = [arr.shape for arr in train_dataloader_.dataset[l][0][1]]
+#             if verbose:
+#                 print(f"input_shapes: {input_shapes}")
+#                 print(f"output_shape: {output_shape}")
+#             break
+#         except Exception as e:
+#             continue
+#             # print(f"Skipping {l} because shot not trainable: {e}")
 
-    return MultiBranchTimeCNNModel(input_shapes, output_shape, D).to(device)
+#     return MultiBranchTimeCNNModel(input_shapes, output_shape, D).to(device)
 
 # ----------------------------------------------------------------------------------------------------------------------
 class MultiOutputMSELoss(nn.Module):
