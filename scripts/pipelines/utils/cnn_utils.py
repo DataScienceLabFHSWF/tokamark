@@ -1,18 +1,72 @@
 import os
 import sys
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
+import csv
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import imageio.v3 as iio
 import matplotlib.gridspec as gridspec
+import matplotlib.colors as mcolors
 from torch.utils.data._utils.collate import default_collate
 
+from typing import Dict, List
+from torch.utils.data import DataLoader
+
+# Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
+REPO_ROOT = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__) if "__file__" in globals() else os.getcwd(),
+        "..", "..", "..",
+    )
+)  # noqa: E402
+print(REPO_ROOT) # this adds /rds/project/rds-mOlK9qn0PlQ/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+# print(f"REPO_ROOT: {REPO_ROOT}")
+
 from scripts.MAST_tools.MAST_dataset import MastDataset
+from scripts.pipelines.utils.utils import (
+    ComposeTransforms,
+)
+from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
+    StdScalingTransform,
+)
+from scripts.pipelines.transforms.signal_level_transforms.sampling_reference_time_transform import (
+    SamplingToReferenceTimeTransform,
+)
+from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform import (
+    ReshapeLcfsTransform,
+)
+from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
+    TruncationTransform,
+)
+from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
+    WindowSegmenterTransform,
+)
+from scripts.pipelines.transforms.shot_level_transforms.truncate_windows_transform import (
+    WindowTruncationTransform,
+)
+from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
+    FillProfileWithZerosTransform,
+)
+from scripts.pipelines.transforms.signal_level_transforms.fill_thomson_with_zeros_imputer_transform import (
+FillThomsonWithZerosTransform
+)
+from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans import (
+    DropSampleWithNans,
+)
 from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import (
     CNNTransform,
 )
+from scripts.pipelines.transforms.shot_level_transforms.time_cnn_transform import (
+    TimeCNNTransform,
+)
+from scripts.pipelines.models.cnn_model import MultiBranchCNNModel
+from scripts.pipelines.models.time_cnn_model_update import MultiBranchTimeCNNModel
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Repo-specific imports
@@ -42,9 +96,136 @@ else:
     device = torch.device("cpu")
 
 # ----------------------------------------------------------------------------------------------------------------------
-# COLLATE FUNCTION
+# CNN PREPROCESSING 
 # ----------------------------------------------------------------------------------------------------------------------
 
+# ----------------------------------------------------------------------------------------------------------------------
+def build_cnn_signal_transform_map(
+    source_signal_list: List[tuple],
+    dict_mean: Dict[str, float],
+    dict_std: Dict[str, float],
+    ref_freq: float
+):
+    """Builds the signal transform map for each variable."""
+
+    # Define base signal_transform_map
+    print(source_signal_list)
+    print('before signal_transform_map')
+    signal_transform_map = {
+        var: ComposeTransforms(
+            [
+                StdScalingTransform(dict_mean[var], dict_std[var]),
+                SamplingToReferenceTimeTransform(ref_freq),
+            ]
+        )
+        for var in [f"{source}-{signal}" for source, signal in source_signal_list]
+    }
+
+    # Specific case of profiles with Nans in full channel
+    for var in [
+        "magnetics-flux_loop_flux",
+        "magnetics-b_field_pol_probe_ccbv_field",
+        "magnetics-b_field_pol_probe_obr_field",
+        "magnetics-b_field_pol_probe_obv_field",
+        "magnetics-b_field_tor_probe_saddle_voltage",
+    ]:
+        signal_transform_map[var] = ComposeTransforms(
+            [
+                FillProfileWithZerosTransform(),
+                StdScalingTransform(dict_mean[var], dict_std[var]),
+                SamplingToReferenceTimeTransform(ref_freq),
+            ]
+        )
+
+    # Specific case of reformating LCFS
+    for var in ["equilibrium-lcfs_r", "equilibrium-lcfs_z"]:
+        signal_transform_map[var] = ComposeTransforms(
+            [
+                ReshapeLcfsTransform(),
+                StdScalingTransform(dict_mean[var], dict_std[var]),
+                SamplingToReferenceTimeTransform(ref_freq),
+            ]
+        )
+
+    # Specific filling with zeros for shomson scattering
+    for var in ["thomson_scattering-t_e", "thomson_scattering-n_e"]:
+        signal_transform_map[var] = ComposeTransforms(
+            [
+                StdScalingTransform(dict_mean[var], dict_std[var]),
+                FillThomsonWithZerosTransform(),
+                SamplingToReferenceTimeTransform(ref_freq),
+            ]
+        )
+
+    return signal_transform_map
+
+# ----------------------------------------------------------------------------------------------------------------------
+def build_cnn_shot_transform_map(
+    parameters_window_segmenter: Dict[str, float],
+    remove_CNN_transform: bool = False,
+):
+    """Builds the shot transform map for all variable."""
+
+    if remove_CNN_transform:
+        shot_transform = ComposeTransforms([  
+            TruncationTransform(),
+            WindowSegmenterTransform(
+                **parameters_window_segmenter
+            ), 
+            DropSampleWithNans(verbose=True),
+            ])
+    else:
+        shot_transform = ComposeTransforms([  
+            TruncationTransform(),
+            WindowSegmenterTransform(
+                **parameters_window_segmenter
+            ), 
+            DropSampleWithNans(verbose=True),
+            CNNTransform() ,
+        ])
+
+    return shot_transform
+
+# ----------------------------------------------------------------------------------------------------------------------
+def build_time_cnn_shot_transform_map(
+    ref_freq,
+    parameters_window_segmenter: Dict[str, float],
+    remove_CNN_transform: bool = False,
+):
+    """Builds the shot transform map for all variable."""
+
+    if remove_CNN_transform:
+        shot_transform = ComposeTransforms([  
+            TruncationTransform(),
+            WindowSegmenterTransform(
+                **parameters_window_segmenter
+            ), 
+            DropSampleWithNans(verbose=True),
+            WindowTruncationTransform(
+                x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
+                y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
+            ),
+            ])
+    else:
+        shot_transform = ComposeTransforms([  
+            TruncationTransform(),
+            WindowSegmenterTransform(
+                **parameters_window_segmenter
+            ), 
+            DropSampleWithNans(verbose=True),
+            WindowTruncationTransform(
+                x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
+                y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
+            ),
+            TimeCNNTransform() ,
+        ])
+
+    return shot_transform
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# COLLATE FUNCTION
+# ----------------------------------------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------------------------------------
 def flatten_then_collate(batch):
@@ -65,6 +246,271 @@ def flatten_then_collate(batch):
     # Use the default collate function
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# CNN TRAINING
+# ----------------------------------------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------------------------
+def create_cnn_architecture(train_dataloader_, D, verbose=False):
+    print(D)
+    if verbose:
+        print("\n\n----------MODEL INITIALIZATION----------\n")
+    for l in range(len(train_dataloader_.dataset)):
+        try:
+            input_shapes = [arr.shape for arr in train_dataloader_.dataset[l][0][0]]
+            output_shape = [arr.shape for arr in train_dataloader_.dataset[l][0][1]]
+            if verbose:
+                print(f"input_shapes: {input_shapes}")
+                print(f"output_shape: {output_shape}")
+            break
+        except Exception as e:
+            print(f"Skipping {l} because shot not trainable: {e}")
+            continue
+            
+
+    return MultiBranchCNNModel(input_shapes, output_shape, D).to(device)
+
+def create_time_cnn_architecture(train_dataloader_, D, verbose=False):
+    print(D)
+    if verbose:
+        print("\n\n----------MODEL INITIALIZATION----------\n")
+    for l in range(len(train_dataloader_.dataset)):
+        try:
+            input_shapes = [arr.shape for arr in train_dataloader_.dataset[l][0][0]]
+            output_shape = [arr.shape for arr in train_dataloader_.dataset[l][0][1]]
+            if verbose:
+                print(f"input_shapes: {input_shapes}")
+                print(f"output_shape: {output_shape}")
+            break
+        except Exception as e:
+            continue
+            # print(f"Skipping {l} because shot not trainable: {e}")
+
+    return MultiBranchTimeCNNModel(input_shapes, output_shape, D).to(device)
+
+# ----------------------------------------------------------------------------------------------------------------------
+class MultiOutputMSELoss(nn.Module):
+    def __init__(self, reduction="mean", weights=None):
+        super().__init__()
+        self.reduction = reduction
+        self.weights = weights  # e.g. [1.0, 0.5, 0.1, 2.0]
+
+    def forward(self, y_preds, y_trues):
+        assert len(y_preds) == len(y_trues), "Mismatch in number of outputs"
+        losses = []
+        for i, (yp, yt) in enumerate(zip(y_preds, y_trues)):
+            assert yp.shape == yt.shape, (
+                f"Shape mismatch at output {i}: {yp.shape} vs {yt.shape}"
+            )
+            l = F.mse_loss(yp, yt, reduction=self.reduction)
+            if self.weights is not None:
+                l = self.weights[i] * l
+            losses.append(l)
+        return sum(losses)
+
+# ----------------------------------------------------------------------------------------------------------------------
+def loop_for_cnn_training(
+    base_cnn_model,
+    train_dataloader,
+    val_dataloader,
+    lr,
+    max_epochs,
+    loss_criterion,
+    patience,
+    output_dir,
+    verbose=True,
+):
+    if verbose:
+        print("\n\n----------CNN TRAINING----------\n")
+
+    os.makedirs(output_dir, exist_ok=True)
+    if verbose:
+        print(f"Output folder to save trained model: {output_dir}")
+
+    optimizer = torch.optim.Adam(base_cnn_model.parameters(), lr=lr)
+
+    best_model_state_ = None
+    best_val_loss = float("inf")
+    early_stop_ = False
+    epochs_no_improve = 0
+
+    for epoch in range(max_epochs):
+        base_cnn_model.train()
+        running_loss = 0.0
+        num_batches = 0
+
+        if verbose:
+            print(f"\nEpoch {epoch + 1}\n")
+
+        for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
+            x_train = [arr.to(torch.float32).to(device) for arr in x_train]
+            # y_train = y_train[0].to(torch.float32).to(device)
+            y_train = [arr.to(torch.float32).to(device) for arr in y_train]
+
+            actual_batch_size = y_train[0].shape[0]
+            if verbose:
+                # print(y_train.shape)
+                print(f"Batch {batch_idx} size is {actual_batch_size}")
+
+            # outputs_ = base_cnn_model(*x_train).squeeze()
+            outputs_ = base_cnn_model(*x_train)
+
+            loss_ = loss_criterion(outputs_, y_train)
+            if verbose:
+                # print(f"outputs' shape: {outputs_.shape}")
+                print(f"Batch loss: {loss_}")
+
+            optimizer.zero_grad()
+            loss_.backward()
+            optimizer.step()
+
+            running_loss += loss_.item() * actual_batch_size
+            num_batches += actual_batch_size
+
+        avg_loss = running_loss / num_batches
+
+        if verbose:
+            print(f"Epoch [{epoch + 1}/{max_epochs}], Average Loss: {avg_loss:.4f}")
+
+        # Validation phase & Early stopping check
+
+        base_cnn_model.eval()
+        val_running_loss = 0.0
+        val_batches = 0
+
+        with torch.no_grad():
+            for x_val, y_val in val_dataloader:
+                x_val = [arr.to(torch.float32).to(device) for arr in x_val]
+                # y_val = y_val[0].to(torch.float32).to(device)
+                y_val = [arr.to(torch.float32).to(device) for arr in y_val]
+
+                # val_outputs = base_cnn_model(*x_val).squeeze()
+                val_outputs = base_cnn_model(*x_val)
+
+                val_loss = loss_criterion(val_outputs, y_val)
+
+                actual_batch_size = y_val[0].shape[0]
+
+                val_running_loss += val_loss.item() * actual_batch_size
+                val_batches += actual_batch_size
+
+        avg_val_loss = val_running_loss / val_batches
+
+        if verbose:
+            print(
+                f"Epoch [{epoch + 1}/{max_epochs}], Average Loss: {avg_loss:.4f}, Validation Loss: {avg_val_loss:.4f}"
+            )
+
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            epochs_no_improve = 0
+            best_model_state_ = base_cnn_model.state_dict()
+
+            # Save best model state
+            torch.save(best_model_state_, output_dir + "best_model.pt")
+
+        else:
+            epochs_no_improve += 1
+            if verbose:
+                print(f"No improvement for {epochs_no_improve} epochs.")
+            if epochs_no_improve >= patience:
+                early_stop_ = True
+                if verbose:
+                    print("Early stopping triggered.")
+                break
+
+    return best_model_state_, early_stop_
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def cnn_evaluation_per_shot(cnn_model, 
+                            test_shots_, 
+                            LOCAL_FLAG,
+                            source_signal_list,
+                            signal_transform_map,
+                            shot_transform,
+                            order_var_for_inv_std,
+                            dict_mean,
+                            dict_std,
+                            OUTPUT_FOLDER):
+    cnn_model.eval()
+
+    with open(OUTPUT_FOLDER + "test_loss_per_var.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["shot_id", "n_windows"] + order_var_for_inv_std)  # Header
+
+        for shot_id in test_shots_:
+            print(f"Evaluating shot {shot_id}")
+
+            test_shot_dataset = MastDataset(
+                local=LOCAL_FLAG,
+                shots_list=[shot_id],
+                source_signal_list=source_signal_list,
+                signal_level_transform_map=signal_transform_map,
+                shot_level_transform=shot_transform,
+            )
+
+            test_shot_dataloader = DataLoader(
+                dataset=test_shot_dataset,
+                batch_size=1,
+                num_workers=0,
+                shuffle=False,
+                drop_last=False,
+                collate_fn=flatten_then_collate,
+            )
+
+            if (
+                len(test_shot_dataloader.dataset[0]) > 0
+            ):  # i.e. if this is a valid shot with windows
+                with torch.no_grad():  # Disable gradient calculation for efficiency
+                    x_test, y_test = next(iter(test_shot_dataloader))
+                    x_test = [arr.to(torch.float32).to(device) for arr in x_test]
+
+                    y_test = flatten_blocks(y_test)
+                    y_test = inverse_standardize(
+                        y_test, order_var_for_inv_std, dict_mean, dict_std
+                    )
+                    y_test = [
+                        torch.from_numpy(arr).float().to(device) for arr in y_test
+                    ]
+
+                    outputs_ = flatten_blocks(cnn_model(*x_test))
+                    outputs_ = inverse_standardize(
+                        outputs_, order_var_for_inv_std, dict_mean, dict_std
+                    )
+                    outputs_ = [
+                        torch.from_numpy(arr).float().to(device) for arr in outputs_
+                    ]
+
+                    print([arr.shape for arr in outputs_])
+
+                    # avg_test_loss = [
+                    #     torch.nn.MSELoss(reduction="mean")(pred, true)
+                    #     .mean(dim=0)
+                    #     .item()
+                    #     for pred, true in zip(outputs_, y_test)
+                    # ]
+
+                    rmse_per_batch = []
+                    for pred, true in zip(outputs_, y_test):
+                        # all dims except first
+                        dims = tuple(range(1, pred.ndim))
+                        rmse = torch.sqrt(torch.mean((pred - true) ** 2, dim=dims))  # [batch]
+                        rmse_mean = rmse.mean().item()  # scalar RMSE
+                        rmse_per_batch.append(rmse_mean)
+
+                    print("RMSE per var:", rmse_per_batch)
+
+                writer.writerow([shot_id, len(x_test[0])] + rmse_per_batch)
+                f.flush()
+
+            else:
+                print(f"Shot {shot_id} not run properly, likely empty slice")
+                writer.writerow([shot_id, None] + [None] * len(order_var_for_inv_std))
+                f.flush()
+                continue
+    
 
 # ----------------------------------------------------------------------------------------------------------------------
 # INVERSE STDSCALING
@@ -100,9 +546,9 @@ def get_cnn_order_scaling(
     source_signal_list,
     signal_transform_map,
     shot_transform_without_CNN,
+    transform_temp = CNNTransform(),
     verbose = True
 ):
-    transform_temp = CNNTransform()
     dataset_temp = MastDataset(
         local=LOCAL_FLAG,
         shots_list=test_shots_,
@@ -141,6 +587,7 @@ def inverse_standardize(flat_data, order_vars, dict_mean, dict_std):
     """
     new_flat = []
     for var, data in zip(order_vars, flat_data):
+        # print(var)
         mean = dict_mean[var]
         std = dict_std[var]
 
@@ -219,13 +666,13 @@ def plot_shot_gif(
     for t in range(1, T + 1):
         fig = plt.figure(figsize=(18, fig_height))
         gs = gridspec.GridSpec(
-            n_outputs, 2, width_ratios=[1, 1], height_ratios=row_heights, hspace=0.4
+            n_outputs, 3, width_ratios=[1, 1, 1], height_ratios=row_heights, hspace=0.4
         )
 
         viz_max_t = T * ref_freq
         time_ms = np.arange(t) * ref_freq
 
-        for j, (var, y_pred, y_true, mse, var_min, var_max) in enumerate(
+        for j, (var, y_pred, y_true, rmse, var_min, var_max) in enumerate(
             zip(order_var_list, flat_preds, flat_trues, avg_test_loss, min_list, max_list)
         ):
             viz_min_y = min(y_true.min(), y_pred.min()) - abs(
@@ -240,6 +687,7 @@ def plot_shot_gif(
 
             ax_gt = fig.add_subplot(gs[j, 0])
             ax_pred = fig.add_subplot(gs[j, 1])
+            ax_diff = fig.add_subplot(gs[j, 2])
 
             if yp.ndim == 1:
                 # 1D time series
@@ -251,7 +699,7 @@ def plot_shot_gif(
                 # ax_gt.set_ylabel("Value")
 
                 ax_pred.plot(time_ms, yp, lw=2, color="orange")
-                ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
+                ax_pred.set_title(f"{var} - Prediction RMSE {round(rmse, 3)}")
                 ax_pred.set_xlim(0, viz_max_t)
                 ax_pred.set_ylim(viz_min_y, viz_max_y)
                 # ax_pred.set_xlabel("Time (ms)")
@@ -284,35 +732,78 @@ def plot_shot_gif(
                     vmin=var_min,
                     vmax=var_max,
                 )
-                ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
+                ax_pred.set_title(f"{var} - Prediction RMSE {round(rmse, 3)}")
                 ax_pred.set_xlim(0, viz_max_t)
                 # ax_pred.set_xlabel("Time (ms)")
                 # ax_pred.set_ylabel("Profile index")
 
+                # Plot difference in grayscale
+                ax_diff.imshow(
+                    (yp-yt).T,
+                    aspect="auto",
+                    origin="lower",
+                    extent=[time_ms[0], time_ms[-1], 0, D],
+                    # cmap="gray",         # 👈 grayscale colormap
+                    # vmin=-abs(diff).max(),
+                    # vmax=abs(diff).max(),  # symmetric limits for positive/negative differences
+                )
+
+                ax_diff.set_title(f"{var} - Difference")
+                ax_diff.set_xlim(0, viz_max_t)
+
             elif yp.ndim == 3:
                 # 3D image
 
-                img = yt[-1]
+                img_gt = yt[-1]
                 # print(img)
                 ax_gt.imshow(
-                    img,
-                    aspect="auto",
+                    img_gt.T,
+                    # aspect="auto",
                     cmap="viridis",
-                    vmin=var_min,
-                    vmax=var_max,
+                    # vmin=var_min,
+                    # vmax=var_max,
                 )
                 ax_gt.set_title(f"{var} - Ground Truth")
+                ax_gt.axis("off")
 
-                img = yp[-1]
+                img_pred = yp[-1]
                 # print(img)
                 ax_pred.imshow(
-                    img,
-                    aspect="auto",
+                    img_pred.T,
+                    # aspect="auto",
                     cmap="viridis",
-                    vmin=var_min,
-                    vmax=var_max,
+                    # vmin=var_min,
+                    # vmax=var_max,
                 )
-                ax_pred.set_title(f"{var} - Prediction MSE {round(mse, 3)}")
+                # ax_pred.set_title(f"{var} - Prediction RMSE {round(rmse, 3)}")
+                # --- Dynamically compute RMSE ---
+                # Convert to torch tensors (and ensure they’re on same device)
+                gt_tensor = torch.as_tensor(img_gt, dtype=torch.float32)
+                pred_tensor = torch.as_tensor(img_pred, dtype=torch.float32)
+                computed_rmse = torch.sqrt(torch.mean((pred_tensor - gt_tensor) ** 2)).item()
+
+                ax_pred.set_title(f"{var} - Prediction RMSE {computed_rmse:.3e}")
+                ax_pred.axis("off")
+
+                img_diff = yp[-1] - yt[-1]
+                # Compute limits for symmetric color scale
+                # vmax = abs(img_diff).max()
+                # vmax = abs(img_diff).max()
+                # print(vmax)
+                vmax = 0.025
+                norm = mcolors.TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+                # norm = mcolors.TwoSlopeNorm(vcenter=0)
+                # print(img)
+                ax_diff.imshow(
+                    img_diff.T,
+                    # aspect="auto",
+                    cmap="coolwarm",
+                    norm=norm,
+                    # vmin=var_min,
+                    # vmax=var_max,
+                )
+                ax_diff.set_title(f"{var} - Difference")
+                ax_diff.axis("off")
 
             else:
                 raise ValueError(
@@ -321,7 +812,8 @@ def plot_shot_gif(
 
         # plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         frame_path = frame_dir / f"frame_{t:04d}.png"
-        plt.savefig(frame_path, dpi=150, bbox_inches="tight")
+        plt.savefig(frame_path, dpi=150, 
+                    bbox_inches="tight")
         plt.close(fig)
 
         frame_paths.append(frame_path)
@@ -352,3 +844,99 @@ def plot_shot_gif(
             frame.unlink()
 
     print(f"Saved GIF: {gif_path}")
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def plot_shot_image(flat_preds, flat_trues, order_var_list, avg_test_loss, shot_idx, ref_freq, out_dir="shot_images"):
+    """
+    Create a static image comparing predictions vs ground truth for a given shot.
+
+    Parameters
+    ----------
+    flat_preds, flat_trues : list of arrays
+        Each array shape (T,), (T, D), or (T, H, W)
+    order_var_list : list of str
+        Variable names
+    avg_test_loss : list of float
+        MSE values for each variable
+    shot_idx : int or str
+        Identifier for the shot (used in filenames)
+    ref_freq : float
+        Time step in ms
+    out_dir : str
+        Directory to save the output image
+    """
+
+    # out_folder = Path(out_dir)
+    out_folder = Path(out_dir) / f"shot_images"
+    out_folder.mkdir(parents=True, exist_ok=True)
+
+    n_outputs = len(flat_preds)
+    # row_heights = [0.5 if y.ndim == 1 else 1.0 for y in flat_preds]
+    row_heights = [1 if y.ndim == 1 else 1.0 for y in flat_preds]
+    fig_height = sum(row_heights) * 4
+
+    fig, axes = plt.subplots(
+        n_outputs, 2, figsize=(18, fig_height),
+        gridspec_kw={'width_ratios': [1, 1], 'height_ratios': row_heights}
+    )
+
+    if n_outputs == 1:
+        axes = np.array([axes])  # keep indexing consistent
+    if axes.ndim == 1:
+        axes = axes[:, None]
+
+    viz_max_t = min(y.shape[0] for y in flat_preds) * ref_freq
+    time_ms = np.arange(min(y.shape[0] for y in flat_preds)) * ref_freq
+
+    for j, (var, y_pred, y_true, rmse) in enumerate(zip(order_var_list, flat_preds, flat_trues, avg_test_loss)):
+        if y_pred.ndim == 1:
+            # --- 1D: plot both curves on the same subplot ---
+            ax = axes[j, 0]
+            ax.plot(time_ms, y_true, lw=2, color="blue", label="Ground Truth")
+            ax.plot(time_ms, y_pred, lw=2, color="cyan", label="Prediction")
+            ax.set_xlim(0, viz_max_t)
+            ax.set_title(f"{var} (RMSE={round(rmse,3)})")
+            ax.legend()
+            axes[j, 1].axis("off")  # right panel empty
+
+        elif y_pred.ndim == 2:
+            # --- 2D: keep ground truth vs prediction side by side ---
+            D = y_pred.shape[1]
+            vmin = min(y_true.min(), y_pred.min())
+            vmax = max(y_true.max(), y_pred.max())
+
+            axes[j, 0].imshow(
+                y_true.T, aspect="auto", origin="lower",
+                extent=[time_ms[0], time_ms[-1], 0, D],
+                cmap="viridis", vmin=vmin, vmax=vmax
+            )
+            axes[j, 0].set_title(f"{var} - Ground Truth")
+
+            axes[j, 1].imshow(
+                y_pred.T, aspect="auto", origin="lower",
+                extent=[time_ms[0], time_ms[-1], 0, D],
+                cmap="viridis", vmin=vmin, vmax=vmax
+            )
+            axes[j, 1].set_title(f"{var} - Prediction (RMSE={round(rmse,3)})")
+
+        elif y_pred.ndim == 3:
+            # --- 3D: just black images ---
+            black_img = np.zeros_like(y_true[-1])
+
+            axes[j, 0].imshow(black_img, cmap="gray")
+            axes[j, 0].set_title(f"{var} - Ground Truth (not shown)")
+
+            axes[j, 1].imshow(black_img, cmap="gray")
+            axes[j, 1].set_title(f"{var} - Prediction (not shown)")
+
+        else:
+            raise ValueError(f"Unsupported shape {y_pred.shape}")
+
+    plt.tight_layout()
+    out_path = out_folder / f"shot_{shot_idx}.png"
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    print(f"Saved image: {out_path}")
+

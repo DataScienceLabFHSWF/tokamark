@@ -4,22 +4,27 @@ run_evaluation: true
 
 input:
   data_names: &x_keys
-    # - [magnetics, flux_loop_flux] 
+    - [magnetics, flux_loop_flux] 
     # - [magnetics, b_field_pol_probe_ccbv_field]
-    - [magnetics, b_field_pol_probe_obr_field]
+    # - [magnetics, b_field_pol_probe_obr_field]
     # - [magnetics, b_field_pol_probe_obv_field]
     # - [magnetics, b_field_tor_probe_saddle_voltage]
     # - [magnetics, b_field_tor_probe_cc_field]
     # - [magnetics, b_field_pol_probe_omv_voltage]
     # # - [magnetics, b_field_tor_probe_omaha_voltage]
     # - [pf_active, solenoid_current]
-    # - [pf_active, coil_voltage]
-    # - [pf_active, coil_current]
+    - [pf_active, coil_voltage]
+    - [pf_active, coil_current]
     # - [pulse_schedule, i_plasma]
-    # - [summary, power_nbi]
+    - [summary, power_nbi]
     # - [pulse_schedule, n_e_line]
-    - ['thomson_scattering', 't_e']
+    # - ['thomson_scattering', 't_e']
     # - ['thomson_scattering', 'n_e']
+
+  # exog_names: &exog_keys
+  #   - [pf_active, coil_voltage]
+  #   - [pf_active, coil_current]
+  #   - [summary, power_nbi]
 
   target_names: &y_keys
     - ['thomson_scattering', 't_e']
@@ -35,6 +40,7 @@ standardscaling_setting:
 
 window_segmenter_setting:
   x_keys: *x_keys
+  # exog_keys: *exog_keys
   y_keys: *y_keys
   x_window_sec: 0
   y_window_sec: 0
@@ -42,7 +48,7 @@ window_segmenter_setting:
   stride_sec: null
   stride_unitary: true
   min_samples_per_window: 1
-  verbose: false
+  verbose: true
 
 cnn_model:
   D: 32
