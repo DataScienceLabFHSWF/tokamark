@@ -116,7 +116,8 @@ class TrainingSettings:
             self.num_workers = config["training"]["num_workers"]
             self.num_train_samples = config["training"]["num_train_samples"]
             self.num_val_samples = config["training"]["num_val_samples"]
-            self.num_test_samples = config["training"]["num_test_samples"]
+            if "num_test_samples" in config["training"].keys():
+                self.num_test_samples = config["training"]["num_test_samples"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
