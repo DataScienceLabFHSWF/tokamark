@@ -336,6 +336,12 @@ def train_beta_vae_models(
         train_kl_losses = defaultdict(float)
         train_counts = defaultdict(int)
 
+        for signal_name in models.keys():
+            train_losses[signal_name] = 0.
+            train_recon_losses[signal_name] = 0.
+            train_kl_losses[signal_name] = 0.
+            train_counts[signal_name] = 0
+
         if verbose:
             print("Training phase")
 
@@ -368,7 +374,7 @@ def train_beta_vae_models(
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
-
+                
                 train_losses[signal_name] += total_loss.item()
                 train_recon_losses[signal_name] += recon_loss.item()
                 train_kl_losses[signal_name] += kl_loss.item()
@@ -379,6 +385,11 @@ def train_beta_vae_models(
         val_recon_losses = defaultdict(float)
         val_kl_losses = defaultdict(float)
         val_counts = defaultdict(int)
+        for signal_name in models.keys():
+            val_losses[signal_name] = 0.
+            val_recon_losses[signal_name] = 0.
+            val_kl_losses[signal_name] = 0.
+            val_counts[signal_name] = 0
 
         for signal_name, model in models.items():
             model.eval()
@@ -420,21 +431,14 @@ def train_beta_vae_models(
                 avg_train_recon = train_recon_losses[signal_name] / train_counts[signal_name]
                 avg_train_kl = train_kl_losses[signal_name] / train_counts[signal_name]
                 
-                avg_val_loss = (
-                    val_losses[signal_name] / val_counts[signal_name]
-                    if val_counts[signal_name] > 0
-                    else float("inf")
-                )
-                avg_val_recon = (
-                    val_recon_losses[signal_name] / val_counts[signal_name]
-                    if val_counts[signal_name] > 0
-                    else float("inf")
-                )
-                avg_val_kl = (
-                    val_kl_losses[signal_name] / val_counts[signal_name]
-                    if val_counts[signal_name] > 0
-                    else float("inf")
-                )
+                if val_counts[signal_name] > 0:
+                    avg_val_loss = val_losses[signal_name] / val_counts[signal_name]
+                    avg_val_recon = val_recon_losses[signal_name] / val_counts[signal_name]
+                    avg_val_kl = val_kl_losses[signal_name] / val_counts[signal_name]
+                else:
+                    avg_val_loss = float("inf")
+                    avg_val_recon = float("inf")
+                    avg_val_kl = float("inf")
 
                 # Store loss curves
                 loss_curves[signal_name]['train_total'].append(avg_train_loss)
