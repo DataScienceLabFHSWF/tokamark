@@ -1,9 +1,9 @@
 {   
     "general":
     {
-        "nr_shots": 5, 
-        "processes":2,
-        "local": false
+        "nr_shots": 9259, 
+        "processes":1,
+        "local": true
     },
 
     "pca": 
@@ -11,8 +11,15 @@
         "max_components": 10,
         "source_signal_names": [
             "magnetics-flux_loop_flux", 
-            "magnetics-b_field_tor_probe_saddle_voltage", 
-            "magnetics-b_field_pol_probe_ccbv_field"]
+            "magnetics-b_field_pol_probe_ccbv_field", 
+            "magnetics-b_field_pol_probe_obr_field",
+	    "magnetics-b_field_pol_probe_obv_field",
+            "magnetics-b_field_tor_probe_saddle_voltage",
+            "pf_active-coil_current",
+            "pf_active-coil_voltage",
+            "equilibrium-x_point_r",
+            "equilibrium-x_point_z"
+	]
     },
 
     "sigfill":{
@@ -22,10 +29,10 @@
             ["magnetics-b_field_pol_probe_obr_field", 18],
             ["magnetics-b_field_pol_probe_obv_field", 18],
             ["magnetics-b_field_tor_probe_saddle_voltage", 12],
-            ["pf_active-coil_current", 14],
-            ["pf_active-coil_voltage", 14],
-            ["equilibrium-x_point_r", 4],
-            ["equilibrium-x_point_z", 4]
+            ["pf_active-coil_current", 10],
+            ["pf_active-coil_voltage", 4],
+            ["equilibrium-x_point_r", 2],
+            ["equilibrium-x_point_z", 2]
         ]
     },
     

@@ -1,4 +1,5 @@
 import os
+import json
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -26,12 +27,16 @@ class Settings:
     def __init__(self, config):
         # Set up individual settings classes
         self.config = config
-        self.NEURALNET = NNSettings(config)
+
+        if "nn_model" in config.keys():
+            self.NEURALNET = NNSettings(config)
+        if "beta-vae" in config.keys():
+            self.BETA_VAE = BetaVae(config)
+
         self.TIME_SEGMENTATION = TimeSettings(config)
         self.TRAINING = TrainingSettings(config)
         self.LOCAL_PATHS = LocalPaths(config)
         self.DATA = DataInput(config)
-        self.BETA_VAE = BetaVae(config)
 
 
 # ======================================================================================================================
@@ -44,6 +49,15 @@ class BetaVae:
             self.lr = config["beta-vae"]["lr"]
             self.ref_freq = config["beta-vae"]["ref_freq"]
             self.existing_fitted_params = config["beta-vae"]["existing_fitted_params"]
+            
+            if "hidden_dim" in config["beta-vae"].keys():
+                self.hidden_dim = config["beta-vae"]["hidden_dim"]
+            else:
+                self.hidden_dim = 128
+            if "use_cosine_lr" in config["beta-vae"].keys():
+                self.use_cosine_lr = config["beta-vae"]["use_cosine_lr"]
+            else:
+                self.use_cosine_lr = False 
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
@@ -101,6 +115,8 @@ class TrainingSettings:
             self.num_workers = config["training"]["num_workers"]
             self.num_train_samples = config["training"]["num_train_samples"]
             self.num_val_samples = config["training"]["num_val_samples"]
+            if "num_test_samples" in config["training"].keys():
+                self.num_test_samples = config["training"]["num_test_samples"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
@@ -111,10 +127,13 @@ class LocalPaths:
     def __init__(self, config):
         try:
             # Local paths
-            self.average_values_file_path = config["paths"]["average_values_file_path"]
-            self.joblib_directory = config["paths"]["joblib_directory"]
-            self.data_split_csv_path = config["paths"]["data_split_csv_path"]
             self.data_output_directory = config["paths"]["data_output_directory"]
+            if "average_values_file_path" in config["paths"].keys():
+                self.average_values_file_path = config["paths"]["average_values_file_path"]
+            if "joblib_directory" in config["paths"].keys():
+                self.joblib_directory = config["paths"]["joblib_directory"]
+            if "data_split_csv_path" in config["paths"].keys():
+                self.data_split_csv_path = config["paths"]["data_split_csv_path"]
         except KeyError as e:
             print(f"Missing key in training configuration: {e}")
             raise
@@ -138,6 +157,6 @@ class DataInput:
 if __name__ == "__main__":
     import json
 
-    config_file_path_ = "scripts/main_pipeline/configs/config_lr_0_0001.json"
+    config_file_path_ = "scripts/pipelines/configs/config_beta_vae.json"
     settings = get_settings(config_file_path_)
     print(settings.NEURALNET.lr)
