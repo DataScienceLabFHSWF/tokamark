@@ -146,6 +146,3 @@ class MastDataset(Dataset):
             return [obj]
         else:
             return []
-
-    def get_window_index_within_shot(self, idx: int):  # TODO: Ask Tobia about it.
-        return None

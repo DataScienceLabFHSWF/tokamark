@@ -75,7 +75,7 @@ class MASTPlottingManager:
             profile.plot(ax=ax)
             if ax is None:
                 ax = plt.gca()
-            ax.grid('on', alpha=0.5)
+            ax.grid(True, alpha=0.5)
         except Exception as e:
             print(f"Error: {e}")
 

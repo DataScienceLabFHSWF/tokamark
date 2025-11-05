@@ -278,12 +278,12 @@ class MASTSignalManager:
     @staticmethod
     def get_channel_names(
             store,
-            group: str,  # TODO: This must be renamed source_name
+            source_name: str,
             signal_name: str,
             verbose: bool = False
     ):
         try:
-            profile = xr.open_zarr(store=store, group=group)
+            profile = xr.open_zarr(store=store, group=source_name)
             data_array = profile[signal_name]
             non_time_coords = [coord for coord in data_array.coords if coord != "time"]
             if non_time_coords:
