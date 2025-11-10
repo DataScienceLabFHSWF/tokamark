@@ -1,0 +1,20 @@
+window_segmenter_setting:
+  past_window_sec: 0.025
+  future_window_sec: 0.025
+  verbose: false
+
+cnn_settings:
+  D: 32
+
+dataloader_setting:
+  batch_size: 10
+  num_workers: 5
+
+training_args:
+  lr: 0.00001
+  max_epochs: 2
+  patience: 5
+
+paths:
+  data_split_csv_path: metadata/2025-05-12/data_splits.csv
+  data_output_directory: /output/cnn_output_subtest/

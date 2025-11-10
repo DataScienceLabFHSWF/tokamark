@@ -28,6 +28,15 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 # print(f"REPO_ROOT: {REPO_ROOT}")
 
+from scripts.pipelines.utils.utils import (
+    seed_worker, 
+    make_data_generator,
+    get_train_test_val_shots,
+    initialize_datasets,
+    initialize_dataloaders,
+    ModelTransformWrapper,
+)
+
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipelines.utils.utils import (
     ComposeTransforms,
@@ -44,9 +53,10 @@ from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform
 from scripts.pipelines.transforms.shot_level_transforms.truncation_transform import (
     TruncationTransform,
 )
-from scripts.pipelines.transforms.shot_level_transforms.window_segmenter_transform import (
-    WindowSegmenterTransform,
+from scripts.pipelines.transforms.shot_level_transforms.timestamp_window_segmenter_transform import (
+    TimestampWindowSegmenterTransform,
 )
+
 from scripts.pipelines.transforms.shot_level_transforms.truncate_windows_transform import (
     WindowTruncationTransform,
 )
@@ -100,148 +110,243 @@ else:
 # ----------------------------------------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------------------------------------
-def build_cnn_signal_transform_map(
-    source_signal_list: List[tuple],
-    dict_mean: Dict[str, float],
-    dict_std: Dict[str, float],
-    ref_freq: float
-):
-    """Builds the signal transform map for each variable."""
+# def build_cnn_signal_transform_map(
+#     source_signal_list: List[tuple],
+#     dict_mean: Dict[str, float],
+#     dict_std: Dict[str, float],
+#     ref_freq: float
+# ):
+#     """Builds the signal transform map for each variable."""
 
-    # Define base signal_transform_map
-    print(source_signal_list)
-    print('before signal_transform_map')
-    signal_transform_map = {
-        var: ComposeTransforms(
-            [
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-                SamplingToReferenceTimeTransform(ref_freq),
-            ]
-        )
-        for var in [f"{source}-{signal}" for source, signal in source_signal_list]
-    }
+#     # Define base signal_transform_map
+#     print(source_signal_list)
+#     print('before signal_transform_map')
+#     signal_transform_map = {
+#         var: ComposeTransforms(
+#             [
+#                 StdScalingTransform(dict_mean[var], dict_std[var]),
+#                 # SamplingToReferenceTimeTransform(ref_freq),
+#             ]
+#         )
+#         for var in [f"{source}-{signal}" for source, signal in source_signal_list]
+#     }
 
-    # Specific case of profiles with Nans in full channel
-    for var in [
-        "magnetics-flux_loop_flux",
-        "magnetics-b_field_pol_probe_ccbv_field",
-        "magnetics-b_field_pol_probe_obr_field",
-        "magnetics-b_field_pol_probe_obv_field",
-        "magnetics-b_field_tor_probe_saddle_voltage",
-    ]:
-        signal_transform_map[var] = ComposeTransforms(
-            [
-                FillProfileWithZerosTransform(),
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-                SamplingToReferenceTimeTransform(ref_freq),
-            ]
-        )
+#     # Specific case of profiles with Nans in full channel
+#     for var in [
+#         "magnetics-flux_loop_flux",
+#         "magnetics-b_field_pol_probe_ccbv_field",
+#         "magnetics-b_field_pol_probe_obr_field",
+#         "magnetics-b_field_pol_probe_obv_field",
+#         "magnetics-b_field_tor_probe_saddle_voltage",
+#     ]:
+#         signal_transform_map[var] = ComposeTransforms(
+#             [
+#                 FillProfileWithZerosTransform(),
+#                 StdScalingTransform(dict_mean[var], dict_std[var]),
+#                 # SamplingToReferenceTimeTransform(ref_freq),
+#             ]
+#         )
 
-    # Specific case of reformating LCFS
-    for var in ["equilibrium-lcfs_r", "equilibrium-lcfs_z"]:
-        signal_transform_map[var] = ComposeTransforms(
-            [
-                ReshapeLcfsTransform(),
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-                SamplingToReferenceTimeTransform(ref_freq),
-            ]
-        )
+#     # Specific case of reformating LCFS
+#     for var in ["equilibrium-lcfs_r", "equilibrium-lcfs_z"]:
+#         signal_transform_map[var] = ComposeTransforms(
+#             [
+#                 ReshapeLcfsTransform(),
+#                 StdScalingTransform(dict_mean[var], dict_std[var]),
+#                 # SamplingToReferenceTimeTransform(ref_freq),
+#             ]
+#         )
 
-    # Specific filling with zeros for shomson scattering
-    for var in ["thomson_scattering-t_e", "thomson_scattering-n_e"]:
-        signal_transform_map[var] = ComposeTransforms(
-            [
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-                FillThomsonWithZerosTransform(),
-                SamplingToReferenceTimeTransform(ref_freq),
-            ]
-        )
+#     # Specific filling with zeros for shomson scattering
+#     for var in ["thomson_scattering-t_e", "thomson_scattering-n_e"]:
+#         signal_transform_map[var] = ComposeTransforms(
+#             [
+#                 StdScalingTransform(dict_mean[var], dict_std[var]),
+#                 FillThomsonWithZerosTransform(),
+#                 # SamplingToReferenceTimeTransform(ref_freq),
+#             ]
+#         )
 
-    return signal_transform_map
+#     return signal_transform_map
+
+
+
+def initialize_cnn_datasets(datasets_train_val_test, 
+                            dict_metadata: Dict,
+                            parameters: Dict[str, float],):
+
+    cnn_specific_transform = ComposeTransforms([  
+        TimestampWindowSegmenterTransform(
+            dict_metadata,
+            **parameters["window_segmenter_setting"], 
+        ), 
+        # DropSampleWithNans(verbose=True),
+        CNNTransform() ,
+    ])
+
+    datasets_ = {"train": None, "val": None, "test": None}
+
+    # ..................................................................................................................
+    # Train
+    datasets_["train"] = ModelTransformWrapper(datasets_train_val_test["train"], 
+                                              cnn_specific_transform)
+    
+    # ..................................................................................................................
+    # Val
+    datasets_["val"] = ModelTransformWrapper(datasets_train_val_test["val"], 
+                                              cnn_specific_transform)
+
+    # ..................................................................................................................
+    # Test
+    datasets_["test"] = ModelTransformWrapper(datasets_train_val_test["test"], 
+                                              cnn_specific_transform)
+    # ..................................................................................................................
+    # Return
+    return datasets_
+
+    
+def initialize_cnn_dataloaders_and_models(datasets_train_val_test, 
+                            dict_metadata: Dict,
+                            parameters: Dict[str, float],
+                            verbose=False,
+                            seed: int | None = None,
+                            pin_memory: bool | None = None,
+                            ):
+    
+    if verbose:
+        print('\n\n---------- CNN DATASET & DATALOADER INITIALIZATION----------\n')
+    
+    cnn_datasets = initialize_cnn_datasets(datasets_train_val_test, 
+                                           dict_metadata,
+                                           parameters)
+                                           
+
+    cnn_dataloaders_ = {"train": None, "val": None, "test": None}
+
+    # ▶ Prepare reproducible seeding parts for DataLoader
+    worker_fn = None
+    generator = None
+    if seed is not None:
+        worker_fn = seed_worker
+        generator = make_data_generator(seed)
+
+    # sensible default for pin_memory
+    if pin_memory is None:
+        pin_memory = torch.cuda.is_available()
+
+    # ..................................................................................................................
+    # Train
+    cnn_dataloaders_["train"] = DataLoader(
+        dataset=cnn_datasets["train"],
+        **parameters["dataloader_setting"],
+        shuffle=True,
+        drop_last=False,
+        collate_fn=cnn_training_collate_fn,
+        worker_init_fn=worker_fn,  # ▶
+        generator=generator,  # ▶ controls shuffle order deterministically
+        pin_memory=pin_memory,
+    )
+
+    # ..................................................................................................................
+    # Val
+    cnn_dataloaders_["val"] = DataLoader(
+        dataset=cnn_datasets["val"],
+        **parameters["dataloader_setting"],
+        shuffle=True,
+        drop_last=False,
+        collate_fn=cnn_training_collate_fn,
+        worker_init_fn=worker_fn,  # ▶ ensures worker RNG is fixed
+        generator=generator,  # ▶ reproducible order if shuffle=True
+        pin_memory=pin_memory,
+    )
+
+    # ..................................................................................................................
+    # Test
+    cnn_dataloaders_["test"] = DataLoader(
+        dataset=cnn_datasets["test"],
+        **parameters["dataloader_setting"],
+        shuffle=False,
+        drop_last=False,
+        collate_fn=cnn_inference_collate_fn,
+        worker_init_fn=worker_fn,
+        generator=generator,
+        pin_memory=pin_memory,
+    )
+
+    # ..................................................................................................................
+    # Model
+    cnn_model = create_cnn_architecture(cnn_dataloaders_["train"], 
+                                         **parameters['cnn_settings'],
+                                         verbose=False)
+
+    return cnn_dataloaders_, cnn_model
+
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-def build_cnn_shot_transform_map(
-    parameters_window_segmenter: Dict[str, float],
-    remove_CNN_transform: bool = False,
-):
-    """Builds the shot transform map for all variable."""
-
-    if remove_CNN_transform:
-        shot_transform = ComposeTransforms([  
-            TruncationTransform(),
-            WindowSegmenterTransform(
-                **parameters_window_segmenter
-            ), 
-            DropSampleWithNans(verbose=True),
-            ])
-    else:
-        shot_transform = ComposeTransforms([  
-            TruncationTransform(),
-            WindowSegmenterTransform(
-                **parameters_window_segmenter
-            ), 
-            DropSampleWithNans(verbose=True),
-            CNNTransform() ,
-        ])
-
-    return shot_transform
-
-# ----------------------------------------------------------------------------------------------------------------------
-# def build_time_cnn_shot_transform_map(
-#     ref_freq,
+# def build_cnn_shot_transform_map(
+#     dict_metadata: Dict,
 #     parameters_window_segmenter: Dict[str, float],
-#     remove_CNN_transform: bool = False,
+#     # remove_CNN_transform: bool = False,
 # ):
 #     """Builds the shot transform map for all variable."""
 
-#     if remove_CNN_transform:
-#         shot_transform = ComposeTransforms([  
-#             TruncationTransform(),
-#             WindowSegmenterTransform(
-#                 **parameters_window_segmenter
-#             ), 
-#             DropSampleWithNans(verbose=True),
-#             WindowTruncationTransform(
-#                 x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
-#                 y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
-#             ),
-#             ])
-#     else:
-#         shot_transform = ComposeTransforms([  
-#             TruncationTransform(),
-#             WindowSegmenterTransform(
-#                 **parameters_window_segmenter
-#             ), 
-#             DropSampleWithNans(verbose=True),
-#             WindowTruncationTransform(
-#                 x_timestamp = int(parameters_window_segmenter["x_window_sec"]/ref_freq), 
-#                 y_timestamp = int(parameters_window_segmenter["y_window_sec"]/ref_freq)
-#             ),
-#             TimeCNNTransform() ,
-#         ])
+
+#     # if remove_CNN_transform:
+#     #     shot_transform = ComposeTransforms([  
+#     #         # TruncationTransform(),
+#     #         SampleSegmenterTransform(
+#     #             **parameters_window_segmenter
+#     #         ), 
+#     #         # DropSampleWithNans(verbose=True),
+#     #         ])
+#     # else:
+#     shot_transform = ComposeTransforms([  
+#         # TruncationTransform(),
+#         TimestampWindowSegmenterTransform(
+#             dict_metadata,
+#             **parameters_window_segmenter, 
+#         ), 
+#         # DropSampleWithNans(verbose=True),
+#         CNNTransform() ,
+#     ])
 
 #     return shot_transform
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 # COLLATE FUNCTION
 # ----------------------------------------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------------------------------------
-def flatten_then_collate(batch):
+def cnn_training_collate_fn(batch):
+    print(f"Collating batch of size {len(batch)}")
+
+    # Flatten the batch of lists into a single list
+    flattened_batch = [ (item['shot_id'], item['window_index'], item['x'], item['y'])
+                       for sublist in batch
+                       for item in sublist
+                       if not (
+                           any(np.isnan(np.array(x)).any() for x in item['x']) or
+                           any(np.isnan(np.array(y)).any() for y in item['y']) 
+                           )
+                       ]
+    
+    print(
+        f"Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}"
+    )
+
+    return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
+
+def cnn_inference_collate_fn(batch):
     print(f"Collating batch of size {len(batch)}")
 
     # Flatten the batch of lists into a single list
     flattened_batch = []
-    if isinstance(batch[0], list):
-        flattened_batch = [item for sublist in batch for item in sublist]
-        print(
-            f"Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}"
-        )
-        # for bat in flattened_batch:
-        #     print(
-        #         f"Shapes in batch = {[arr.shape for arr in bat[0]]} and {[arr.shape for arr in bat[1]]}"
-        #     )
+    flattened_batch = [(item['x'], item['y']) for sublist in batch for item in sublist]
+    
+    print(
+        f"Number of samples from batch = {len(batch)} shots is N = {len(flattened_batch)}"
+    )
 
     # Use the default collate function
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
@@ -252,23 +357,22 @@ def flatten_then_collate(batch):
 # ----------------------------------------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------------------------------------
-def create_cnn_architecture(train_dataloader_, D, verbose=False):
+def create_cnn_architecture(dataloader_, D, verbose=False):
     print(D)
     if verbose:
         print("\n\n----------MODEL INITIALIZATION----------\n")
-    for l in range(len(train_dataloader_.dataset)):
+    for l in range(len(dataloader_.dataset)):
         try:
-            input_shapes = [arr.shape for arr in train_dataloader_.dataset[l][0][0]]
-            output_shape = [arr.shape for arr in train_dataloader_.dataset[l][0][1]]
+            input_shapes = [arr.shape for arr in dataloader_.dataset[l][0]['x']]
+            output_shape = [arr.shape for arr in dataloader_.dataset[l][0]['y']]
             if verbose:
                 print(f"input_shapes: {input_shapes}")
                 print(f"output_shape: {output_shape}")
             break
         except Exception as e:
-            print(f"Skipping {l} because shot not trainable: {e}")
+            print(f"Skipping {dataloader_.dataset.get_shot_id(l)} because shot not trainable: {e}")
             continue
             
-
     return MultiBranchCNNModel(input_shapes, output_shape, D).to(device)
 
 # def create_time_cnn_architecture(train_dataloader_, D, verbose=False):
@@ -316,7 +420,6 @@ def loop_for_cnn_training(
     val_dataloader,
     lr,
     max_epochs,
-    loss_criterion,
     patience,
     output_dir,
     verbose=True,
@@ -325,9 +428,11 @@ def loop_for_cnn_training(
         print("\n\n----------CNN TRAINING----------\n")
 
     os.makedirs(output_dir, exist_ok=True)
+    
     if verbose:
         print(f"Output folder to save trained model: {output_dir}")
 
+    loss_criterion = MultiOutputMSELoss()
     optimizer = torch.optim.Adam(base_cnn_model.parameters(), lr=lr)
 
     best_model_state_ = None
@@ -343,7 +448,8 @@ def loop_for_cnn_training(
         if verbose:
             print(f"\nEpoch {epoch + 1}\n")
 
-        for batch_idx, (x_train, y_train) in enumerate(train_dataloader):
+        for batch_idx, (shot_id, window_id, x_train, y_train) in enumerate(train_dataloader):
+
             x_train = [arr.to(torch.float32).to(device) for arr in x_train]
             # y_train = y_train[0].to(torch.float32).to(device)
             y_train = [arr.to(torch.float32).to(device) for arr in y_train]
@@ -380,7 +486,7 @@ def loop_for_cnn_training(
         val_batches = 0
 
         with torch.no_grad():
-            for x_val, y_val in val_dataloader:
+            for (shot_id, window_id, x_val, y_val) in val_dataloader:
                 x_val = [arr.to(torch.float32).to(device) for arr in x_val]
                 # y_val = y_val[0].to(torch.float32).to(device)
                 y_val = [arr.to(torch.float32).to(device) for arr in y_val]
@@ -464,7 +570,7 @@ def cnn_evaluation_per_shot(cnn_model,
                 len(test_shot_dataloader.dataset[0]) > 0
             ):  # i.e. if this is a valid shot with windows
                 with torch.no_grad():  # Disable gradient calculation for efficiency
-                    x_test, y_test = next(iter(test_shot_dataloader))
+                    shot_id, window_id, x_test, y_test = next(iter(test_shot_dataloader))
                     x_test = [arr.to(torch.float32).to(device) for arr in x_test]
 
                     y_test = flatten_blocks(y_test)

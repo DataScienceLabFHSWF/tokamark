@@ -7,11 +7,18 @@ import torch
 import random
 import numpy as np
 import itertools
+from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
+
+# from scripts.pipelines.utils.preprocessing_utils import (
+#     build_common_signal_transform_map, 
+#     build_common_shot_transform_map,
+#     get_metadata,
+# )
 
 # Compute project root relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(
@@ -145,7 +152,6 @@ def fit_mean_and_std_for_signal_transform(output_sub_dir, train_shots, source_si
 
     return dict_mean_, dict_std_
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_datasets(
         sources_and_signals,
@@ -153,7 +159,7 @@ def initialize_datasets(
         sig_tran_map,
         shot_tran,
         local_flag=False,
-        return_incomplete_shots=False,
+        return_incomplete_shots=True,
         verbose=False
 
 ):
@@ -284,6 +290,29 @@ def initialize_dataloaders(
         )
 
     return dataloaders_
+
+# ======================================================================================================================
+class ModelTransformWrapper(MastDataset):
+    def __init__(self, base_dataset, model_transform):
+        self.base = base_dataset
+        self.model_transform = model_transform
+
+    def __getitem__(self, idx):
+        sample = self.base[idx]
+
+        out = []
+        for object in sample:
+
+            out.append({**{'shot_id': self.base.shots_list[idx]},
+                        **self.model_transform(object)})
+
+        return out
+
+    def __len__(self):
+        return len(self.base)
+    
+    def get_shot_id(self, idx: int):
+        return self.base.shots_list[idx]
 
 
 # ======================================================================================================================

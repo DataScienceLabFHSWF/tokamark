@@ -1,222 +1,96 @@
-import os
-import sys
-import yaml
 import argparse
-import shutil
-
-import pickle
-import torch
-import torch.multiprocessing as mp
+import yaml
 from multiprocessing import cpu_count
+import torch.multiprocessing as mp
 
-
-# ----------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Repo-specific imports
-
-# Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
-REPO_ROOT = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__) if "__file__" in globals() else os.getcwd(),
-        "..",
-        "..",
-    )
-)  # noqa: E402
-
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-# print(f"REPO_ROOT: {REPO_ROOT}")
-
-from torch.utils.data import DataLoader
-from scripts.MAST_tools.MAST_dataset import MastDataset
-
-from scripts.pipelines.utils.utils import (
-    get_train_test_val_shots,
-    initialize_datasets,
-    initialize_dataloaders,
-    ComposeTransforms,
-)
-from scripts.pipelines.utils.cnn_utils import (
-    build_cnn_signal_transform_map, 
-    build_cnn_shot_transform_map,
-    create_cnn_architecture,
-    MultiOutputMSELoss,
+# -------------------------------------------------------------------
+from globals import REPO_ROOT
+from pipelines.utils.device_utils import get_device
+from pipelines.utils.preprocessing_utils import initialize_datasets_and_metadata_for_task
+from pipelines.utils.cnn_utils import (
+    initialize_cnn_dataloaders_and_models,
     loop_for_cnn_training,
-    cnn_evaluation_per_shot,
-    flatten_then_collate,
-    get_cnn_order_scaling,
 )
 
+# Set device
+device = get_device()
+print(f"Using device: {device}\n")
 
-# ----------------------------------------------------------------------------------------------------------------------
-# Determine device to train on
 
-if torch.backends.mps.is_available():
-    # device = torch.device("mps")
-    device = torch.device("cpu")
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
-
-# ======================================================================================================================
 if __name__ == "__main__":
-    print(f"\nNumber of available cores: {cpu_count()}\n")
-    mp.set_start_method("spawn", force=True)
+    print(f"Number of available CPU cores: {cpu_count()}\n")
+    mp.set_start_method("spawn", force=True) 
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # GENERAL SETTINGS
-    # ------------------------------------------------------------------------------------------------------------------
-
-    parser = argparse.ArgumentParser(description="Data Augmentation")
+    # -------------------------------------------------------------------
+    # Argument parsing
+    # -------------------------------------------------------------------
+    parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config",
+        "--config_task",
         type=str,
-        default="/scripts/pipelines/configs/config_cnn_test.yaml",
-        help="Path to the config YAML file",
+        default="/pipelines/configs/configs_task/config_task_0.yaml",
+        help="Path to the task YAML config file",
     )
-    args, unknown = parser.parse_known_args()
-
-    # Load parameters from YAML configuration
-    with open(REPO_ROOT + args.config, "r") as f:
-        parameters = yaml.safe_load(f)
-    print(parameters)  # optional, to verify contents
-
-    # ..................................................................................................................
-    # Parameters Setting
-
-    # General parameters
-    LOCAL_FLAG = parameters["local"]
-    SUBSET_OF_SHOTS = parameters["subset_of_shots"]
-    OUTPUT_FOLDER = REPO_ROOT + parameters["paths"]["data_output_directory"]
-    RUN_EVALUATION = parameters["run_evaluation"]
-
-    # Copy the config file into the output folder
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-    config_src = REPO_ROOT + args.config
-    config_dst = os.path.join(OUTPUT_FOLDER, os.path.basename(config_src))
-    # shutil.copy2(config_src, config_dst)
-
-    # Data
-    source_signal_list = (
-        parameters["input"]["data_names"] 
-            + parameters["input"].get("exog_names", [])
-            + parameters["input"]["target_names"]
-    ) 
-    source_signal_list = [s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]] # Avoid repetition
-
-    # Preprocessing parameters
-    ref_freq = parameters["ref_freq"]
-    parameters_window_segmenter = parameters["window_segmenter_setting"]
-    
-    parameters_window_segmenter["x_keys"] = [
-        f"{source}-{signal}" for source, signal in parameters_window_segmenter["x_keys"]
-    ]
-    
-    parameters_window_segmenter["exog_keys"] = parameters["input"].get("exog_names", [])
-    if parameters_window_segmenter["exog_keys"] != []:
-        parameters_window_segmenter["exog_keys"] = [
-            f"{source}-{signal}" for source, signal in parameters_window_segmenter["exog_keys"]
-            ]
-    print(parameters_window_segmenter["exog_keys"])
-
-    parameters_window_segmenter["y_keys"] = [
-        f"{source}-{signal}" for source, signal in parameters_window_segmenter["y_keys"]
-    ]
-    
-    # Model Architecture parameters
-    cnn_args = parameters["cnn_model"]
-
-    # Dataloader paraneters
-    dataloader_setting = parameters["dataloader_setting"]
-
-    # Training parameters
-    training_args = parameters["training"]
-    # training_args['loss_criterion'] = torch.nn.MSELoss()
-
-    training_args["loss_criterion"] = MultiOutputMSELoss()
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # PRELIMINARY TASKS
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # ..................................................................................................................
-    # Preprocessing pipeline
-
-    # Create sets of shot IDs for training, validation and testing
-    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index=SUBSET_OF_SHOTS
+    parser.add_argument(
+        "--config_cnn",
+        type=str,
+        default="/pipelines/configs/configs_cnn/config_cnn_test.yaml",
+        help="Path to the model YAML config file",
     )
+    args, _ = parser.parse_known_args()
 
-    # Fit mean and std for signal transformation
-    with open(
-        REPO_ROOT + parameters["standardscaling_setting"]["mean_path"], "rb"
-    ) as f:
-        dict_mean = pickle.load(f)
-    with open(REPO_ROOT + parameters["standardscaling_setting"]["std_path"], "rb") as f:
-        dict_std = pickle.load(f)
+    # Load Task YAML config
+    with open(REPO_ROOT + args.config_task, "r") as f:
+        config_task = yaml.safe_load(f)
+    print("Task configuration:")
+    print(config_task)
 
-    # ..................................................................................................................
-    # For CNN pipeline
+    # Load CNN YAML config
+    with open(REPO_ROOT + args.config_cnn, "r") as f:
+        config_cnn = yaml.safe_load(f)
+    print("Model configuration:")
+    print(config_cnn)
 
-    # For training preprocessing
-    signal_transform_map = build_cnn_signal_transform_map(source_signal_list, dict_mean, dict_std, ref_freq)
-    shot_transform = build_cnn_shot_transform_map(parameters_window_segmenter)
+    # -------------------------------------------------------------------
+    # Initialize datasets and metadata
+    # -------------------------------------------------------------------
+    datasets_train_val_test, dict_metadata = initialize_datasets_and_metadata_for_task(config_task) 
 
-    # For unstandardscaling
-    shot_transform_without_CNN = build_cnn_shot_transform_map(parameters_window_segmenter, remove_CNN_transform=True)
-
-    # Get unstandardscaling order
-    order_var_for_inv_std = get_cnn_order_scaling(
-        LOCAL_FLAG,
-        train_shots_,
-        source_signal_list,
-        signal_transform_map,
-        shot_transform_without_CNN,
-    )
-
-    # Prepare datasets
-    datasets_train_val_test = initialize_datasets(
-        sources_and_signals=source_signal_list,
-        shots={"train": train_shots_, "val": val_shots_, "test": test_shots_},
-        sig_tran_map=signal_transform_map,
-        shot_tran=shot_transform,
-        local_flag=LOCAL_FLAG,
+    # -------------------------------------------------------------------
+    # CNN pipeline
+    # -------------------------------------------------------------------
+    dataloaders_cnn, cnn_model = initialize_cnn_dataloaders_and_models(
+        datasets_train_val_test,
+        dict_metadata,
+        config_cnn,
         verbose=True,
     )
 
-    # Prepare dataloaders
-    dataloaders_train_val_test = initialize_dataloaders(
-        datasets=datasets_train_val_test,
-        collate_function=flatten_then_collate,
-        **dataloader_setting,
-        verbose=True,
-    )
-    train_dataloader = dataloaders_train_val_test["train"]
-    val_dataloader = dataloaders_train_val_test["val"]
-    # test_dataloader = dataloaders_train_val_test["test"]
+    first_batch = next(iter(dataloaders_cnn["train"]))
+    print("First batch from train dataloader:")
+    print(first_batch)
+    print("CNN model architecture:")
+    print(cnn_model)
 
-    # Create CNN architecture
-    cnn_model = create_cnn_architecture(
-        train_dataloader_=train_dataloader, **cnn_args, verbose=True
-    )
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # CNN Training
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # ..................................................................................................................
+    # -------------------------------------------------------------------
     # Training loop
-
+    # -------------------------------------------------------------------
     best_model_state, early_stop = loop_for_cnn_training(
         base_cnn_model=cnn_model,
-        train_dataloader=train_dataloader,
-        val_dataloader=val_dataloader,
-        **training_args,
-        output_dir=OUTPUT_FOLDER,
+        train_dataloader=dataloaders_cnn["train"],
+        val_dataloader=dataloaders_cnn["val"],
+        **config_cnn["training_args"],
+        output_dir=REPO_ROOT + config_cnn["paths"]["data_output_directory"],
         verbose=True,
     )
 
-    # ------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # Evaluation loop
+    # -------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------------------------
     # CNN Evaluation PER SHOT
     # ------------------------------------------------------------------------------------------------------------------
 

@@ -5,70 +5,38 @@ class CNNTransform:
 
     def __init__(self):
         # dictionary that persists across calls
-        self.var_groups = {"x": None, 
-                           "exog": None,
-                           "y": None}
+        self.var_groups = {"x_past": None, 
+                           "y_past": None, 
+                           "x_future": None, 
+                           "y_future": None}
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, list_samples):
-        cnn_samples = []
+    def __call__(self, window):
 
-        for sample in list_samples:
-            # keep variable names
-            array_x = [data['values'].T for var, data in sample['x'].items()]
-            names_x = list(sample['x'].keys())
-            # group arrays by shape for CNN branch
-            reshaped_x, groups_x = self._group_arrays_by_shape(array_x, names_x)
-            reshaped_x = [arr.squeeze(0) if arr.shape[0] == 1 else arr for arr in reshaped_x]
-            reshaped_x = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_x]
-            # update mappings
-            self._update_groups("x", groups_x)
+        # x_past
+        array_x_past = [ data['values'][...,-1:].T for var, data in window['x_past'].items() ] 
+        names_x_past = list(window['x_past'].keys())
+        # x_future
+        array_x_future = [ data['values'][...,:1].T for var, data in window['x_future'].items() ] 
+        names_x_future = list(window['x_future'].keys())
 
-            # keep variable names
-            array_y = [data['values'].T for var, data in sample['y'].items()]
-            names_y = list(sample['y'].keys())
-            # group arrays by shape for CNN branch
-            reshaped_y, groups_y = self._group_arrays_by_shape(array_y, names_y)
-            reshaped_y = [arr.squeeze(0) for arr in reshaped_y]
-            reshaped_y = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_y]
-            # update mappings
-            self._update_groups("y", groups_y)
+        # y_past
+        array_y_past = [ data['values'][...,-1:].T for var, data in window['y_past'].items() ] 
+        names_y_past = list(window['y_past'].keys())
+        # y_future
+        array_y_future = [ data['values'][...,:1].T for var, data in window['y_future'].items() ] 
+        names_y_future = list(window['y_future'].keys())
 
-            reshape_input = reshaped_x
+        # x
+        array_x = array_x_past + array_x_future
+        names_x = names_x_past + names_x_future
 
-            if sample['exog'] != None:
-                array_exog = [data['values'].T for var, data in sample['exog'].items()]
-                names_exog = list(sample['exog'].keys())
-                reshaped_exog, groups_exog = self._group_arrays_by_shape(array_exog, names_exog)
-                reshaped_exog = [arr.squeeze(0) if arr.shape[0] == 1 else arr for arr in reshaped_exog]
-                reshaped_exog = [arr.squeeze(-1) if arr.shape[-1] == 1 else arr for arr in reshaped_exog]
-                self._update_groups("exog", groups_exog)
-                reshape_input = reshaped_x + reshaped_exog
-
-            cnn_samples.append((reshape_input, reshaped_y))
+        # y 
+        array_y = array_y_past + array_y_future
+        names_y = names_y_past + names_y_future
         
-        return cnn_samples
+        return {'window_index': window['window_index'],
+                'x': array_x,
+                'y': array_y}
 
-    # ------------------------------------------------------------------------------------------------------------------
-    @staticmethod
-    def _group_arrays_by_shape(arrays, names):
-        grouped = defaultdict(lambda: {"arrays": [], "names": []})
-        for arr, name in zip(arrays, names):
-            grouped[arr.shape]["arrays"].append(arr)
-            grouped[arr.shape]["names"].append(name)
-
-        reshaped_list, name_groups = [], []
-        for same_shape_group in grouped.values():
-            stacked = np.stack(same_shape_group["arrays"])
-            transposed = np.transpose(stacked, axes=[1, 0] + list(range(2, stacked.ndim)))
-            reshaped_list.append(transposed)
-            name_groups.append(same_shape_group["names"])
-
-        return reshaped_list, name_groups
-
-    # ------------------------------------------------------------------------------------------------------------------
-    def _update_groups(self, kind, groups):
-        """Store mapping of variable groups only once."""
-        if self.var_groups[kind] is None:  # only set the first time
-            self.var_groups[kind] = groups
 
