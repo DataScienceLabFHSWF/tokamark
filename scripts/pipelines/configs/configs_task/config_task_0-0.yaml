@@ -1,0 +1,36 @@
+subset_of_shots: 50
+local: true
+run_evaluation: true
+
+task_name: task_0-0 JUST FOR TEST
+
+sources_and_signals:
+  input_name: &input_keys
+    - [equilibrium, lcfs_r]
+    - [magnetics, flux_loop_flux] 
+
+  actuator_name: &actuator_keys
+    - [equilibrium, lcfs_r]
+
+  output_name: &output_keys
+    - [equilibrium, lcfs_r]
+    - [equilibrium, psi]
+    - [equilibrium, elongation_axis]
+
+standardscaling_setting:
+  mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
+  std_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
+  # mean_path: "/../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
+  # std_path: "/../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
+
+task_window_segmenter:
+  input_keys: *input_keys
+  actuator_keys: *actuator_keys
+  output_keys: *output_keys
+  input_length: 0.025
+  output_length: 0.025
+  delta: -0.025 # this is reconstruction ie -delta = input_length = output_length
+  verbose: false
+
+paths:
+  data_split_csv_path: ../metadata/2025-05-12/data_splits.csv

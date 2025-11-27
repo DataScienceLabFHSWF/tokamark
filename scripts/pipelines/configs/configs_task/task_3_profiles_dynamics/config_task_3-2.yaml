@@ -1,0 +1,42 @@
+subset_of_shots:
+local: true
+run_evaluation: true
+
+task_name: task_3-2
+
+sources_and_signals:
+  input_name: &input_keys
+    - ['thomson_scattering', 't_e']
+    - ['thomson_scattering', 'n_e']
+    - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage'] #possible
+    - ['soft_x_rays', 'horizontal_cam_lower'] #possible
+
+  actuator_name: &actuator_keys  
+    - [summary, ip]
+    - ['gas_injection','inboard_total']
+    - ['gas_injection','outboard_total']
+    - ['gas_injection','valve_target_voltage']
+    - ['gas_injection','valve_voltage']
+    - [summary, power_nbi]
+
+  output_name: &output_keys
+    - ['spectrometer_visible', 'filter_spectrometer_dalpha_voltage']
+    - ['soft_x_rays', 'horizontal_cam_lower']
+
+standardscaling_setting:
+  mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
+  std_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
+  # mean_path: "/../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
+  # std_path: "/../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
+
+task_window_segmenter:
+  input_keys: *input_keys
+  actuator_keys: *actuator_keys
+  output_keys: *output_keys
+  input_length: 0.005
+  output_length: 0.050
+  delta: 0 # this is forecasting
+  verbose: false
+
+paths:
+  data_split_csv_path: ../metadata/2025-05-12/data_splits.csv

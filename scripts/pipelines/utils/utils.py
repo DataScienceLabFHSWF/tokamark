@@ -9,7 +9,9 @@ import numpy as np
 import itertools
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+import psutil, os
 
+from globals import REPO_ROOT
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
@@ -21,10 +23,11 @@ from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_me
 # )
 
 # Compute project root relative to this file
-REPO_ROOT = os.path.abspath(os.path.join(
-    os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
-    "..", "..", ".."
-))  # noqa: E402
+# REPO_ROOT = os.path.abspath(os.path.join(
+#     os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
+#     "..", "..", ".."
+# )) 
+ # noqa: E402
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -215,6 +218,61 @@ def initialize_datasets(
 
     return datasets_
 
+# ----------------------------------------------------------------------------------------------------------------------
+def initialize_model_datasets(
+        datasets_train_val_test,
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose=False
+
+):
+    datasets_ = {"train": None, "val": None, "test": None}
+
+    # ..................................................................................................................
+    # Train
+
+    datasets_["train"] = ModelTransformWrapper(
+                            datasets_train_val_test["train"],
+                            dict_metadata,
+                            config_task,
+                            model_specific_transform,
+                            verbose
+                            )
+    if verbose:
+        print(f"len(mast_train_dataset): {len(datasets_['train'])}")
+
+    # ..................................................................................................................
+    # Val
+
+    datasets_["val"] = ModelTransformWrapper(
+                            datasets_train_val_test["val"],
+                            dict_metadata,
+                            config_task,
+                            model_specific_transform,
+                            verbose
+                            )
+    if verbose:
+        print(f"len(mast_val_dataset): {len(datasets_['val'])}")
+
+    # ..................................................................................................................
+    # Test
+
+    datasets_["test"] = ModelTransformWrapper(
+                            datasets_train_val_test["test"],
+                            dict_metadata,
+                            config_task,
+                            model_specific_transform,
+                            verbose
+                            )
+    if verbose:
+        print(f"len(mast_test_dataset): {len(datasets_['test'])}")
+
+    # ..................................................................................................................
+    # Return
+
+    return datasets_
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_dataloaders(
@@ -293,27 +351,296 @@ def initialize_dataloaders(
 
 # ======================================================================================================================
 class ModelTransformWrapper(MastDataset):
-    def __init__(self, base_dataset, model_transform):
+
+    def __init__(self, base_dataset, dict_metadata, config_task, 
+                 model_transform, 
+                 verbose = False):
+        
         self.base = base_dataset
+        self.shots_list = self.base.shots_list
+        self.dict_metadata = dict_metadata
+
+        self.input_keys = [
+            f"{source}-{signal}" for source, signal in (config_task["task_window_segmenter"]["input_keys"] or [])
+        ] 
+        self.actuator_keys = [
+            f"{source}-{signal}" for source, signal in (config_task["task_window_segmenter"]["actuator_keys"] or [])
+        ]
+        self.output_keys = [
+            f"{source}-{signal}" for source, signal in (config_task["task_window_segmenter"]["output_keys"] or [])
+        ]
+
+        self.input_length = config_task["task_window_segmenter"]["input_length"]
+        self.output_length = config_task["task_window_segmenter"]["output_length"]
+        self.delta = config_task["task_window_segmenter"]["delta"]
+        
         self.model_transform = model_transform
 
-    def __getitem__(self, idx):
-        sample = self.base[idx]
+        self.verbose = verbose
 
-        out = []
-        for object in sample:
+        if self.verbose:
 
-            out.append({**{'shot_id': self.base.shots_list[idx]},
-                        **self.model_transform(object)})
+            print(f"\nINPUT VARIABLES L={self.input_length}s")
+            for key in self.input_keys:
+                print(f"Variable {key}")
+                freq_key = self.dict_metadata[key]["dt"]
+                print(f"    frequency: {freq_key}")
+                dim_key = self.dict_metadata[key]["values_shape"]
+                print(f"    dim shape: {dim_key}")
+                ts_length = np.trunc(self.input_length / freq_key)
+                print(f"    we expect a window of length: {ts_length}")
+            
+            print(f"\nACTUATOR VARIABLES L={self.input_length+self.delta+self.output_length}s")
+            for key in self.actuator_keys:
+                print(f"Variable {key}")
+                freq_key = self.dict_metadata[key]["dt"]
+                print(f"    frequency: {freq_key}")
+                dim_key = self.dict_metadata[key]["values_shape"]
+                print(f"    dim shape: {dim_key}")
+                ts_length = (np.trunc(self.input_length / freq_key) 
+                             + np.trunc(self.output_length / freq_key) 
+                             + np.trunc(self.delta / freq_key) )
+                print(f"    we expect a window of length: { ts_length }")
+            
+            print(f"\nOUTPUT VARIABLES L={self.output_length}s")
+            for key in self.output_keys:
+                print(f"Variable {key}")
+                freq_key = self.dict_metadata[key]["dt"]
+                print(f"    frequency: {freq_key}")
+                dim_key = self.dict_metadata[key]["values_shape"]
+                print(f"    dim shape: {dim_key}")
+                ts_length = np.trunc(self.output_length / freq_key)
+                print(f"    we expect a window of length: {ts_length}")
 
-        return out
+
+
+    def __getitem__(self, idx_shot):
+
+        # process = psutil.Process(os.getpid())
+        # mem = process.memory_info().rss / (1024 ** 2)
+        # print(f"[Worker {os.getpid()}] __getitem__ mem: {mem:.2f} MB, idx={self.shots_list[idx]}")
+
+        sample = self.base[idx_shot]
+
+        t_start = []
+        t_end = []
+        delta_ts = []
+        # for var in self.input_keys + self.actuator_keys + self.output_keys:
+        for var in self.output_keys: # only check output variables to determine if sample able to be run on!
+            t = sample[var]["time"]
+            if t.size != 0:
+                t_start.append(t[0])
+                t_end.append(t[-1])
+                dts = np.diff(t)
+                if len(dts) > 0:
+                    delta_ts.append(np.min(dts))
+                    # if self.verbose:
+                    #     print(f"\nt_start for {var}: {t[0]:.6f}")
+                    #     print(f"t_end for {var}: {t[-1]:.6f} s")
+                    #     print(f"Δt for {var}: {np.min(dts):.6f} s")
+        if not delta_ts:
+            print(f"[Warning] No valid Δt found in any signals for shot {self.get_shot_id(idx_shot)}")  
+            # yield {
+            #     "shot_id": self.get_shot_id(idx_shot),
+            #     "window_index": np.nan,
+            #     "x": {np.nan},
+            #     "y": {np.nan},
+            # }
+            return  # stop processing this sample
+            
+        start_time = np.min(t_start)
+        end_time = np.max(t_end)
+
+        max_dt = np.max(delta_ts)
+        stride = max_dt # we could do min_dt
+
+        t_cuts = np.arange(start_time, end_time, stride)
+        # print(t_cuts)
+        
+        for idx_t, t_cut in enumerate(t_cuts):
+            
+            # ..........................................................................................................
+            # Input 
+            
+            input_slice = {}
+
+            for key in self.input_keys:
+
+                freq_key = self.dict_metadata[key]["dt"]
+                shape_values = self.dict_metadata[key]["values_shape"]
+                ts_input = np.trunc(self.input_length / freq_key).astype(int)
+                
+                times = sample[key]["time"]
+                values = sample[key]["values"]
+
+                # 1. mask for times before t_end
+                idx_in = np.where(times <= t_cut)[0]
+
+                # 2. choose exactly ts_input indices (or fewer if not available)
+                if len(idx_in) >= ts_input:
+                    chosen_idx_in = idx_in[-ts_input:]
+                else:
+                    chosen_idx_in = idx_in
+                
+                # 3. Get padded time
+                pad_len_input = ts_input - len(chosen_idx_in)
+                selected_times = np.concatenate([
+                                            np.full(pad_len_input, np.nan),
+                                            times[chosen_idx_in]
+                                            ])
+                
+                # 4. Get padded values and handle when values empty
+                if chosen_idx_in.size > 0:
+                    sel_values_in = values[..., chosen_idx_in]
+                else:
+                    sel_values_in = np.empty(shape_values + (0,), dtype=values.dtype)
+                selected_values = np.concatenate([
+                                            np.full(shape_values + (pad_len_input,), np.nan, dtype=float), 
+                                            sel_values_in,
+                                            ], axis=-1)
+                # 5. Get slice
+                input_slice[key] = {
+                    "time": selected_times,
+                    "values": selected_values
+                }
+            
+            # ..........................................................................................................
+            # Actuator
+
+            actuator_slice = {}
+
+            for key in self.actuator_keys:
+
+                freq_key = self.dict_metadata[key]["dt"]
+                shape_values = self.dict_metadata[key]["values_shape"]
+                ts_input = np.trunc(self.input_length / freq_key).astype(int)
+                ts_output = np.trunc(self.output_length / freq_key).astype(int)
+                ts_delta = np.trunc(self.delta / freq_key).astype(int)
+                
+                times = sample[key]["time"]
+                values = sample[key]["values"]
+
+                # 1. mask for times before t_end
+                idx_in = np.where(times <= t_cut)[0]
+                idx_out = np.where(times > t_cut+self.delta)[0]
+
+                # 2. choose exactly ts_input indices (or fewer if not available)
+                if len(idx_in) >= ts_input:
+                    chosen_idx_in = idx_in[-ts_input:]
+                else:
+                    chosen_idx_in = idx_in
+                
+                if len(idx_out) >= ts_delta + ts_output :
+                    chosen_idx_out = idx_out[:ts_delta+ts_output]
+                else:
+                    chosen_idx_out = idx_out
+
+                # 3. Get padded time
+                pad_len_input = ts_input - len(chosen_idx_in)
+                pad_len_output = ts_delta + ts_output - len(chosen_idx_out)
+                selected_times = np.concatenate([
+                                            np.full(pad_len_input, np.nan),
+                                            times[chosen_idx_in],
+                                            times[chosen_idx_out],
+                                            np.full(pad_len_output, np.nan),
+                                            ])
+                
+                # 4. Get padded values and handle when values empty
+                if chosen_idx_in.size > 0:
+                    sel_values_in = values[..., chosen_idx_in]
+                else:
+                    sel_values_in = np.empty(shape_values + (0,), dtype=values.dtype)
+                
+                if chosen_idx_out.size > 0:
+                    sel_values_out = values[..., chosen_idx_out]
+                else:
+                    sel_values_out = np.empty(shape_values + (0,), dtype=values.dtype)
+                
+                selected_values = np.concatenate([
+                                            np.full(shape_values + (pad_len_input,), np.nan, dtype=float), 
+                                            sel_values_in,
+                                            sel_values_out,
+                                            np.full(shape_values + (pad_len_output,), np.nan, dtype=float),
+                                            ], axis=-1)
+                
+                # 5. Get slice
+                actuator_slice[key] = {
+                    "time": selected_times,
+                    "values": selected_values
+                }
+
+            # ..........................................................................................................
+            # Output
+            
+            output_slice = {}
+
+            for key in self.output_keys:
+
+                freq_key = self.dict_metadata[key]["dt"]
+                shape_values = self.dict_metadata[key]["values_shape"]
+                ts_output = np.trunc(self.output_length / freq_key).astype(int)
+                ts_delta = np.trunc(self.delta / freq_key).astype(int)
+                
+                times = sample[key]["time"]
+                values = sample[key]["values"]
+
+                # 1. mask for times before t_end
+                idx_out = np.where(times > t_cut+self.delta)[0]
+
+                # 2. choose exactly ts_input indices (or fewer if not available)
+                if len(idx_out) >= ts_output:
+                    chosen_idx_out = idx_out[:ts_output]
+                else:
+                    chosen_idx_out = idx_out
+
+                # 3. Get padded time
+                pad_len_output = ts_output - len(chosen_idx_out)
+
+                if chosen_idx_out.size > 0:
+                    sel_values_out = values[..., chosen_idx_out]
+                else:
+                    sel_values_out = np.empty(shape_values + (0,), dtype=values.dtype)
+
+                selected_times = np.concatenate([
+                                            times[chosen_idx_out],
+                                            np.full(pad_len_output, np.nan),
+                                            ])
+                
+                # 4. Get padded values and handle when values empty
+                if chosen_idx_out.size > 0:
+                    sel_values_out = values[..., chosen_idx_out]
+                else:
+                    sel_values_out = np.empty(shape_values + (0,), dtype=values.dtype)
+
+                selected_values = np.concatenate([
+                                            sel_values_out,
+                                            np.full(shape_values + (pad_len_output,), np.nan, dtype=float),
+                                            ], axis=-1)
+                
+                # 5. Get slice
+                output_slice[key] = {
+                    "time": selected_times,
+                    "values": selected_values
+                }
+
+
+            obj = {
+                "input": input_slice,
+                "actuator": actuator_slice,
+                "output": output_slice
+            }
+
+            yield {
+                "shot_id": self.get_shot_id(idx_shot),
+                "window_index": idx_t,
+                **self.model_transform(obj)
+            }
 
     def __len__(self):
         return len(self.base)
     
     def get_shot_id(self, idx: int):
         return self.base.shots_list[idx]
-
 
 # ======================================================================================================================
 class ComposeTransforms(object):

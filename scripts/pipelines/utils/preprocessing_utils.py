@@ -13,12 +13,9 @@ REPO_ROOT = os.path.abspath(
         "..", "..", "..",
     )
 )  # noqa: E402
-print(REPO_ROOT) # this adds /rds/project/rds-mOlK9qn0PlQ/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing
+# print(REPO_ROOT) # this adds /rds/project/rds-mOlK9qn0PlQ/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
-# print(f"REPO_ROOT: {REPO_ROOT}")
-
-# from scripts.MAST_tools.MAST_dataset import MastDataset
 
 from scripts.pipelines.utils.utils import (
     get_train_test_val_shots,
@@ -30,9 +27,6 @@ from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_no
 )
 from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform import (
     ReshapeLcfsTransform,
-)
-from scripts.pipelines.transforms.shot_level_transforms.rolling_segmenter_transform import (
-    RollingSegmenterTransform,
 )
 from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform,
@@ -61,12 +55,9 @@ if REPO_ROOT not in sys.path:
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
 
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
+# Set device
+from pipelines.utils.device_utils import get_device
+device = get_device()
 
 # ----------------------------------------------------------------------------------------------------------------------
 # COMMON PREPROCESSING 
@@ -81,8 +72,6 @@ def build_common_signal_transform_map(
     """Builds the signal transform map for each variable."""
 
     # Define base signal_transform_map
-    print(source_signal_list)
-    print('before signal_transform_map')
     signal_transform_map = {
         var: ComposeTransforms(
             [
@@ -128,21 +117,6 @@ def build_common_signal_transform_map(
     return signal_transform_map
 
 
-
-# ----------------------------------------------------------------------------------------------------------------------
-def build_common_shot_transform_map(
-    rolling_window_segmenter: Dict[str, float]
-):
-    """Builds the shot transform map for all variable."""
-
-    shot_transform = ComposeTransforms([  
-        RollingSegmenterTransform(
-            **rolling_window_segmenter
-        ), 
-    ])
-
-    return shot_transform
-
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 
@@ -167,7 +141,7 @@ def get_metadata(dataset, max_samples=100, verbose=True):
             values = np.array(signal["values"])
 
             # Compute median dt
-            dt = np.median(np.diff(time)) if len(time) > 1 else None
+            dt = round(np.median(np.diff(time)), 6) if len(time) > 1 else None
 
             info[key] = {
                 "dt": dt,
@@ -203,11 +177,12 @@ def initialize_datasets_and_metadata_for_task(
     # ..................................................................................................................
     # Get unique source-signal
     source_signal_list = (
-        config_task["sources_and_signals"].get("x_past", [])
-            + config_task["sources_and_signals"].get("x_future", [])
-            + config_task["sources_and_signals"].get("y_past", [])
-            + config_task["sources_and_signals"].get("y_future", [])
-    ) 
+        (config_task["sources_and_signals"].get("input_name") or [])
+        + (config_task["sources_and_signals"].get("actuator_name") or [])
+        + (config_task["sources_and_signals"].get("output_name") or [])
+    )
+ 
+
     source_signal_list = [s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]] # Unicity
 
     # ..................................................................................................................
@@ -224,29 +199,14 @@ def initialize_datasets_and_metadata_for_task(
 
     # ..................................................................................................................
     # Get metadata
-    datasets_for_metadata = initialize_datasets(
+    datasets_train_val_test = initialize_datasets(
         sources_and_signals=source_signal_list,
         shots={"train": train_shots_, "val": val_shots_, "test": test_shots_},
         sig_tran_map=signal_transform_map,
         shot_tran=None,
         local_flag=config_task["local"],
-        verbose=True,
+        verbose=False,
     )
-    dict_metadata = get_metadata(datasets_for_metadata["train"])
-
-    # ..................................................................................................................
-    # Build shot transform to cut accessible objects for task
-    shot_transform = build_common_shot_transform_map(config_task["rolling_window_segmenter_setting"])
-
-    # ..................................................................................................................
-    # Get datasets 
-    datasets_train_val_test = initialize_datasets(
-        sources_and_signals=source_signal_list,
-        shots={"train": train_shots_, "val": val_shots_, "test": test_shots_},
-        sig_tran_map=signal_transform_map,
-        shot_tran=shot_transform,
-        local_flag=config_task["local"],
-        verbose=True,
-    )
+    dict_metadata = get_metadata(datasets_train_val_test["train"], verbose=False)
 
     return datasets_train_val_test, dict_metadata

@@ -1,42 +1,100 @@
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict    
+
+from typing import List, Dict, Any
+import numpy as np
+
 # ======================================================================================================================
 class CNNTransform:
 
-    def __init__(self):
+    def __init__(self, dict_metadata, verbose=False):
         # dictionary that persists across calls
-        self.var_groups = {"x_past": None, 
-                           "y_past": None, 
-                           "x_future": None, 
-                           "y_future": None}
-
+        self.dict_metadata = dict_metadata
+        self.verbose = verbose
+        self.var_groups = {"input": None, 
+                           "actuator": None, 
+                           "output": None}
+ 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, window):
+    def __call__(self, shot: Dict[str, Any]) -> Dict[str, Any]:
 
-        # x_past
-        array_x_past = [ data['values'][...,-1:].T for var, data in window['x_past'].items() ] 
-        names_x_past = list(window['x_past'].keys())
-        # x_future
-        array_x_future = [ data['values'][...,:1].T for var, data in window['x_future'].items() ] 
-        names_x_future = list(window['x_future'].keys())
+        # Copy non-window metadata
+        new_shot = {k: v for k, v in shot.items() if k not in ["input", "actuator", "output"]}
 
-        # y_past
-        array_y_past = [ data['values'][...,-1:].T for var, data in window['y_past'].items() ] 
-        names_y_past = list(window['y_past'].keys())
-        # y_future
-        array_y_future = [ data['values'][...,:1].T for var, data in window['y_future'].items() ] 
-        names_y_future = list(window['y_future'].keys())
-
-        # x
-        array_x = array_x_past + array_x_future
-        names_x = names_x_past + names_x_future
-
-        # y 
-        array_y = array_y_past + array_y_future
-        names_y = names_y_past + names_y_future
+        # Replace windowed data
+        new_shot.update({
+            "input": self._get_timestamp(shot["input"], "first"),
+            "actuator_past": self._get_timestamp(shot["actuator"], "first"),
+            "actuator_future": self._get_timestamp(shot["actuator"], "last"),
+            "output": self._get_timestamp(shot["output"], "last"),
+        })
         
-        return {'window_index': window['window_index'],
-                'x': array_x,
-                'y': array_y}
+        return {
+            'x': ( [ data["values"] for var, data in new_shot["input"].items() ] 
+                    + [ data["values"] for var, data in new_shot["actuator_past"].items() ]
+                    + [ data["values"] for var, data in new_shot["actuator_future"].items() ] ),
+            'y': [ data["values"] for var, data in new_shot["output"].items() ]
+            }
+    
+    # ------------------------------------------------------------------------------------------------------------------
+    def _get_timestamp(self, data: Dict[str, Any], mode: str) -> Dict[str, Any]:
+        """Helper to slice time series data within a given window."""
+        new_data = {}
+
+        for key, d_var in data.items():
+            # print(key)
+
+            # dt = self.dict_metadata[key]['dt'] 
+            # timestamp_index = int( dt_sec / dt )
+            shape_values = self.dict_metadata[key]['values_shape']
+
+            if d_var["values"].size == 0:
+                # Handle when var not present or not enough datapoint
+                # times = np.concatenate([np.full(1, np.nan), d_var["time"]], axis=-1)
+                # values = np.concatenate([np.full(shape_values + (1,), np.nan, dtype=float)], axis=-1)
+                new_data[key] = {
+                    "time": np.full(1, np.nan), 
+                    "values": np.full(shape_values + (1,), np.nan, dtype=float)
+                }
+            else:
+                # values = np.concatenate([np.full(shape_values + (1,), np.nan, dtype=float), d_var["values"]], axis=-1)
+
+                if mode == "first":
+
+                    new_data[key] = {
+                        "time": d_var["time"][:1],
+                        "values": d_var["values"][..., :1],
+                    }
+                    # print('first')
+                    # print(key, mode, values[..., :1].shape)
+                
+                elif mode == "last":
+
+                    new_data[key] = {
+                        "time": d_var["time"][-1:],
+                        "values": d_var["values"][..., -1:],
+                    }
+                    # print('last')
+                    # print(key, mode, values[..., -1:].shape)
+
+            # elif mode == "future":
+
+            #     # Handle when var not present or not enough datapoint
+            #     times = np.concatenate([d_var["time"], np.full(1, np.nan)], axis=-1)
+            #     if d_var["values"].size == 0:
+            #         values = np.concatenate([np.full(shape_values + (1,), np.nan, dtype=float)], axis=-1)
+            #     else:
+            #         values = np.concatenate([d_var["values"], np.full(shape_values + (1,), np.nan, dtype=float)], axis=-1)
+
+            #     new_data[key] = {
+            #         "time": times[timestamp_index],
+            #         "values": values[..., timestamp_index],
+            #     }
+            #     # print('future')
+            #     # print(key, mode, values[..., timestamp_index].shape)
+                else:
+                    raise ValueError(f"Invalid mode '{mode}' — expected 'past' or 'future'.")
+
+        return new_data
 
 

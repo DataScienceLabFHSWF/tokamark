@@ -98,7 +98,8 @@ class MastDataset(Dataset):
             if self.return_incomplete_shots:
                 # Pass through even if some variables are missing; the windower will insert None per window.
                 list_chunks = self.shot_level_transform(shot)
-                return list_chunks if isinstance(list_chunks, list) else [list_chunks]
+                # return list_chunks if isinstance(list_chunks, list) else [list_chunks]
+                return list_chunks
             else:
                 # Legacy behavior: drop shots with any missing variable
                 if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
