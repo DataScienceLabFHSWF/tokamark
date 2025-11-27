@@ -210,7 +210,7 @@ def initialize_model_datasets(
         datasets_train_val_test,
         dict_metadata,
         config_task,
-        model_specific_transform,
+        model_specific_transform=None,
         verbose=False
 
 ):
@@ -237,7 +237,7 @@ def initialize_model_datasets(
                             dict_metadata,
                             config_task,
                             model_specific_transform,
-                            verbose
+                            verbose = False
                             )
     if verbose:
         print(f"len(mast_val_dataset): {len(datasets_['val'])}")
@@ -250,7 +250,7 @@ def initialize_model_datasets(
                             dict_metadata,
                             config_task,
                             model_specific_transform,
-                            verbose
+                            verbose = False
                             )
     if verbose:
         print(f"len(mast_test_dataset): {len(datasets_['test'])}")
@@ -340,7 +340,7 @@ def initialize_dataloaders(
 class TaskModelTransformWrapper(MastDataset):
 
     def __init__(self, base_dataset, dict_metadata, config_task, 
-                 model_transform, 
+                 model_transform = None, 
                  verbose = False):
         
         self.base = base_dataset
@@ -485,7 +485,12 @@ class TaskModelTransformWrapper(MastDataset):
                                             np.full(shape_values + (pad_len_input,), np.nan, dtype=float), 
                                             sel_values_in,
                                             ], axis=-1)
-                # 5. Get slice
+                
+                # 5. Collapse if 2D time series
+                if selected_values.ndim == 2 and selected_values.shape[0] == 1:
+                    selected_values = selected_values[0]
+
+                # 6. Get slice
                 input_slice[key] = {
                     "time": selected_times,
                     "values": selected_values
@@ -550,7 +555,11 @@ class TaskModelTransformWrapper(MastDataset):
                                             np.full(shape_values + (pad_len_output,), np.nan, dtype=float),
                                             ], axis=-1)
                 
-                # 5. Get slice
+                # 5. Collapse if 2D time series
+                if selected_values.ndim == 2 and selected_values.shape[0] == 1:
+                    selected_values = selected_values[0]
+
+                # 6. Get slice
                 actuator_slice[key] = {
                     "time": selected_times,
                     "values": selected_values
@@ -604,7 +613,11 @@ class TaskModelTransformWrapper(MastDataset):
                                             np.full(shape_values + (pad_len_output,), np.nan, dtype=float),
                                             ], axis=-1)
                 
-                # 5. Get slice
+                # 5. Collapse if 2D time series
+                if selected_values.ndim == 2 and selected_values.shape[0] == 1:
+                    selected_values = selected_values[0]
+
+                # 6. Get slice
                 output_slice[key] = {
                     "time": selected_times,
                     "values": selected_values
@@ -620,7 +633,7 @@ class TaskModelTransformWrapper(MastDataset):
             yield {
                 "shot_id": self.get_shot_id(idx_shot),
                 "window_index": idx_t,
-                **self.model_transform(obj)
+                **(self.model_transform(obj) if self.model_transform else obj)
             }
 
     def __len__(self):

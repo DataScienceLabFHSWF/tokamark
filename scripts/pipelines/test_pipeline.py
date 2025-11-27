@@ -94,37 +94,75 @@ if __name__ == "__main__":
     datasets_train_val_test, dict_metadata = initialize_datasets_and_metadata_for_task(config_task) 
 
     # -------------------------------------------------------------------
-    # MODEL SPECIFIC pipeline
+    # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # -------------------------------------------------------------------
-
-    model_specific_transform = ModelSpecificTransform() # CHANGE HERE
     
     datasets_model = initialize_model_datasets(
         datasets_train_val_test,
         dict_metadata, 
         config_task,
-        model_specific_transform,
+        None,
         verbose = True)
     
-    dataloaders_model = initialize_dataloaders( datasets_model,
-                                                model_collate_fn,
-                                                **config_model['dataloader_setting'])
+    # The created datasets are from class <scripts.pipelines.utils.utils.TaskModelTransformWrapper object at 0x1529104b0050>
+    datasets_model_train = datasets_model["train"]
 
+    # The set of windows of 1 shot is saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
+
+    # You can transform them to list of list via:
+    list_list_shot_0 = [ (item['shot_id'], item['window_index'], item['input'], item['actuator'], item['output']) for item in datasets_model_train[0] ]
+
+    shot_id, window_index, input, actuator, output = list_list_shot_0[0]
+    print('\n\n\nshot_id is ', shot_id)
+    print('window_id is ', window_index)
+    print('input')
+    print(input.keys())
+    print([input[var]['values'].shape for var in input])
+    print('actuator')
+    print(actuator.keys())
+    print([actuator[var]['values'].shape for var in actuator])
+    print('output')
+    print(output.keys()) 
+    print([output[var]['values'].shape for var in output])
+
+    # Or keep a list of dict with:
+    list_dict_shot_0 = [ item for item in datasets_model_train[0] ]
+    print(list_dict_shot_0[0].keys())
+    print('\n\n\nshot_id is ', list_dict_shot_0[0]['shot_id'])
+    print('window_id is ', list_dict_shot_0[0]['window_index'])
+    print('input, ', list_dict_shot_0[0]['input'].keys())
+    print('actuator, ', list_dict_shot_0[0]['actuator'].keys())
+    print('output, ', list_dict_shot_0[0]['output'].keys())
+
+    
     # -------------------------------------------------------------------
-    # MODEL SPECIFIC training
+    # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # -------------------------------------------------------------------
 
-    train_dataloader = dataloaders_model["train"]
-    for batch_idx, batch in enumerate(train_dataloader):
+    # model_specific_transform = ModelSpecificTransform() # CHANGE HERE
+    
+    # datasets_model = initialize_model_datasets(
+    #     datasets_train_val_test,
+    #     dict_metadata, 
+    #     config_task,
+    #     model_specific_transform,
+    #     verbose = True)
+    
+    # dataloaders_model = initialize_dataloaders( datasets_model,
+    #                                             model_collate_fn,
+    #                                             **config_model['dataloader_setting'])
+
+    # train_dataloader = dataloaders_model["train"]
+    # for batch_idx, batch in enumerate(train_dataloader):
         
-        print(f"\nBatch {batch_idx}")
-        # print(batch)
-        shot_id, window_index, x_train, y_train = batch
+    #     print(f"\nBatch {batch_idx}")
+    #     # print(batch)
+    #     shot_id, window_index, x_train, y_train = batch
 
-        print("The list of shot ID is an object of shape, ", shot_id.shape)
-        print("The list of window Index is an object of shape, ", window_index.shape)
-        print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
-        print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
+    #     print("The list of shot ID is an object of shape, ", shot_id.shape)
+    #     print("The list of window Index is an object of shape, ", window_index.shape)
+    #     print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
+    #     print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
 
         # print(x_train[0][0:10])
         # print("\n\n\n")

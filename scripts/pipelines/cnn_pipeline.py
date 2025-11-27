@@ -18,7 +18,7 @@ from scripts.pipelines.utils.utils import (
 
 from scripts.pipelines.utils.preprocessing_utils import initialize_datasets_and_metadata_for_task
 
-from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import (
+from scripts.pipelines.transforms.model_transforms.cnn_transform import (
         CNNTransform,
     )
 from scripts.pipelines.utils.cnn_utils import (
