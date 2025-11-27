@@ -7,48 +7,15 @@ device = get_device()
 
 import os
 import psutil
-from pathlib import Path
-import imageio.v3 as iio
 
 import numpy as np
 import pandas as pd
 
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.colors as mcolors
-
-import imageio.v3 as iio
-from typing import Dict, List
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
-
-from scripts.pipelines.utils.utils import (
-    seed_worker, 
-    make_data_generator,
-    ModelTransformWrapper,
-)
-
-from scripts.pipelines.utils.utils import (
-    ComposeTransforms,
-)
-
-from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
-    FillProfileWithZerosTransform,
-)
-from scripts.pipelines.transforms.signal_level_transforms.fill_thomson_with_zeros_imputer_transform import (
-FillThomsonWithZerosTransform
-)
-from scripts.pipelines.transforms.shot_level_transforms.drop_sample_with_nans import (
-    DropSampleWithNans,
-)
-from scripts.pipelines.transforms.shot_level_transforms.cnn_transform import (
-    CNNTransform,
-)
 from scripts.pipelines.models.cnn_model import MultiBranchCNNModel
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -300,8 +267,7 @@ def cnn_evaluation_per_shot(test_dataloader,
     cnn_model.eval()
 
     feature_names = ( 
-        config_task["sources_and_signals"].get("output", []) 
-        + config_task["sources_and_signals"].get("output", [])
+        config_task["sources_and_signals"].get("output_name", []) 
         )
 
     # Initialize CSV if it doesn’t exist

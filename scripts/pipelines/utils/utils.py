@@ -16,19 +16,6 @@ from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipelines.preprocessing.sampled_shot_list import yamane_sampled_shot_list
 from scripts.pipelines.preprocessing.standardscaling_preprocessing import get_mean_shot, get_std_shot
 
-# from scripts.pipelines.utils.preprocessing_utils import (
-#     build_common_signal_transform_map, 
-#     build_common_shot_transform_map,
-#     get_metadata,
-# )
-
-# Compute project root relative to this file
-# REPO_ROOT = os.path.abspath(os.path.join(
-#     os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
-#     "..", "..", ".."
-# )) 
- # noqa: E402
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 def set_seed(seed: int, deterministic: bool = True, warn_only: bool = True):
@@ -232,7 +219,7 @@ def initialize_model_datasets(
     # ..................................................................................................................
     # Train
 
-    datasets_["train"] = ModelTransformWrapper(
+    datasets_["train"] = TaskModelTransformWrapper(
                             datasets_train_val_test["train"],
                             dict_metadata,
                             config_task,
@@ -245,7 +232,7 @@ def initialize_model_datasets(
     # ..................................................................................................................
     # Val
 
-    datasets_["val"] = ModelTransformWrapper(
+    datasets_["val"] = TaskModelTransformWrapper(
                             datasets_train_val_test["val"],
                             dict_metadata,
                             config_task,
@@ -258,7 +245,7 @@ def initialize_model_datasets(
     # ..................................................................................................................
     # Test
 
-    datasets_["test"] = ModelTransformWrapper(
+    datasets_["test"] = TaskModelTransformWrapper(
                             datasets_train_val_test["test"],
                             dict_metadata,
                             config_task,
@@ -350,7 +337,7 @@ def initialize_dataloaders(
     return dataloaders_
 
 # ======================================================================================================================
-class ModelTransformWrapper(MastDataset):
+class TaskModelTransformWrapper(MastDataset):
 
     def __init__(self, base_dataset, dict_metadata, config_task, 
                  model_transform, 
