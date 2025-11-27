@@ -1,6 +1,5 @@
 subset_of_shots:
 local: true
-run_evaluation: true
 
 task_name: task_1-3
 
