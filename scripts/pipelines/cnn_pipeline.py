@@ -6,27 +6,28 @@ import torch.multiprocessing as mp
 # -------------------------------------------------------------------
 # Repo-specific imports
 # -------------------------------------------------------------------
-from globals import REPO_ROOT
+from .globals import REPO_ROOT
 from scripts.pipelines.utils.device_utils import get_device
 
-from scripts.pipelines.utils.utils import ( 
+from scripts.pipelines.utils.utils import (
     ComposeTransforms,
+    initialize_dataloaders,
     initialize_model_datasets,
-    initialize_dataloaders, 
-    initialize_model_datasets, 
 )
 
-from scripts.pipelines.utils.preprocessing_utils import initialize_datasets_and_metadata_for_task
+from scripts.pipelines.utils.preprocessing_utils import (
+    initialize_datasets_and_metadata_for_task,
+)
 
 from scripts.pipelines.transforms.model_transforms.cnn_transform import (
-        CNNTransform,
-    )
+    CNNTransform,
+)
 from scripts.pipelines.utils.cnn_utils import (
     cnn_training_collate_fn,
     create_cnn_architecture,
     loop_for_cnn_training,
     cnn_evaluation_per_shot,
-    cnn_save_traces_per_shot
+    cnn_save_traces_per_shot,
 )
 
 # Set device
@@ -36,7 +37,7 @@ device = get_device()
 
 if __name__ == "__main__":
     print(f"Number of available CPU cores: {cpu_count()}\n")
-    mp.set_start_method("spawn", force=True) 
+    mp.set_start_method("spawn", force=True)
 
     # -------------------------------------------------------------------
     # Argument parsing
@@ -67,29 +68,31 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------
     # Initialize datasets and metadata
     # -------------------------------------------------------------------
-    datasets_train_val_test, dict_metadata = initialize_datasets_and_metadata_for_task(config_task) 
+    datasets_train_val_test, dict_metadata = initialize_datasets_and_metadata_for_task(
+        config_task
+    )
 
     # -------------------------------------------------------------------
     # CNN pipeline
     # -------------------------------------------------------------------
 
-    model_specific_transform = ComposeTransforms([  
-        CNNTransform(dict_metadata) ,
-    ])
-    
-    datasets_cnn = initialize_model_datasets(
-        datasets_train_val_test,
-        dict_metadata, 
-        config_task,
-        model_specific_transform)
-    
-    dataloaders_cnn = initialize_dataloaders( datasets_cnn,
-                                                cnn_training_collate_fn,
-                                                **config_cnn['dataloader_setting'])
+    model_specific_transform = ComposeTransforms(
+        [
+            CNNTransform(dict_metadata),
+        ]
+    )
 
-    cnn_model = create_cnn_architecture(dataloaders_cnn["train"], 
-                                         **config_cnn['cnn_settings'],
-                                         verbose=True)
+    datasets_cnn = initialize_model_datasets(
+        datasets_train_val_test, dict_metadata, config_task, model_specific_transform
+    )
+
+    dataloaders_cnn = initialize_dataloaders(
+        datasets_cnn, cnn_training_collate_fn, **config_cnn["dataloader_setting"]
+    )
+
+    cnn_model = create_cnn_architecture(
+        dataloaders_cnn["train"], **config_cnn["cnn_settings"], verbose=True
+    )
 
     # -------------------------------------------------------------------
     # Training loop
@@ -99,7 +102,10 @@ if __name__ == "__main__":
         train_dataloader=dataloaders_cnn["train"],
         val_dataloader=dataloaders_cnn["val"],
         **config_cnn["training_args"],
-        output_dir=REPO_ROOT + config_cnn["paths"]["data_output_directory"] + config_task["task_name"]+ "/",
+        output_dir=REPO_ROOT
+        + config_cnn["paths"]["data_output_directory"]
+        + config_task["task_name"]
+        + "/",
         verbose=True,
     )
 
@@ -107,14 +113,8 @@ if __name__ == "__main__":
     # Evaluation loop
     # -------------------------------------------------------------------
 
-    cnn_evaluation_per_shot(dataloaders_cnn["test"],
-                            config_task,
-                            cnn_model, 
-                            config_cnn)
-    
-    cnn_save_traces_per_shot(dataloaders_cnn["test"],
-                            config_task,
-                            cnn_model, 
-                            config_cnn,
-                            n_traces = 10)
+    cnn_evaluation_per_shot(dataloaders_cnn["test"], config_task, cnn_model, config_cnn)
 
+    cnn_save_traces_per_shot(
+        dataloaders_cnn["test"], config_task, cnn_model, config_cnn, n_traces=10
+    )
