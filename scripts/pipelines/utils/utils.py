@@ -89,7 +89,6 @@ def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
     """
 
     full_path = os.path.join(REPO_ROOT, csv_path)
-    print(full_path)
 
     if not os.path.exists(full_path):
         raise FileNotFoundError(f"CSV not found at: {full_path}")
