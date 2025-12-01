@@ -12,18 +12,18 @@ sources_and_signals:
     - [magnetics, b_field_tor_probe_saddle_voltage]
     - [pf_active, solenoid_current]
     - [pf_active, coil_current]
-    - [pulse_schedule, i_plasma]
     - [summary, power_nbi]
+    - [summary, ip]
 
   actuator_name: &actuator_keys  
     - [pf_active, coil_voltage]
-    # what is solenoid coil voltage?
     - [summary, power_nbi]
+    - [pulse_schedule, i_plasma]
 
   output_name: &output_keys
     - [pf_active, solenoid_current]
     - [pf_active, coil_current]
-    - [pulse_schedule, i_plasma]
+    - [summary, ip]
     - [equilibrium, elongation]
     - [equilibrium, elongation_axis]
     - [equilibrium, triangularity_upper]
@@ -37,7 +37,7 @@ sources_and_signals:
     - [equilibrium, beta_normal]
     - [equilibrium, bvac_rmag]
     - [equilibrium, bphi_rmag]
-    - [summary, ip]
+
 
 standardscaling_setting:
   mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"

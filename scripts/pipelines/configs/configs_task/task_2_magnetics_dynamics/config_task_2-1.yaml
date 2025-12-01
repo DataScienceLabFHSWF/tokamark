@@ -7,17 +7,17 @@ sources_and_signals:
   input_name: &input_keys
     - [pf_active, solenoid_current]
     - [pf_active, coil_current]
-    - [pulse_schedule, i_plasma]
+    - [summary, ip]
 
   actuator_name: &actuator_keys  
     - [pf_active, coil_voltage]
-    # what is solenoid coil voltage?
     - [summary, power_nbi]
+    - [pulse_schedule, i_plasma]
 
   output_name: &output_keys
     - [pf_active, solenoid_current]
     - [pf_active, coil_current]
-    - [pulse_schedule, i_plasma]
+    - [summary, ip]
 
 standardscaling_setting:
   mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"

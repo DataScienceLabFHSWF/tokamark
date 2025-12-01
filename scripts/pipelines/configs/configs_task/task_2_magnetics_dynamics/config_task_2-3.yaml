@@ -14,15 +14,17 @@ sources_and_signals:
     - [pf_active, coil_current]
     - [pulse_schedule, i_plasma]
     - [summary, power_nbi]
+    - [summary, ip]
 
   actuator_name: &actuator_keys  
     - [pf_active, coil_voltage]
-    # what is solenoid coil voltage?
     - [summary, power_nbi]
+    - [pulse_schedule, i_plasma]    
 
   output_name: &output_keys
     - [pf_active, solenoid_current]
     - [pf_active, coil_current]
+    - [summary, ip]
     - [pulse_schedule, i_plasma]
     - [equilibrium, lcfs_r]
     - [equilibrium, lcfs_z]
