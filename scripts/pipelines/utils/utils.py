@@ -645,6 +645,8 @@ class TaskModelTransformWrapper(MastDataset):
                 "input": input_slice,
                 "actuator": actuator_slice,
                 "output": output_slice,
+                "t_cut": t_cut,
+                "input_length": self.input_length,
             }
 
             yield {
