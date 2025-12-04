@@ -8,6 +8,9 @@ import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 from collections import defaultdict
+import json
+import argparse
+import shutil
 
 REPO_ROOT = os.path.abspath(
     os.path.join(
@@ -65,13 +68,25 @@ else:
     device = torch.device("cpu")
 
 
-def get_train_test_val_shots(max_index=None):
+def get_train_test_val_shots(max_index=None,num_train=None, num_val=None,num_test=None):
     train_sh, test_sh, val_sh = read_data_split_csv()
 
     if max_index:
+        np.random.shuffle(train_sh)
+        np.random.shuffle(val_sh)
+        np.random.shuffle(test_sh)
         train_sh = train_sh[0:max_index]
         val_sh = val_sh[0:max_index]
         test_sh = test_sh[0:max_index]
+    if num_train:
+        np.random.shuffle(train_sh)
+        train_sh = train_sh[0:num_train]
+    if num_val:
+        np.random.shuffle(val_sh)
+        val_sh = val_sh[0:num_val]
+    if num_test:
+        np.random.shuffle(test_sh)
+        test_sh = test_sh[0:num_test]
 
     return train_sh, test_sh, val_sh
 
@@ -122,7 +137,7 @@ def fit_mean_and_std_for_signal_transform(
 
     preprocessing_train_dataset = MastDataset(
         local=LOCAL_FLAG,
-        shots_list=yamane_sampled_shot_list(train_shots, error=0.05),
+        shots_list=train_shots,
         source_signal_list=source_signal_list,
         signal_level_transform_map=None,
         shot_level_transform=None,
@@ -243,6 +258,7 @@ def initialize_dataloaders(
 def create_beta_vae_models(
     train_dataloader_, 
     latent_dim,
+    hidden_dim,
     beta,
     verbose=False
     ):
@@ -262,7 +278,7 @@ def create_beta_vae_models(
                 f"Signal: {signal_name}, Shape: {signal_data.shape}, Input length: {input_length}"
             )
 
-        model = BetaVAE(input_length=input_length, latent_dim=latent_dim, beta=beta).to(
+        model = BetaVAE(input_length=input_length, latent_dim=latent_dim, hidden_dim=hidden_dim,beta=beta).to(
             device
         )
 
@@ -275,18 +291,21 @@ def create_beta_vae_models(
 
 
 def train_beta_vae_models(
-    models, train_dataloader, val_dataloader, output_dir, verbose=False
+    models, train_dataloader, val_dataloader, output_sub_dir, verbose=False,use_cosineLr=False,cos_lr_min = 10**-6
 ):
     """Train β-VAE models for each signal"""
     if verbose:
         print("\n\n----------β-VAE TRAINING----------\n")
 
+    output_dir = os.path.join("output", output_sub_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     # Create optimizers for each model
     optimizers = {}
     for signal_name, model in models.items():
         optimizers[signal_name] = torch.optim.Adam(model.parameters(), lr=SETTINGS.BETA_VAE.lr)
+        if use_cosineLr:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizers[signal_name], T_max=SETTINGS.TRAINING.num_epochs,eta_min = cos_lr_min)
 
     # Training tracking
     best_losses = {signal_name: float("inf") for signal_name in models.keys()}
@@ -316,6 +335,12 @@ def train_beta_vae_models(
         train_recon_losses = defaultdict(float)
         train_kl_losses = defaultdict(float)
         train_counts = defaultdict(int)
+
+        for signal_name in models.keys():
+            train_losses[signal_name] = 0.
+            train_recon_losses[signal_name] = 0.
+            train_kl_losses[signal_name] = 0.
+            train_counts[signal_name] = 0
 
         if verbose:
             print("Training phase")
@@ -349,7 +374,7 @@ def train_beta_vae_models(
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
-
+                
                 train_losses[signal_name] += total_loss.item()
                 train_recon_losses[signal_name] += recon_loss.item()
                 train_kl_losses[signal_name] += kl_loss.item()
@@ -360,6 +385,11 @@ def train_beta_vae_models(
         val_recon_losses = defaultdict(float)
         val_kl_losses = defaultdict(float)
         val_counts = defaultdict(int)
+        for signal_name in models.keys():
+            val_losses[signal_name] = 0.
+            val_recon_losses[signal_name] = 0.
+            val_kl_losses[signal_name] = 0.
+            val_counts[signal_name] = 0
 
         for signal_name, model in models.items():
             model.eval()
@@ -401,21 +431,14 @@ def train_beta_vae_models(
                 avg_train_recon = train_recon_losses[signal_name] / train_counts[signal_name]
                 avg_train_kl = train_kl_losses[signal_name] / train_counts[signal_name]
                 
-                avg_val_loss = (
-                    val_losses[signal_name] / val_counts[signal_name]
-                    if val_counts[signal_name] > 0
-                    else float("inf")
-                )
-                avg_val_recon = (
-                    val_recon_losses[signal_name] / val_counts[signal_name]
-                    if val_counts[signal_name] > 0
-                    else float("inf")
-                )
-                avg_val_kl = (
-                    val_kl_losses[signal_name] / val_counts[signal_name]
-                    if val_counts[signal_name] > 0
-                    else float("inf")
-                )
+                if val_counts[signal_name] > 0:
+                    avg_val_loss = val_losses[signal_name] / val_counts[signal_name]
+                    avg_val_recon = val_recon_losses[signal_name] / val_counts[signal_name]
+                    avg_val_kl = val_kl_losses[signal_name] / val_counts[signal_name]
+                else:
+                    avg_val_loss = float("inf")
+                    avg_val_recon = float("inf")
+                    avg_val_kl = float("inf")
 
                 # Store loss curves
                 loss_curves[signal_name]['train_total'].append(avg_train_loss)
@@ -493,6 +516,10 @@ def visualize_beta_vae_results(
             # Get reconstructions and latent representations
             train_recon, train_mu, train_logvar, train_z = model(train_x)
             val_recon, val_mu, val_logvar, val_z = model(val_x)
+            print("train_x.size()",train_x.size())
+            print("np.shape(train_x[0].cpu().numpy())",np.shape(train_x[0].cpu().numpy()))
+            print("train_recon.size()",train_recon.size())
+            print("np.shape(train_recon[0].cpu().numpy())",np.shape(train_recon[0].cpu().numpy()))
             
             # Calculate losses for display
             train_loss, train_recon_loss, train_kl_loss = model.loss_function(
@@ -764,13 +791,24 @@ Signal List:
 if __name__ == "__main__":
 
     # Initialize SETTINGS object
-    SETTINGS = get_settings("scripts/pipelines/configs/config_beta_vae.json")
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--config_file",type=str,default="scripts/pipelines/configs/config_beta_vae.json")
+    args=parser.parse_args()
+    config_filename=args.config_file
+    SETTINGS = get_settings(config_filename)
     
     LOCAL_FLAG = SETTINGS.DATA.local
     mp.set_start_method("spawn", force=True)
 
     # For common pipeline
     OUTPUT_SUB_FOLDER = SETTINGS.LOCAL_PATHS.data_output_directory + "beta_vae_output/"
+
+    # Save input file to output folder
+    output_dir = os.path.join("output", OUTPUT_SUB_FOLDER)
+    os.makedirs(output_dir, exist_ok=True)
+    shutil.copy(config_filename,output_dir)
+
+
 
     source_signal_list = SETTINGS.DATA.data_names + SETTINGS.DATA.target_names
 
@@ -789,7 +827,9 @@ if __name__ == "__main__":
 
     # Create sets of shot IDs for training, validation and testing
     train_shots, test_shots, val_shots = get_train_test_val_shots(
-        SETTINGS.TRAINING.num_train_samples
+        num_train=SETTINGS.TRAINING.num_train_samples,
+        num_val=SETTINGS.TRAINING.num_val_samples,
+        num_test=SETTINGS.TRAINING.num_test_samples
     )
 
     # Fit mean and std for signal transformation
@@ -847,6 +887,7 @@ if __name__ == "__main__":
     beta_vae_models = create_beta_vae_models(
         train_dataloader,
         SETTINGS.BETA_VAE.latent_dim,
+        SETTINGS.BETA_VAE.hidden_dim,
         SETTINGS.BETA_VAE.beta,
         verbose=True
     )
@@ -856,7 +897,8 @@ if __name__ == "__main__":
         train_dataloader,
         val_dataloader,
         OUTPUT_SUB_FOLDER,
-        verbose=True
+        verbose=True,
+        use_cosineLr=SETTINGS.BETA_VAE.use_cosine_lr
     )
 
     visualize_beta_vae_results(
