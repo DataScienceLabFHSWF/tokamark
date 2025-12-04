@@ -170,8 +170,7 @@ class MASTPlottingManager:
 
         Raises
         ------
-        TypeError
-            If invalid profiles is passed.
+        None
 
         """
 
