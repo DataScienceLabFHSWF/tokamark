@@ -652,11 +652,13 @@ class TaskModelTransformWrapper(MastDataset):
                 ),  # we need this to cache shots for external models
                 "window_index": idx_t,  # we need this to cache shots for external models
             }
-
+            obj2 = self.model_transform(obj) if self.model_transform else obj
+            if obj2 is None:
+                continue
             yield {
                 "shot_id": self.get_shot_id(idx_shot),
                 "window_index": idx_t,
-                **(self.model_transform(obj) if self.model_transform else obj),
+                **obj2,
             }
 
     def __len__(self):
