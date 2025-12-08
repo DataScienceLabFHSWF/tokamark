@@ -179,7 +179,7 @@ class MastDataset(Dataset):
     # ------------------------------------------------------------------------------------------------------------------
     def __getitem__(
             self,
-            idx
+            idx: int
     ) -> Union[list, dict]:
         """
         Return samples by shot index.
