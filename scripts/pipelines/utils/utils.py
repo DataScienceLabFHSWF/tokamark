@@ -647,7 +647,6 @@ class TaskModelTransformWrapper(MastDataset):
                 "output": output_slice,
                 "t_cut": t_cut,
                 "input_length": self.input_length,
-                "stride": stride,
                 "shot_id": self.get_shot_id(
                     idx_shot
                 ),  # we need this to cache shots for external models
