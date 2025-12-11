@@ -1,6 +1,5 @@
 import os
 import sys
-import torch
 import pickle
 import numpy as np
 
@@ -10,7 +9,9 @@ from typing import Dict, List
 REPO_ROOT = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__) if "__file__" in globals() else os.getcwd(),
-        "..", "..", "..",
+        "..",
+        "..",
+        "..",
     )
 )  # noqa: E402
 # print(REPO_ROOT) # this adds /rds/project/rds-mOlK9qn0PlQ/ir-rous1/hncdi-fusion-plasma/fairmast-data-preprocessing
@@ -32,7 +33,7 @@ from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zero
     FillProfileWithZerosTransform,
 )
 from scripts.pipelines.transforms.signal_level_transforms.fill_thomson_with_zeros_imputer_transform import (
-FillThomsonWithZerosTransform
+    FillThomsonWithZerosTransform,
 )
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -57,11 +58,13 @@ if REPO_ROOT not in sys.path:
 
 # Set device
 from pipelines.utils.device_utils import get_device
+
 device = get_device()
 
 # ----------------------------------------------------------------------------------------------------------------------
-# COMMON PREPROCESSING 
+# COMMON PREPROCESSING
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 def build_common_signal_transform_map(
@@ -118,7 +121,7 @@ def build_common_signal_transform_map(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-import numpy as np
+
 
 def get_metadata(dataset, max_samples=100, verbose=True):
     """
@@ -128,7 +131,7 @@ def get_metadata(dataset, max_samples=100, verbose=True):
     for i, sample in enumerate(dataset):
         if i >= max_samples:
             raise ValueError("❌ No valid sample found within limit.")
-        
+
         # Check that each signal has a non-empty time array
         valid = all(len(signal.get("time", [])) > 1 for signal in sample.values())
         if not valid:
@@ -145,7 +148,9 @@ def get_metadata(dataset, max_samples=100, verbose=True):
 
             info[key] = {
                 "dt": dt,
-                "values_shape": values.shape[:-1],  # exclude time dimension if last axis is time
+                "values_shape": values.shape[
+                    :-1
+                ],  # exclude time dimension if last axis is time
             }
 
         if verbose:
@@ -155,7 +160,7 @@ def get_metadata(dataset, max_samples=100, verbose=True):
                 if val["dt"] is not None:
                     print(f"  dt: {val['dt']:.5f} s")
                 else:
-                    print(f"  dt: None")
+                    print("  dt: None")
                 print(f"  Values shape: {val['values_shape']}")
 
         return info
@@ -165,9 +170,7 @@ def get_metadata(dataset, max_samples=100, verbose=True):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_datasets_and_metadata_for_task(
-        config_task
-):
+def initialize_datasets_and_metadata_for_task(config_task):
     # ..................................................................................................................
     # Get shot id
     train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
@@ -181,9 +184,10 @@ def initialize_datasets_and_metadata_for_task(
         + (config_task["sources_and_signals"].get("actuator_name") or [])
         + (config_task["sources_and_signals"].get("output_name") or [])
     )
- 
 
-    source_signal_list = [s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]] # Unicity
+    source_signal_list = [
+        s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]
+    ]  # Unicity
 
     # ..................................................................................................................
     # Build signal transform map
@@ -191,11 +195,13 @@ def initialize_datasets_and_metadata_for_task(
         REPO_ROOT + config_task["standardscaling_setting"]["mean_path"], "rb"
     ) as f:
         dict_mean = pickle.load(f)
-    with open(REPO_ROOT + config_task["standardscaling_setting"]["std_path"], "rb") as f:
+    with open(
+        REPO_ROOT + config_task["standardscaling_setting"]["std_path"], "rb"
+    ) as f:
         dict_std = pickle.load(f)
-    signal_transform_map = build_common_signal_transform_map(source_signal_list, 
-                                                             dict_mean, 
-                                                             dict_std)
+    signal_transform_map = build_common_signal_transform_map(
+        source_signal_list, dict_mean, dict_std
+    )
 
     # ..................................................................................................................
     # Get metadata
@@ -208,5 +214,14 @@ def initialize_datasets_and_metadata_for_task(
         verbose=False,
     )
     dict_metadata = get_metadata(datasets_train_val_test["train"], verbose=False)
+
+    dict_metadata = get_metadata(datasets_train_val_test["train"], verbose=False)
+
+    # ----------------------------------------------------------
+    # Add standardization stats to metadata (safe extension)
+    # ----------------------------------------------------------
+    dict_metadata["output_stats"] = {
+        key: {"mean": dict_mean[key], "std": dict_std[key]} for key in dict_mean.keys()
+    }
 
     return datasets_train_val_test, dict_metadata
