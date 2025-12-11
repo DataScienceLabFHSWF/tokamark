@@ -215,12 +215,10 @@ def initialize_datasets_and_metadata_for_task(config_task):
     )
     dict_metadata = get_metadata(datasets_train_val_test["train"], verbose=False)
 
-    dict_metadata = get_metadata(datasets_train_val_test["train"], verbose=False)
-
     # ----------------------------------------------------------
     # Add standardization stats to metadata (safe extension)
     # ----------------------------------------------------------
-    dict_metadata["output_stats"] = {
+    dict_metadata["signal_stats"] = {
         key: {"mean": dict_mean[key], "std": dict_std[key]} for key in dict_mean.keys()
     }
 
