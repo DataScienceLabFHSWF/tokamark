@@ -321,7 +321,7 @@ class TaskModelTransformWrapper(MastDataset):
         self.output_length = config_task["task_window_segmenter"]["output_length"]
         self.delta = config_task["task_window_segmenter"]["delta"]
 
-        self.stride = next(iter(self.dict_metadata.values()))["ts_stride"]
+        self.stride = next(iter(self.dict_metadata.values()))["sec_stride"]
 
         self.model_transform = model_transform
 
