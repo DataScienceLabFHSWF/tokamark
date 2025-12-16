@@ -59,12 +59,6 @@ def make_data_generator(seed: int) -> torch.Generator:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def dataloader_seed_parts(seed: int):
-    # reuse the top-level function so it's picklable under 'spawn'
-    return seed_worker, make_data_generator(seed)
-
-
-# ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(max_index=None):
     train_sh, test_sh, val_sh = read_data_split_csv()
 
@@ -447,7 +441,6 @@ class TaskModelTransformWrapper(MastDataset):
 
                 # 6. Get slice
                 input_slice[key] = {"time": selected_times, "values": selected_values}
-                print(selected_values.shape)
 
             # ..........................................................................................................
             # Output
@@ -508,7 +501,6 @@ class TaskModelTransformWrapper(MastDataset):
 
                 # 6. Get slice
                 output_slice[key] = {"time": selected_times, "values": selected_values}
-                print(selected_values.shape)
             
             # ..........................................................................................................
             # Actuator
@@ -583,7 +575,6 @@ class TaskModelTransformWrapper(MastDataset):
                     "time": selected_times,
                     "values": selected_values,
                 }
-                print(selected_values.shape)
 
             obj = {
                 "input": input_slice,
