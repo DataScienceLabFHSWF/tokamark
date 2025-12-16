@@ -52,15 +52,6 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 # print(f"REPO_ROOT: {REPO_ROOT}")
 
-
-# ----------------------------------------------------------------------------------------------------------------------
-# Determine device to train on
-
-# Set device
-from pipelines.utils.device_utils import get_device
-
-device = get_device()
-
 # ----------------------------------------------------------------------------------------------------------------------
 # COMMON PREPROCESSING
 # ----------------------------------------------------------------------------------------------------------------------
@@ -121,13 +112,40 @@ def build_common_signal_transform_map(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-
-
-def get_metadata(dataset, max_samples=100, verbose=True):
+def get_metadata(dataset, 
+                 config_task, 
+                 dict_mean, 
+                 dict_std,
+                 max_samples=100, verbose=True):
     """
     Find the first sample where each signal has a non-empty time array,
     then compute dt (median time step) and shape information.
     """
+
+    input_keys = [
+        f"{source}-{signal}"
+        for source, signal in (
+            config_task["task_window_segmenter"]["input_keys"] or []
+        )
+    ]
+    input_length = config_task["task_window_segmenter"]["input_length"]
+
+    actuator_keys = [
+        f"{source}-{signal}"
+        for source, signal in (
+            config_task["task_window_segmenter"]["actuator_keys"] or []
+        )
+    ]
+    delta = config_task["task_window_segmenter"]["delta"]
+
+    output_keys = [
+        f"{source}-{signal}"
+        for source, signal in (
+            config_task["task_window_segmenter"]["output_keys"] or []
+        )
+    ]
+    output_length = config_task["task_window_segmenter"]["output_length"]
+    
     for i, sample in enumerate(dataset):
         if i >= max_samples:
             raise ValueError("❌ No valid sample found within limit.")
@@ -151,7 +169,32 @@ def get_metadata(dataset, max_samples=100, verbose=True):
                 "values_shape": values.shape[
                     :-1
                 ],  # exclude time dimension if last axis is time
-            }
+                "mean": dict_mean[key],
+                "std": dict_std[key]}
+
+            if key in input_keys:
+                sec_length = input_length
+                ts_length = int(np.round(sec_length / dt))
+            
+            if key in actuator_keys:
+                sec_length = input_length + delta + output_length
+                ts_input = int(np.round(input_length / dt))
+                ts_output = int(np.round(output_length / dt))
+                ts_delta = int(np.round(delta / dt))
+                ts_length = ts_input + ts_delta + ts_output
+            
+            if key in output_keys:
+                sec_length = output_length
+            
+            info[key]['sec_length'] = sec_length
+            info[key]['ts_length'] = int(np.round(sec_length / dt))
+        
+        # Get stride from all dt
+        sec_stride = max([info[key]['dt'] for key in output_keys]) #chosing min is enviseagable
+
+        for key in info.keys():
+            info[key]['sec_stride'] = sec_stride
+            info[key]['ts_stride'] = int(np.round(sec_stride/info[key]['dt']))
 
         if verbose:
             print(f"✅ Using sample #{i} as valid reference")
@@ -213,13 +256,10 @@ def initialize_datasets_and_metadata_for_task(config_task):
         local_flag=config_task["local"],
         verbose=False,
     )
-    dict_metadata = get_metadata(datasets_train_val_test["train"], verbose=False)
-
-    # ----------------------------------------------------------
-    # Add standardization stats to metadata (safe extension)
-    # ----------------------------------------------------------
-    dict_metadata["signal_stats"] = {
-        key: {"mean": dict_mean[key], "std": dict_std[key]} for key in dict_mean.keys()
-    }
+    dict_metadata = get_metadata(datasets_train_val_test["train"], 
+                                 config_task,
+                                 dict_mean, 
+                                 dict_std,
+                                 verbose=False)
 
     return datasets_train_val_test, dict_metadata
