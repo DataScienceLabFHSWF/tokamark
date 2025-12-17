@@ -10,10 +10,9 @@ sources_and_signals:
     - [magnetics, b_field_pol_probe_obr_field]
     - [magnetics, b_field_pol_probe_obv_field]
     - [magnetics, b_field_tor_probe_saddle_voltage]
-    - [pf_active, solenoid_current]
     - [pf_active, coil_current]
-    - [pulse_schedule, i_plasma]
-    - [summary, power_nbi]
+    - [pf_active, solenoid_current]
+    - [summary, ip]
 
   actuator_name: &actuator_keys null 
 

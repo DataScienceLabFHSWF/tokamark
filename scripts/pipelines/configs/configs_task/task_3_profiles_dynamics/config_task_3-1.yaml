@@ -5,20 +5,18 @@ task_name: task_3-1
 
 sources_and_signals:
   input_name: &input_keys
-    - ['thomson_scattering', 't_e']
-    - ['thomson_scattering', 'n_e']
+    - [thomson_scattering, t_e]
+    - [thomson_scattering, n_e]
 
-  actuator_name: &actuator_keys  
-    - [summary, ip]
-    - ['gas_injection','inboard_total']
-    - ['gas_injection','outboard_total']
-    - ['gas_injection','valve_target_voltage']
-    - ['gas_injection','valve_voltage']
+  actuator_name: &actuator_keys
+    - [pulse_schedule, i_plasma]
+    - [pulse_schedule, n_e_line]
     - [summary, power_nbi]
+    - [gas_injection, total_injected]
 
   output_name: &output_keys
-    - ['thomson_scattering', 't_e']
-    - ['thomson_scattering', 'n_e']
+    - [thomson_scattering, t_e]
+    - [thomson_scattering, n_e]
 
 standardscaling_setting:
   mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"

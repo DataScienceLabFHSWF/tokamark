@@ -10,10 +10,9 @@ sources_and_signals:
     - [magnetics, b_field_pol_probe_obr_field]
     - [magnetics, b_field_pol_probe_obv_field]
     - [magnetics, b_field_tor_probe_saddle_voltage]
-    - [pf_active, solenoid_current]
     - [pf_active, coil_current]
-    - [pulse_schedule, i_plasma]
-    - [summary, power_nbi]
+    - [pf_active, solenoid_current]
+    - [summary, ip]
 
   actuator_name: &actuator_keys null
 
@@ -22,6 +21,8 @@ sources_and_signals:
     - [equilibrium, elongation_axis]
     - [equilibrium, triangularity_upper]
     - [equilibrium, triangularity_lower]
+    - [equilibrium, x_point_r]
+    - [equilibrium, x_point_z]
     - [equilibrium, minor_radius]
     - [equilibrium, magnetic_axis_r]
     - [equilibrium, magnetic_axis_z]
@@ -31,7 +32,6 @@ sources_and_signals:
     - [equilibrium, beta_normal]
     - [equilibrium, bvac_rmag]
     - [equilibrium, bphi_rmag]
-    - [summary, ip]
 
 standardscaling_setting:
   mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
