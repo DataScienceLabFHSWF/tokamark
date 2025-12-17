@@ -1,7 +1,7 @@
 subset_of_shots:
 local: true
 
-task_name: task_4-1
+task_name: task_4-4
 
 sources_and_signals:
   input_name: &input_keys
