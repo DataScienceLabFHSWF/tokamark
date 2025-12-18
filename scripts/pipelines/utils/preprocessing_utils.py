@@ -112,102 +112,136 @@ def build_common_signal_transform_map(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_metadata(dataset, 
-                 config_task, 
-                 dict_mean, 
-                 dict_std,
-                 max_samples=100, verbose=True):
+def get_metadata(
+    dataset,
+    config_task,
+    dict_mean,
+    dict_std,
+    max_samples=100,
+    verbose=True,
+):
     """
-    Find the first sample where each signal has a non-empty time array,
-    then compute dt (median time step) and shape information.
+    Find the first valid sample (all signals have time arrays), then compute:
+      - dt (median time step)
+      - values_shape (all dims except time axis)
+      - mean/std (from dict_mean/dict_std)
+      - role-specific sec_length/ts_length
+      - per-signal ts_stride (derived from global sec_stride)
+
+    Returns
+    -------
+    dict_metadata = {
+        "sec_stride": float,
+        "input":    { key: {...}, ... },
+        "actuator": { key: {...}, ... },
+        "output":   { key: {...}, ... },
+    }
+
+    where key is "source-signal".
     """
 
-    input_keys = [
-        f"{source}-{signal}"
-        for source, signal in (
-            config_task["task_window_segmenter"]["input_keys"] or []
-        )
-    ]
-    input_length = config_task["task_window_segmenter"]["input_length"]
+    seg = config_task["task_window_segmenter"]
 
-    actuator_keys = [
-        f"{source}-{signal}"
-        for source, signal in (
-            config_task["task_window_segmenter"]["actuator_keys"] or []
-        )
-    ]
-    delta = config_task["task_window_segmenter"]["delta"]
+    input_keys = [f"{src}-{sig}" for src, sig in (seg.get("input_keys") or [])]
+    actuator_keys = [f"{src}-{sig}" for src, sig in (seg.get("actuator_keys") or [])]
+    output_keys = [f"{src}-{sig}" for src, sig in (seg.get("output_keys") or [])]
 
-    output_keys = [
-        f"{source}-{signal}"
-        for source, signal in (
-            config_task["task_window_segmenter"]["output_keys"] or []
-        )
-    ]
-    output_length = config_task["task_window_segmenter"]["output_length"]
-    
+    input_length = float(seg["input_length"])
+    output_length = float(seg["output_length"])
+    delta = float(seg.get("delta", 0.0))
+
+    def _role_sec_length(role: str) -> float:
+        if role == "input":
+            return input_length
+        if role == "actuator":
+            return input_length + delta + output_length
+        if role == "output":
+            return output_length
+        raise ValueError(f"Unknown role: {role!r}")
+
     for i, sample in enumerate(dataset):
         if i >= max_samples:
             raise ValueError("❌ No valid sample found within limit.")
 
-        # Check that each signal has a non-empty time array
+        # valid sample = all signals have a non-empty time array
         valid = all(len(signal.get("time", [])) > 1 for signal in sample.values())
         if not valid:
-            continue  # Skip invalid sample
+            continue
 
-        # Found a valid sample
-        info = {}
+        # Base per-key info (dt/shape/mean/std), independent of role lengths
+        base_info = {}
         for key, signal in sample.items():
-            time = np.array(signal["time"])
-            values = np.array(signal["values"])
+            time = np.asarray(signal["time"])
+            values = np.asarray(signal["values"])
 
-            # Compute median dt
-            dt = round(np.median(np.diff(time)), 6) if len(time) > 1 else None
+            dt = round(float(np.median(np.diff(time))), 6) if len(time) > 1 else None
 
-            info[key] = {
+            if key not in dict_mean or key not in dict_std:
+                raise KeyError(f"Missing mean/std for {key!r}")
+
+            base_info[key] = {
                 "dt": dt,
-                "values_shape": values.shape[
-                    :-1
-                ],  # exclude time dimension if last axis is time
+                "values_shape": values.shape[:-1],  # exclude time axis
                 "mean": dict_mean[key],
-                "std": dict_std[key]}
+                "std": dict_std[key],
+            }
 
-            if key in input_keys:
-                sec_length = input_length
-                ts_length = int(np.round(sec_length / dt))
-            
-            if key in actuator_keys:
-                sec_length = input_length + delta + output_length
-                ts_input = int(np.round(input_length / dt))
-                ts_output = int(np.round(output_length / dt))
-                ts_delta = int(np.round(delta / dt))
-                ts_length = ts_input + ts_delta + ts_output
-            
-            if key in output_keys:
-                sec_length = output_length
-            
-            info[key]['sec_length'] = sec_length
-            info[key]['ts_length'] = int(np.round(sec_length / dt))
-        
-        # Get stride from all dt
-        sec_stride = min([info[key]['dt'] for key in output_keys]) # min for training, max for test is enviseagable
-        for key in info.keys():
-            info[key]['sec_stride'] = sec_stride
-            info[key]['ts_stride'] = int(np.round(sec_stride/info[key]['dt']))
+        # Global stride in seconds = min dt among outputs
+        out_dts = [
+            base_info[k]["dt"]
+            for k in output_keys
+            if k in base_info and base_info[k]["dt"] is not None
+        ]
+        if not out_dts:
+            raise ValueError("❌ Cannot compute sec_stride: no valid output dt found.")
+        sec_stride = float(min(out_dts))
+
+        dict_metadata = {
+            "sec_stride": sec_stride,
+            "input": {},
+            "actuator": {},
+            "output": {},
+        }
+
+        for role, keys in (
+            ("input", input_keys),
+            ("actuator", actuator_keys),
+            ("output", output_keys),
+        ):
+            sec_len = _role_sec_length(role)
+
+            for key in keys:
+                if key not in base_info:
+                    raise KeyError(
+                        f"Signal {key!r} from config not found in sample keys."
+                    )
+
+                dt = base_info[key]["dt"]
+                if dt is None or dt <= 0:
+                    raise ValueError(f"Invalid dt for {key!r}: {dt}")
+
+                entry = dict(base_info[key])  # shallow copy is enough here
+                entry["sec_length"] = sec_len
+                entry["ts_length"] = int(np.round(sec_len / dt))
+                entry["ts_stride"] = int(np.round(sec_stride / dt))
+
+                dict_metadata[role][key] = entry
 
         if verbose:
             print(f"✅ Using sample #{i} as valid reference")
-            for key, val in info.items():
-                print(f"\nSignal: {key}")
-                if val["dt"] is not None:
-                    print(f"  dt: {val['dt']:.5f} s")
-                else:
-                    print("  dt: None")
-                print(f"  Values shape: {val['values_shape']}")
+            print(f"Global sec_stride: {sec_stride:.6f} s")
+            for role in ("input", "actuator", "output"):
+                print(f"\n[{role}]")
+                for key, val in dict_metadata[role].items():
+                    print(f"  {key}")
+                    print(f"    dt: {val['dt']:.6f} s")
+                    print(f"    values_shape: {val['values_shape']}")
+                    print(f"    sec_length: {val['sec_length']}")
+                    print(f"    ts_length: {val['ts_length']}")
+                    print(f"    ts_stride: {val['ts_stride']}")
 
-        return info
+        return dict_metadata
 
-    # If loop finishes without finding a valid sample:
     raise ValueError("❌ No valid sample found in dataset.")
 
 
@@ -255,10 +289,12 @@ def initialize_datasets_and_metadata_for_task(config_task):
         local_flag=config_task["local"],
         verbose=False,
     )
-    dict_metadata = get_metadata(datasets_train_val_test["train"], 
-                                 config_task,
-                                 dict_mean, 
-                                 dict_std,
-                                 verbose=False)
+    dict_metadata = get_metadata(
+        datasets_train_val_test["train"],
+        config_task,
+        dict_mean,
+        dict_std,
+        verbose=False,
+    )
 
     return datasets_train_val_test, dict_metadata

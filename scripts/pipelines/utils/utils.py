@@ -1,6 +1,4 @@
 import os
-import pickle
-import joblib
 import pandas as pd
 import torch
 import random
@@ -9,6 +7,7 @@ from torch.utils.data import DataLoader
 
 from ..globals import REPO_ROOT
 from scripts.MAST_tools.MAST_dataset import MastDataset
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 def set_seed(seed: int, deterministic: bool = True, warn_only: bool = True):
@@ -321,7 +320,7 @@ class TaskModelTransformWrapper(MastDataset):
         self.output_length = config_task["task_window_segmenter"]["output_length"]
         self.delta = config_task["task_window_segmenter"]["delta"]
 
-        self.stride = next(iter(self.dict_metadata.values()))["sec_stride"]
+        self.stride = float(self.dict_metadata["sec_stride"])
 
         self.model_transform = model_transform
 
@@ -330,34 +329,37 @@ class TaskModelTransformWrapper(MastDataset):
         if self.verbose:
             print(f"\nINPUT VARIABLES L={self.input_length}s")
             for key in self.input_keys:
+                md = self.dict_metadata["input"][key]
+                freq_key = md["dt"]
+                dim_key = md["values_shape"]
+                ts_length = md["ts_length"]
                 print(f"Variable {key}")
-                freq_key = self.dict_metadata[key]["dt"]
                 print(f"    frequency: {freq_key}")
-                dim_key = self.dict_metadata[key]["values_shape"]
                 print(f"    dim shape: {dim_key}")
-                ts_length = self.dict_metadata[key]["ts_length"]
                 print(f"    we expect a window of length: {ts_length}")
 
             print(
                 f"\nACTUATOR VARIABLES L={self.input_length + self.delta + self.output_length}s"
             )
             for key in self.actuator_keys:
+                md = self.dict_metadata["actuator"][key]
+                freq_key = md["dt"]
+                dim_key = md["values_shape"]
+                ts_length = md["ts_length"]
                 print(f"Variable {key}")
-                freq_key = self.dict_metadata[key]["dt"]
                 print(f"    frequency: {freq_key}")
-                dim_key = self.dict_metadata[key]["values_shape"]
                 print(f"    dim shape: {dim_key}")
-                ts_length = self.dict_metadata[key]["ts_length"]
                 print(f"    we expect a window of length: {ts_length}")
 
             print(f"\nOUTPUT VARIABLES L={self.output_length}s")
             for key in self.output_keys:
+                md = self.dict_metadata["output"][key]
+                freq_key = md["dt"]
+                dim_key = md["values_shape"]
+                ts_length = md["ts_length"]
                 print(f"Variable {key}")
-                freq_key = self.dict_metadata[key]["dt"]
                 print(f"    frequency: {freq_key}")
-                dim_key = self.dict_metadata[key]["values_shape"]
                 print(f"    dim shape: {dim_key}")
-                ts_length = self.dict_metadata[key]["ts_length"]
                 print(f"    we expect a window of length: {ts_length}")
 
     def __getitem__(self, idx_shot):
@@ -400,9 +402,10 @@ class TaskModelTransformWrapper(MastDataset):
             input_slice = {}
 
             for key in self.input_keys:
-                freq_key = self.dict_metadata[key]["dt"]
-                shape_values = self.dict_metadata[key]["values_shape"]
-                ts_input = self.dict_metadata[key]["ts_length"]
+                md = self.dict_metadata["input"][key]
+                freq_key = md["dt"]
+                shape_values = md["values_shape"]
+                ts_input = md["ts_length"]
 
                 times = sample[key]["time"]
                 values = sample[key]["values"]
@@ -448,10 +451,11 @@ class TaskModelTransformWrapper(MastDataset):
             output_slice = {}
 
             for key in self.output_keys:
-                freq_key = self.dict_metadata[key]["dt"]
-                shape_values = self.dict_metadata[key]["values_shape"]
-                ts_output = self.dict_metadata[key]["ts_length"]
-                
+                md = self.dict_metadata["output"][key]
+                freq_key = md["dt"]
+                shape_values = md["values_shape"]
+                ts_output = md["ts_length"]
+
                 ts_delta = np.trunc(self.delta / freq_key).astype(int)
 
                 times = sample[key]["time"]
@@ -501,15 +505,16 @@ class TaskModelTransformWrapper(MastDataset):
 
                 # 6. Get slice
                 output_slice[key] = {"time": selected_times, "values": selected_values}
-            
+
             # ..........................................................................................................
             # Actuator
 
             actuator_slice = {}
 
             for key in self.actuator_keys:
-                freq_key = self.dict_metadata[key]["dt"]
-                shape_values = self.dict_metadata[key]["values_shape"]
+                md = self.dict_metadata["actuator"][key]
+                freq_key = md["dt"]
+                shape_values = md["values_shape"]
 
                 ts_input = int(np.round(self.input_length / freq_key))
                 ts_output = int(np.round(self.output_length / freq_key))
