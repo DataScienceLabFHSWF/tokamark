@@ -190,8 +190,7 @@ def get_metadata(dataset,
             info[key]['ts_length'] = int(np.round(sec_length / dt))
         
         # Get stride from all dt
-        sec_stride = max([info[key]['dt'] for key in output_keys]) #chosing min is enviseagable
-
+        sec_stride = min([info[key]['dt'] for key in output_keys]) # min for training, max for test is enviseagable
         for key in info.keys():
             info[key]['sec_stride'] = sec_stride
             info[key]['ts_stride'] = int(np.round(sec_stride/info[key]['dt']))
