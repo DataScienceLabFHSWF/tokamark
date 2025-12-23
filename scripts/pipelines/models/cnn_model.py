@@ -12,11 +12,13 @@ class Numerical0DBranch(nn.Module):
 
         self.n_profiles = input_shape[0]
 
-        self.bn = nn.BatchNorm1d(self.n_profiles)
+        # self.bn = nn.BatchNorm1d(self.n_profiles)
 
     # ------------------------------------------------------------------------------------------------------------------
     def forward(self, x):
-        return self.bn(x)
+        # return self.bn(x)
+        return x
+
 
 # ======================================================================================================================
 class Conv1DBranch(nn.Module):
@@ -28,18 +30,18 @@ class Conv1DBranch(nn.Module):
         self.n_profiles = input_shape[0]
 
         self.cnn = nn.Sequential(
-            nn.BatchNorm1d(self.n_profiles),
+            # nn.BatchNorm1d(self.n_profiles),
             nn.Conv1d(self.n_profiles, D, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(D),            
+            # nn.BatchNorm1d(D),            
             nn.MaxPool1d(2, padding=1),
             nn.Conv1d(D, 2 * D, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(2 * D),
+            # nn.BatchNorm1d(2 * D),
             nn.MaxPool1d(2, padding=1),
             nn.Conv1d(2 * D, 4 * D, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(4 * D),
+            # nn.BatchNorm1d(4 * D),
         )
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Linear(4 * D, self.n_profiles)
@@ -61,18 +63,18 @@ class Conv2DBranch(nn.Module):
         self.n_profiles = input_shape[0]
         
         self.cnn = nn.Sequential(
-            nn.BatchNorm2d(self.n_profiles),
+            # nn.BatchNorm2d(self.n_profiles),
             nn.Conv2d(self.n_profiles, D, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(D),
+            # nn.BatchNorm2d(D),
             nn.MaxPool2d(2, padding=1),
             nn.Conv2d(D, 2 * D, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(2 * D),
+            # nn.BatchNorm2d(2 * D),
             nn.MaxPool2d(2, padding=1),
             nn.Conv2d(2 * D, 4 * D, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(4 * D),
+            # nn.BatchNorm2d(4 * D),
         )
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(4 * D, self.n_profiles)
@@ -95,13 +97,13 @@ class DecoderNumerical0DBranch(nn.Module):
         self.n_timeseries = output_shape[0]
 
         self.fc = nn.Sequential(
-            nn.BatchNorm1d(merged_input_dim),
+            # nn.BatchNorm1d(merged_input_dim),
             nn.Linear(merged_input_dim, 4 * D),
             nn.ReLU(),
-            nn.BatchNorm1d(4 * D),
+            # nn.BatchNorm1d(4 * D),
             nn.Linear(4 * D, 2 * D),
             nn.ReLU(),
-            nn.BatchNorm1d(2 * D),
+            # nn.BatchNorm1d(2 * D),
             nn.Dropout(0.2),
             nn.Linear(2 * D, self.n_timeseries),
         )
@@ -125,13 +127,13 @@ class Conv1DDecoder(nn.Module):
         self.transposecnn = nn.Sequential(
             nn.ConvTranspose1d(4 * D, 2 * D, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(2 * D),
+            # nn.BatchNorm1d(2 * D),
             nn.ConvTranspose1d(2 * D, D, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(D),
+            # nn.BatchNorm1d(D),
             nn.ConvTranspose1d(D, self.n_profiles, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(self.n_profiles),
+            # nn.BatchNorm1d(self.n_profiles),
         )
 
         self.global_avg_pool = nn.AdaptiveAvgPool1d(self.height_profiles)
@@ -159,13 +161,13 @@ class Conv2DDecoder(nn.Module):
         self.transposecnn = nn.Sequential(
             nn.ConvTranspose2d(4 * D, 2 * D, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(2 * D),
+            # nn.BatchNorm2d(2 * D),
             nn.ConvTranspose2d(2 * D, D, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(D),
+            # nn.BatchNorm2d(D),
             nn.ConvTranspose2d(D, self.n_profiles, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(self.n_profiles),
+            # nn.BatchNorm2d(self.n_profiles),
         )
 
         self.global_avg_pool = nn.AdaptiveAvgPool2d((self.height_profiles, self.weight_profiles))

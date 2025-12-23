@@ -247,8 +247,8 @@ class MastDataset(Dataset):
                     {"time": shot_time, "values": shot_vals}
                 )
             else:
-                # Keep missing signals as {"time": None, "values": None}
-                shot[f"{source}-{signal}"] = {"time": shot_time, "values": shot_vals}
+                # Keep missing signals as {"time": np.array([]), "values": np.array([])}
+                shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
 
         # Apply shot-level transforms to obtain a list of training objects (windows)
         if self.shot_level_transform:

@@ -1,0 +1,37 @@
+subset_of_shots:
+local: true
+
+task_name: task_3-1
+
+sources_and_signals:
+  input_name: &input_keys
+    - [thomson_scattering, t_e]
+    - [thomson_scattering, n_e]
+
+  actuator_name: &actuator_keys
+    - [pulse_schedule, i_plasma]
+    - [pulse_schedule, n_e_line]
+    - [summary, power_nbi]
+    - [gas_injection, total_injected]
+
+  output_name: &output_keys
+    - [thomson_scattering, t_e]
+    - [thomson_scattering, n_e]
+
+standardscaling_setting:
+  mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
+  std_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
+  # mean_path: "/../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
+  # std_path: "/../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
+
+task_window_segmenter:
+  input_keys: *input_keys
+  actuator_keys: *actuator_keys
+  output_keys: *output_keys
+  input_length: 0.005
+  output_length: 0.050
+  delta: 0 # this is forecasting
+  verbose: false
+
+paths:
+  data_split_csv_path: ../metadata/2025-05-12/data_splits.csv

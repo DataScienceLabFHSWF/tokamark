@@ -1,0 +1,14 @@
+cnn_settings:
+  D: 32
+
+dataloader_setting:
+  batch_size: 16
+  num_workers: 0
+
+training_args:
+  lr: 0.00001
+  max_epochs: 2
+  patience: 5
+
+paths:
+  data_output_directory: /output/cnn_model/
