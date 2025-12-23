@@ -40,7 +40,7 @@ class MastDataset(Dataset):
     signal_level_transform_map : Optional[dict[str, Callable]]
         Map of transforms to apply at signal level.
     shot_level_transform : Optional[Callable]
-        Transform to apply at shot level, which typically builds windows.
+        Transform to apply at shot level.
     return_incomplete_shots : bool
         Boolean flag to allow retrieval of incomplete shots.
     sig : signal_utils.MASTSignalManager
@@ -89,7 +89,7 @@ class MastDataset(Dataset):
             Map of transforms to apply at signal level.
             Optional. Default: None.
         shot_level_transform : Optional[Callable]
-            Transform to apply at shot level, which typically builds windows.
+            Transform to apply at shot level.
             Optional. Default: None.
         return_incomplete_shots : bool
             If True, DO NOT drop shots with missing variables, and pass them through so that the windowing transform can
@@ -253,19 +253,48 @@ class MastDataset(Dataset):
         # Apply shot-level transforms to obtain a list of training objects (windows)
         if self.shot_level_transform:
             if self.return_incomplete_shots:
-                # Pass through even if some variables are missing; the windower will insert None per window.
-                list_chunks = self.shot_level_transform(shot)
-                return list_chunks if isinstance(list_chunks, list) else [list_chunks]
+                # Pass through even if some variables are missing;
+                item = self.shot_level_transform(shot)
+                return item if isinstance(item, list) else [item]
             else:
                 # Legacy behavior: drop shots with any missing variable
                 if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
-                    list_chunks = self.shot_level_transform(shot)
-                    return list_chunks if isinstance(list_chunks, list) else [list_chunks]
+                    item = self.shot_level_transform(shot)
+                    return item if isinstance(item, list) else [item]
                 else:
                     return []
         else:
             # No shot-level transform → return the raw shot dict (may include None fields)
             return shot
+
+    # ------------------------------------------------------------------------------------------------------------------
+    class CachedDataset(Dataset):
+        """ Cache base dataset into local memory
+
+        Parameters
+        ----------
+        Dataset : PyTorch Dataset
+        """
+        def __init__(self, base_dataset):
+            """
+            base_dataset: PyTorch Dataset
+            """
+            self.base_dataset = base_dataset
+            self.cache = [None] * len(base_dataset)
+            self._is_cached = [False] * len(base_dataset)
+        
+        def __getitem__(self, idx):
+            # If not cached, load it once
+            if not self._is_cached[idx]:
+                item = self.base_dataset[idx]
+
+                self.cache[idx] = item
+                self._is_cached[idx] = True
+
+            return self.cache[idx]
+
+        def __len__(self):
+            return len(self.base_dataset)
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_shot_id(

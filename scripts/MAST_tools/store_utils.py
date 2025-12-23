@@ -168,6 +168,10 @@ class MASTStorageManager:
         self.store_manager_id = store_manager_id
 
     # ------------------------------------------------------------------------------------------------------------------
+    def build_level_path(self, level: int | str, test_data: bool) -> str:
+        level_str = f"level{level}"
+        return os.path.join("test", level_str) if test_data else level_str
+
     @staticmethod
     def _is_digit(
             item: Any
@@ -571,7 +575,7 @@ class MASTStorageManager:
         """
 
         self._check_level(level=level)
-        test_and_level_case = f"{'test/' if test_data else ''}level{level}"
+        test_and_level_case = self.build_level_path(level, test_data)
 
         if via_parquet:
             # Parquet pipeline
@@ -581,19 +585,19 @@ class MASTStorageManager:
                                  f"MASTStorageManager instance.")
 
             if local:
-                full_path = f"{base_parquet_path}/{test_and_level_case}/shots_metadata.parquet"
+                full_path = os.path.join(base_parquet_path,test_and_level_case,"shots_metadata.parquet")
             else:
-                full_path = f"{base_parquet_path}/{test_and_level_case}/shots"
+                full_path = os.path.join(base_parquet_path,test_and_level_case,"shots")
 
             summary_dataframe = self._read_parquet_data(path=full_path, local=local)
             raw_shot_ids = summary_dataframe["shot_id"].values
         else:
             # FSSpec pipeline
             if local:
-                local_path = f"{self.base_local_zarr_path}/{test_and_level_case}/"
+                local_path = os.path.join(self.base_local_zarr_path,test_and_level_case)
                 all_filenames = self._read_fsspec_listdir(path=local_path, local=True)
             else:
-                remote_path = f"/mast/{test_and_level_case}/shots/"
+                remote_path = os.path.join("mast",test_and_level_case,"shots")
                 all_filenames = [item["Key"] for item in self._read_fsspec_listdir(path=remote_path, local=False)]
 
             raw_shot_ids = [
@@ -702,7 +706,7 @@ class MASTStorageManager:
         if shot_ids is not None:
             self._check_list_of_shot_ids(shot_ids=shot_ids)
 
-        test_and_level_case = f"{'test/' if test_data else ''}level{level}"
+        test_and_level_case = self.build_level_path(level, test_data)
 
         if via_parquet:
             # Parquet pipeline
@@ -713,9 +717,9 @@ class MASTStorageManager:
                                  f"MASTStorageManager instance.")
 
             if local:
-                full_path = f"{base_parquet_path}/{test_and_level_case}/shots_sources.parquet"
+                full_path = os.path.join(base_parquet_path,test_and_level_case,"shots_sources.parquet")
             else:
-                full_path = f"{base_parquet_path}/{test_and_level_case}/sources"
+                full_path = os.path.join(base_parquet_path,test_and_level_case,"sources")
             summary_dataframe = self._read_parquet_data(path=full_path, local=local)
             if shot_ids:
                 composite_condition = summary_dataframe["shot_id"] == shot_ids[0]
@@ -810,8 +814,8 @@ class MASTStorageManager:
         else:
             self._check_list_of_shot_ids(shot_ids=shot_ids)
 
-        test_and_level_case = f"{'test/' if test_data else ''}level{level}"
-
+        test_and_level_case = self.build_level_path(level, test_data)
+        
         if via_parquet:
             # Parquet pipeline
 
@@ -822,7 +826,8 @@ class MASTStorageManager:
 
             signal_info = {}
             if local:
-                root_signals_path = f"{base_parquet_path}/{test_and_level_case}/all_signals"
+                root_signals_path = os.path.join(base_parquet_path,test_and_level_case,"all_signals")
+
                 all_signal_names = os.listdir(root_signals_path)
                 len_all_signals = len(all_signal_names)
 
@@ -930,13 +935,15 @@ class MASTStorageManager:
         """
 
         parsed_shot_info = self._parse_shot_info_dict(shot_info=shot_info)
-        test_and_level_case = f"{'test/' if parsed_shot_info['test_data'] else ''}level{parsed_shot_info['level']}"
+        test_and_level_case = self.build_level_path(parsed_shot_info["level"],parsed_shot_info["test_data"])
 
         if parsed_shot_info["local"]:
-            zarr_filepath = f"{self.base_local_zarr_path}/{test_and_level_case}/{parsed_shot_info['shot_id']}.zarr"
+            zarr_filepath = os.path.join(self.base_local_zarr_path,test_and_level_case,f"{parsed_shot_info['shot_id']}.zarr")
+            
             store = zarr.storage.LocalStore(root=zarr_filepath)
         else:
-            zarr_filepath = f"/mast/{test_and_level_case}/shots/{parsed_shot_info['shot_id']}.zarr"
+            zarr_filepath = os.path.join( "mast",test_and_level_case,"shots",f"{parsed_shot_info['shot_id']}.zarr" )
+            
             store = zarr.storage.FsspecStore(
                 fs=self.fs_remote_s3fs,
                 read_only=True,
@@ -989,16 +996,19 @@ class MASTStorageManager:
             # Create group from shot info dictionary.
 
             parsed_shot_info = self._parse_shot_info_dict(shot_info=data_origin)
-            test_and_level_case = f"{'test/' if parsed_shot_info['test_data'] else ''}level{parsed_shot_info['level']}"
-
+            test_and_level_case = self.build_level_path(parsed_shot_info["level"],parsed_shot_info["test_data"])
+            
             if parsed_shot_info['local']:
                 # Create group by implicitly creating a writable LocalStore
-                local_path = f"{self.base_local_zarr_path}/{test_and_level_case}/{parsed_shot_info['shot_id']}.zarr"
+                local_path = os.path.join( self.base_local_zarr_path, test_and_level_case,f"{parsed_shot_info['shot_id']}.zarr")
+                    
                 group = zarr.open_group(store=local_path, mode="r")
                 # Source: https://zarr.readthedocs.io/en/latest/user-guide/storage.html#implicit-store-creation
             else:
                 # Create group by implicitly creating a read-only FsspecStore
-                remote_shot_path = f"/mast/{test_and_level_case}/shots/{parsed_shot_info['shot_id']}.zarr"
+                
+                remote_shot_path = os.path.join("/mast",test_and_level_case, "shots", f"{parsed_shot_info['shot_id']}.zarr")
+
                 group = zarr.open_group(
                     store=f"{self.target_fsspec_protocol}:/{remote_shot_path}",
                     mode="r",
@@ -1053,11 +1063,11 @@ def tests() -> None:
 
     TESTS_TO_RUN = {  # noqa
         "get_all_shot_ids": False,
-        "get_all_sources": True,
+        "get_all_sources": False,
         "get_all_signals": False,
         "make_group_from_store": False,
         "make_group_from_shot_info": False,
-        "check_signal_availability": False
+        "check_signal_availability": True
     }
 
     # ..................................................................................................................

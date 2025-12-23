@@ -1,0 +1,28 @@
+MAST_tools/plotting_utils.py review
+
+MAST_tools/plotting_utils.py review1- Import statement consistency:try:
+    from . import store_utils
+    from . import signal_utils
+    from . import constants as cc
+except ImportError:
+    import store_utils
+    import signal_utils
+    import constants as cc
+    
+    The exception is issued also for internal import failures in the modulesstore_utils, signal_utils and constantsIs this the intended use?2- Remove big chunk of commented code aka plot_cameras starting at line 2473- TypeError: typing.Optional requires a single type. Got (<class 'numpy.ndarray'>, <class 'matplotlib.axes._axes.Axes'>). This error repeats consistently throughout the code.
+
+    2- Remove big chunk of commented code aka plot_cameras starting at line 247
+    3- TypeError: typing.Optional requires a single type. Got (<class 'numpy.ndarray'>, <class 'matplotlib.axes._axes.Axes'>). This error repeats consistently throughout the code.
+
+
+in store_utils.py
+1- get_all_signals fails 
+
+line 829 
+if local:
+    root_signals_path = os.path.join(base_parquet_path,test_and_level_case,"all_signals")
+
+../../metadata/parquet/level2/all_signals does not exist
+
+2- ? in path
+full_path = f"{base_parquet_path}/{test_and_level_case}/signals?shot_id={shot_id_ii}"

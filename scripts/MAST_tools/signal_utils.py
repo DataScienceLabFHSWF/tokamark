@@ -405,9 +405,9 @@ def test() -> None:
 
     TESTS_TO_RUN = {  # noqa
         "source_from_store": True,
-        "signal_values_from_store": False,
-        "signal_values_from_shot_info": False,
-        "signal_times_from_shot_info": False
+        "signal_values_from_store": True,
+        "signal_values_from_shot_info": True,
+        "signal_times_from_shot_info": True
     }
 
     signal_manager = MASTSignalManager()
