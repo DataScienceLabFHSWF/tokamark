@@ -58,84 +58,16 @@ def make_data_generator(seed: int) -> torch.Generator:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def dataloader_seed_parts(seed: int):
-    # reuse the top-level function so it's picklable under 'spawn'
-    return seed_worker, make_data_generator(seed)
+def get_train_test_val_shots(max_index=None):
+    train_sh, test_sh, val_sh = read_data_split_csv()
 
+    if max_index:
+        train_sh = train_sh[0:max_index]
+        val_sh = val_sh[0:max_index]
+        test_sh = test_sh[0:max_index]
 
-# ----------------------------------------------------------------------------------------------------------------------
-def get_train_test_val_shots(
-    max_index = None,
-    max_index_for_train = None,
-    max_index_for_val = None,
-    max_index_for_test = None,
-    shuffle = False,
-    seed = None
-    ):
-    
-    """
-    Generate lists of shot IDs for training, testing, and validation.
-    These lists can be subsets of the corresponding complete lists.
+    return train_sh, test_sh, val_sh
 
-    Parameters
-    ----------
-    max_index : int, optional
-        If not None, all lists will have the same length given by max_index.
-    max_index_for_train : int, optional
-        Number of shot IDs for the training set.
-        Overrides max_index.
-    max_index_for_val : int, optional
-        Number of shot IDs for the validation set.
-        Overrides max_index.
-    max_index_for_test : int, optional
-        Number of shot IDs for the testing set.
-        Overrides max_index.
-    shuffle: bool
-        True if we need shuffled samples.
-    seed: int 
-        For reproducibility of the rnd sequence.
-
-    Returns
-    -------
-    tuple of lists
-        Three lists of shot IDs for training, testing, and validation, respectively.
-
-    """
-
-    # Read full data splits
-    train_set_full, test_set_full, val_set_full = read_data_split_csv()
-
-    if shuffle:
-        if seed is not None:
-            if not isinstance(seed, int):
-                raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")
-            random.seed(seed)  
-            
-        random.shuffle(train_set_full)
-        random.shuffle(test_set_full)
-        random.shuffle(val_set_full)
-        
-    train_set = train_set_full
-    test_set = test_set_full
-    val_set = val_set_full
-    
-    # If max_index is provided, override all other limits
-    if max_index is not None and max_index > 0:
-        train_set = train_set_full[:max_index]
-        val_set = val_set_full[:max_index]
-        test_set = test_set_full[:max_index]
-
-    # Apply individual limits if provided and positive
-    if max_index_for_train is not None and max_index_for_train > 0:
-        train_set = train_set_full[:max_index_for_train]
-
-    if max_index_for_val is not None and max_index_for_val > 0:
-        val_set = val_set_full[:max_index_for_val]
-
-    if max_index_for_test is not None and max_index_for_test > 0:
-        test_set = test_set_full[:max_index_for_test]
-        
-    return train_set, test_set, val_set
 
 # ----------------------------------------------------------------------------------------------------------------------
 def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
