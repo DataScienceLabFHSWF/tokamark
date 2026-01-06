@@ -23,7 +23,7 @@ from scripts.pipelines.utils.utils import (
     initialize_datasets,
     ComposeTransforms,
 )
-from scripts.pipelines.transforms.signal_level_transforms.pretrained_stdscale_normalize_transform import (
+from scripts.pipelines.transforms.signal_level_transforms.stdscale_transform import (
     StdScalingTransform,
 )
 from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform import (
