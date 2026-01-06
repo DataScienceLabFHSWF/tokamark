@@ -32,9 +32,6 @@ from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform
 from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform,
 )
-from scripts.pipelines.transforms.signal_level_transforms.fill_thomson_with_zeros_imputer_transform import (
-    FillThomsonWithZerosTransform,
-)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Repo-specific imports
@@ -82,6 +79,8 @@ def build_common_signal_transform_map(
         "magnetics-b_field_pol_probe_obr_field",
         "magnetics-b_field_pol_probe_obv_field",
         "magnetics-b_field_tor_probe_saddle_voltage",
+        "thomson_scattering-t_e", 
+        "thomson_scattering-n_e"
     ]:
         signal_transform_map[var] = ComposeTransforms(
             [
@@ -96,15 +95,6 @@ def build_common_signal_transform_map(
             [
                 ReshapeLcfsTransform(),
                 StdScalingTransform(dict_mean[var], dict_std[var]),
-            ]
-        )
-
-    # Specific filling with zeros for shomson scattering
-    for var in ["thomson_scattering-t_e", "thomson_scattering-n_e"]:
-        signal_transform_map[var] = ComposeTransforms(
-            [
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-                FillThomsonWithZerosTransform(),
             ]
         )
 
