@@ -15,9 +15,6 @@ output_figures/
 # Local supporting folder
 zz/
 *output/
-*rds/
-metadata/parquet/level2/all_signals/*
-metadata/parquet/level2/signals_per_shot/*
 
 "python.analysis.useLibraryCodeForTypes": true,
 "python.analysis.autoSearchPaths": true,
