@@ -1,60 +1,9 @@
 import os
 import pandas as pd
-import torch
-import random
 import numpy as np
-from torch.utils.data import DataLoader
 
 from ..globals import REPO_ROOT
 from scripts.MAST_tools.MAST_dataset import MastDataset
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def set_seed(seed: int, deterministic: bool = True, warn_only: bool = True):
-    """
-    Global reproducibility across Python, NumPy, and PyTorch (CPU/CUDA/MPS).
-    Call once at startup, before building datasets/loaders/models.
-    """
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    # Needed for strict cuBLAS determinism (matmul). Safe if CUDA isn't present.
-    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-    # cuDNN + global deterministic guard
-    try:
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = bool(deterministic)
-    except Exception as ee:
-        print(f"WARNING - torch exception triggered: {ee}")
-        pass
-
-    torch.use_deterministic_algorithms(bool(deterministic), warn_only=bool(warn_only))
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def seed_worker(worker_id: int):
-    """
-    Top-level (picklable) worker init. Derives a per-worker seed from
-    PyTorch's worker seed so it's consistent with DataLoader's Generator.
-    """
-    worker_seed = (torch.initial_seed() + worker_id) % 2**32
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def make_data_generator(seed: int) -> torch.Generator:
-    """
-    Top-level helper to create a reproducible DataLoader generator.
-    """
-    g = torch.Generator()
-    g.manual_seed(seed)
-    return g
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -205,82 +154,6 @@ def initialize_model_datasets(
     # Return
 
     return datasets_
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def initialize_dataloaders(
-    datasets,
-    collate_function,
-    batch_size,
-    num_workers,
-    shuffle=True,
-    drop_last=False,
-    verbose=False,
-    seed: int | None = None,
-    pin_memory: bool | None = None,
-):
-    dataloaders_ = {"train": None, "val": None, "test": None}
-
-    if verbose:
-        print("\n\n----------DATASET & DATALOADER INITIALIZATION----------\n")
-
-    # ▶ Prepare reproducible seeding parts for DataLoader
-    worker_fn = None
-    generator = None
-    if seed is not None:
-        worker_fn = seed_worker
-        generator = make_data_generator(seed)
-
-    # sensible default for pin_memory
-    if pin_memory is None:
-        pin_memory = torch.cuda.is_available()
-
-    # ..................................................................................................................
-    # Train
-    if datasets["train"]:
-        dataloaders_["train"] = DataLoader(
-            dataset=datasets["train"],
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            collate_fn=collate_function,
-            worker_init_fn=worker_fn,  # ▶
-            generator=generator,  # ▶ controls shuffle order deterministically
-            pin_memory=pin_memory,
-        )
-
-    # ..................................................................................................................
-    # Val
-    if datasets["val"]:
-        dataloaders_["val"] = DataLoader(
-            dataset=datasets["val"],
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            collate_fn=collate_function,
-            worker_init_fn=worker_fn,  # ▶ ensures worker RNG is fixed
-            generator=generator,  # ▶ reproducible order if shuffle=True
-            pin_memory=pin_memory,
-        )
-
-    # ..................................................................................................................
-    # Test
-    if datasets["test"]:
-        dataloaders_["test"] = DataLoader(
-            dataset=datasets["test"],
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            collate_fn=collate_function,
-            worker_init_fn=worker_fn,
-            generator=generator,
-            pin_memory=pin_memory,
-        )
-
-    return dataloaders_
 
 
 # ======================================================================================================================
