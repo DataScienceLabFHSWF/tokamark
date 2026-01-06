@@ -2,9 +2,9 @@ import os
 import sys
 
 import pickle
-import torch
 
-import torch
+from pathlib import Path
+import pickle
 from torch.utils.data import DataLoader
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -19,7 +19,7 @@ print(REPO_ROOT)
 
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
-# print(f"REPO_ROOT: {REPO_ROOT}")
+print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
 from scripts.pipelines.utils.utils import read_data_split_csv
@@ -34,12 +34,10 @@ from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
 
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
+from scripts.pipelines.utils.device_utils import get_device
+
+# Set device
+device = get_device()
 
 
 LOCAL_FLAG = True
@@ -99,19 +97,20 @@ def collate_preprocessing (batch):
     
     for data in batch :
         for var, data_var in data.items():
-            if data_var['values'] is not None:
+            if len(data_var['values']) != 0 :
                 formatted_batch[var].append(data_var['values'])
 
     formatted_batch_mean_std = {f"{source}-{signal}": [] for source, signal in source_signal_list_}
 
     for source, signal in source_signal_list_:
         var = f"{source}-{signal}"
-        shapes = np.array([ar.shape for ar in [np.nanmean(arr, axis=-1) for arr in formatted_batch[var]]])
+        shapes = np.array([ar.shape for ar in [arr[...,-1] for arr in formatted_batch[var]]])
         uniq = np.unique(shapes, axis=0)
+        # print(shapes)
         if len(uniq)!=1:
         # if True:
-            print(var)
-            print(uniq)
+            # print(var)
+            # print(uniq)
             formatted_batch_mean_std[var] = [0, 0, 0]
         else:
             formatted_batch_mean_std[var] = [ len(formatted_batch[var]), 
@@ -137,6 +136,8 @@ def compute_mean_std(dataset, batch_size=64, num_workers=4):
 
     for batch in loader:
 
+        print('new batch')
+
         for var in batch.keys():
 
             n_batch = batch[var][0]
@@ -154,12 +155,12 @@ def compute_mean_std(dataset, batch_size=64, num_workers=4):
     for var in batch.keys():
         # mean
         mean[var] = sum_mean[var] / n_samples[var]
-        where_are_NaNs = np.isnan(mean[var])
-        mean[var][where_are_NaNs] = 0
+        # where_are_NaNs = np.isnan(mean[var])
+        # mean[var][where_are_NaNs] = 0
         # std
         std[var] = sum_std[var] / n_samples[var]
-        where_are_NaNs = np.isnan(std[var])
-        std[var][where_are_NaNs] = 1
+        # where_are_NaNs = np.isnan(std[var])
+        # std[var][where_are_NaNs] = 1
 
 
     return mean, std
@@ -180,24 +181,53 @@ if __name__ == "__main__":
 
     preprocessing_train_dataset = MastDataset(
         local=LOCAL_FLAG,
-        shots_list=train_sh,
-        # shots_list=train_sh[0:10],
+        # shots_list=train_sh,
+        shots_list=train_sh[0:50],
         source_signal_list=source_signal_list_,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=None
     )
 
-    BATCH_SIZE = 100
-    NUM_WORKERS = 8
-    # BATCH_SIZE = 3
-    # NUM_WORKERS = 0
+    # BATCH_SIZE = 512
+    # NUM_WORKERS = 32
+    BATCH_SIZE = 3
+    NUM_WORKERS = 0
 
     mean, std = compute_mean_std(preprocessing_train_dataset, 
                     batch_size=BATCH_SIZE, 
                     num_workers=NUM_WORKERS)
-    
-    with open('preprocessing/dict_mean_shot.pkl', 'wb') as f_:
-        pickle.dump(mean, f_)
-    with open('preprocessing/dict_std_shot.pkl', 'wb') as f_:
-        pickle.dump(std, f_)
+
+
+    out_dir = Path("preprocessing")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(out_dir / "dict_mean_shot.pkl", "wb") as f:
+        pickle.dump(mean, f)
+
+    with open(out_dir / "dict_std_shot.pkl", "wb") as f:
+        pickle.dump(std, f)
+
+
+    flattened_dict_mean = mean
+    flattened_dict_std = std
+
+    for var in flattened_dict_mean.keys():
+        # print( flattened_dict_mean[var].shape )
+        mean_value = np.nanmean( mean[var] ) 
+        mean_arr = np.full_like(mean[var], mean_value)
+        flattened_dict_mean[var] = mean_arr
+        # print( flattened_dict_std[var].shape )
+        std_value = np.nanmean( std[var] ) 
+        std_arr = np.full_like(std[var], std_value)
+        flattened_dict_std[var] = std_arr
+        # find nans
+        where_are_NaNs = np.isnan(flattened_dict_mean[var])
+        flattened_dict_mean[var][where_are_NaNs] = 0
+        flattened_dict_std[var][where_are_NaNs] = 1
+
+    with open(out_dir / 'flattened_dict_mean_shot.pkl', 'wb') as f_:
+            pickle.dump(flattened_dict_mean, f_)
+    with open(out_dir / 'flattened_dict_std_shot.pkl', 'wb') as f_:
+        pickle.dump(flattened_dict_std, f_)
+
     
