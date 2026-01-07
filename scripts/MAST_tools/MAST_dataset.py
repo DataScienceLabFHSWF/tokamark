@@ -10,10 +10,8 @@ from typing import Union, Callable, Optional
 from torch.utils.data import Dataset
 try:
     from . import signal_utils
-    from . import constants as cc
 except ImportError:
     import signal_utils
-    import constants as cc
 
 
 # ======================================================================================================================
