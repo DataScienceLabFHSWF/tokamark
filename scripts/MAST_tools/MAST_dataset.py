@@ -127,24 +127,35 @@ class MastDataset(Dataset):
         """
 
         # General MAST settings
-        self.local = local
-        if "level" in other_mast_settings:
-            if isinstance(other_mast_settings["level"], int):
-                if other_mast_settings["level"] in [1, 2]:
-                    self.level = other_mast_settings["level"]
+        if other_mast_settings:
+            self.local = local
+            if "level" in other_mast_settings:
+                if isinstance(other_mast_settings["level"], int):
+                    if other_mast_settings["level"] in [1, 2]:
+                        self.level = other_mast_settings["level"]
+                    else:
+                        raise TypeError(
+                            "Value of field 'level' in 'other_mast_settings' must be of type 'int'."
+                        )
                 else:
-                    raise TypeError("Value of field 'level' in 'other_mast_settings' must be of type 'int'.")
+                    raise ValueError(
+                        "Value of field 'level' in 'other_mast_settings' must be in [1, 2]."
+                    )
             else:
-                raise ValueError("Value of field 'level' in 'other_mast_settings' must be in [1, 2].")
-        else:
-            self.level = 2
+                self.level = 2
 
-        if "test_data" in other_mast_settings:
-            if isinstance(other_mast_settings["test_data"], bool):
-                self.test_data = other_mast_settings["test_data"]
+            if "test_data" in other_mast_settings:
+                if isinstance(other_mast_settings["test_data"], bool):
+                    self.test_data = other_mast_settings["test_data"]
+                else:
+                    raise TypeError(
+                        "Value of field 'test_data' in 'other_mast_settings' must be of type boolean."
+                    )
             else:
-                raise TypeError("Value of field 'test_data' in 'other_mast_settings' must be of type boolean.")
+                self.test_data = False
         else:
+            self.local = local
+            self.level = 2
             self.test_data = False
 
         # Shot-specific settings
