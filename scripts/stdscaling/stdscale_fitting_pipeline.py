@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 # Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
 REPO_ROOT = os.path.abspath(os.path.join(
     os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
-    "..", "..", ".."
+    "..", "..",
 ))  
 print(REPO_ROOT)
 
