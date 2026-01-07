@@ -1,7 +1,11 @@
-from Task_Model_Wrapper import TaskModelTransformWrapper
+from typing import Optional, Mapping, Any
 
+from scripts.MAST_tools.MAST_dataset import MastDataset
+from scripts.pipeline_tools.Task_Model_Wrapper import TaskModelTransformWrapper
+
+# ----------------------------------------------------------------------------------------------------------------------
 def initialize_model_dataset(
-    dataset: Optional[Dataset],
+    dataset: Optional[MastDataset],
     dict_metadata: Mapping[str, Any],
     config_task: Mapping[str, Any],
     model_specific_transform=None,

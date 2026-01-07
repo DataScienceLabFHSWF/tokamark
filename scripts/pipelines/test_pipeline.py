@@ -1,7 +1,5 @@
 import argparse
 import yaml
-import os
-import sys
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
@@ -9,28 +7,15 @@ from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 from typing import Dict, Any
 
-# -------------------------------------------------------------------
-# Repo-specific imports
-# -------------------------------------------------------------------
+from globals import REPO_ROOT
 
-# Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
-REPO_ROOT = os.path.abspath(os.path.join(
-    os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
-    "..", "..",
-))  
-print(REPO_ROOT)
+from scripts.pipeline_tools.utils import get_device
 
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-print(f"REPO_ROOT: {REPO_ROOT}")
-
-from scripts.utils.device_utils import get_device
-
-from scripts.utils.utils import (
-    initialize_model_datasets,
+from scripts.pipeline_tools.initialize_model_dataset import (
+    initialize_model_dataset,
 )
 
-from scripts.utils.preprocessing_utils import (
+from scripts.pipeline_tools.initialize_dataset_and_metadata import (
     initialize_datasets_and_metadata_for_task,
 )
 
@@ -39,6 +24,7 @@ device = get_device()
 # print(f"Using device: {device}\n")
 
 
+# ----------------------------------------------------------------------------------------------------------------------
 class ModelSpecificTransform:  # TEMPLATE
     def __init__(self, verbose=False):
         # dictionary that persists across calls
@@ -54,7 +40,7 @@ class ModelSpecificTransform:  # TEMPLATE
             "y": [data["values"] for var, data in shot["output"].items()],
         }
 
-
+# ----------------------------------------------------------------------------------------------------------------------
 def model_collate_fn(batch, verbose=True):
     flattened_batch = [
         (item["shot_id"], item["window_index"], item["x"], item["y"])
@@ -115,12 +101,10 @@ if __name__ == "__main__":
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # -------------------------------------------------------------------
 
-    datasets_model = initialize_model_datasets(
-        datasets_train_val_test, dict_metadata, config_task, None, verbose=True
+    train_model_dataset = initialize_model_dataset(
+        datasets_train_val_test["train"], dict_metadata, config_task, None, verbose=True
     )
 
-    # The created datasets are from class <scripts.pipelines.utils.utils.TaskModelTransformWrapper object at 0x1529104b0050>
-    datasets_model_train = datasets_model["train"]
 
     # The set of windows of 1 shot is saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
 
@@ -133,7 +117,7 @@ if __name__ == "__main__":
             item["actuator"],
             item["output"],
         )
-        for item in datasets_model_train[0]
+        for item in train_model_dataset[0]
     ]
 
     shot_id, window_index, input, actuator, output = list_list_shot_0[0]
@@ -150,7 +134,7 @@ if __name__ == "__main__":
     print([output[var]["values"].shape for var in output])
 
     # Or keep a list of dict with:
-    list_dict_shot_0 = [item for item in datasets_model_train[0]]
+    list_dict_shot_0 = [item for item in train_model_dataset[0]]
     print(list_dict_shot_0[0].keys())
     print("\n\n\nshot_id is ", list_dict_shot_0[0]["shot_id"])
     print("window_id is ", list_dict_shot_0[0]["window_index"])
@@ -164,8 +148,20 @@ if __name__ == "__main__":
 
     model_specific_transform = ModelSpecificTransform() # CHANGE HERE
 
-    datasets_model = initialize_model_datasets(
-        datasets_train_val_test,
+    train_model_dataset = initialize_model_dataset(
+        datasets_train_val_test["train"],
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose = True)
+    val_model_dataset = initialize_model_dataset(
+        datasets_train_val_test["val"],
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose = True)
+    test_model_dataset = initialize_model_dataset(
+        datasets_train_val_test["test"],
         dict_metadata,
         config_task,
         model_specific_transform,
@@ -175,7 +171,7 @@ if __name__ == "__main__":
     #                                             model_collate_fn,
     #                                             **config_model['dataloader_setting'])
     train_dataloader = DataLoader(
-            dataset=datasets_model["test"],
+            dataset=train_model_dataset,
             collate_fn=model_collate_fn,
             **config_model['dataloader_setting']
         )
