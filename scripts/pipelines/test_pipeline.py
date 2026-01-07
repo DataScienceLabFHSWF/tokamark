@@ -11,13 +11,13 @@ from typing import Dict, Any
 # Repo-specific imports
 # -------------------------------------------------------------------
 from globals import REPO_ROOT
-from scripts.pipelines.utils.device_utils import get_device
+from scripts.utils.device_utils import get_device
 
-from scripts.pipelines.utils.utils import (
+from scripts.utils.utils import (
     initialize_model_datasets,
 )
 
-from scripts.pipelines.utils.preprocessing_utils import (
+from scripts.utils.preprocessing_utils import (
     initialize_datasets_and_metadata_for_task,
 )
 

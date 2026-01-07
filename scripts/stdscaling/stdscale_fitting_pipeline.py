@@ -22,9 +22,9 @@ if REPO_ROOT not in sys.path:
 print(f"REPO_ROOT: {REPO_ROOT}")
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
-from scripts.pipelines.utils.utils import read_data_split_csv
+from scripts.utils.utils import read_data_split_csv
 
-from scripts.pipelines.utils.utils import ComposeTransforms
+from scripts.utils.utils import ComposeTransforms
 
 from scripts.transforms.reshape_lcfs_transform import (
     ReshapeLcfsTransform

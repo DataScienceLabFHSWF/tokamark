@@ -18,7 +18,7 @@ REPO_ROOT = os.path.abspath(
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from scripts.pipelines.utils.utils import (
+from scripts.utils.utils import (
     get_train_test_val_shots,
     initialize_datasets,
     ComposeTransforms,
