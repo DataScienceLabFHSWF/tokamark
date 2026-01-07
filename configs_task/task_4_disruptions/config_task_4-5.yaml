@@ -31,8 +31,8 @@ sources_and_signals:
     - [magnetics, b_field_pol_probe_omv_voltage]
 
 standardscaling_setting:
-  mean_path: "/../metadata/flattened_dict_mean_shot.pkl"
-  std_path: "/../metadata/flattened_dict_std_shot.pkl"
+  mean_path: "/metadata/flattened_dict_mean_shot.pkl"
+  std_path: "/metadata/flattened_dict_std_shot.pkl"
 
 task_window_segmenter:
   input_keys: *input_keys
