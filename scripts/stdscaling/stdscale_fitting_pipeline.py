@@ -34,7 +34,7 @@ from scripts.transforms.reshape_lcfs_transform import (
 # ----------------------------------------------------------------------------------------------------------------------
 # Determine device to train on
 
-from scripts.pipelines.utils.device_utils import get_device
+from scripts.utils.device_utils import get_device
 
 # Set device
 device = get_device()
@@ -181,17 +181,17 @@ if __name__ == "__main__":
 
     preprocessing_train_dataset = MastDataset(
         local=LOCAL_FLAG,
-        shots_list=train_sh,
-        # shots_list=train_sh[0:50],
+        # shots_list=train_sh,
+        shots_list=train_sh[0:50],
         source_signal_list=source_signal_list_,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=None
     )
 
-    BATCH_SIZE = 256
-    NUM_WORKERS = 32
-    # BATCH_SIZE = 3
-    # NUM_WORKERS = 0
+    # BATCH_SIZE = 256
+    # NUM_WORKERS = 32
+    BATCH_SIZE = 3
+    NUM_WORKERS = 0
 
     mean, std = compute_mean_std(preprocessing_train_dataset, 
                     batch_size=BATCH_SIZE, 

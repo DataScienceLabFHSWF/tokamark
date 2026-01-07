@@ -1,5 +1,7 @@
 import argparse
 import yaml
+import os
+import sys
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
@@ -10,7 +12,18 @@ from typing import Dict, Any
 # -------------------------------------------------------------------
 # Repo-specific imports
 # -------------------------------------------------------------------
-from globals import REPO_ROOT
+
+# Add the repo root (e.g.,/fairmast-data-preprocessing) to sys.path
+REPO_ROOT = os.path.abspath(os.path.join(
+    os.path.dirname(__file__) if '__file__' in globals() else os.getcwd(),
+    "..", "..",
+))  
+print(REPO_ROOT)
+
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+print(f"REPO_ROOT: {REPO_ROOT}")
+
 from scripts.utils.device_utils import get_device
 
 from scripts.utils.utils import (
