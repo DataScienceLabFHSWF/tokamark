@@ -201,11 +201,10 @@ if __name__ == "__main__":
     out_dir = Path("metadata")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(out_dir / "dict_mean_shot.pkl", "wb") as f:
-        pickle.dump(mean, f)
-
-    with open(out_dir / "dict_std_shot.pkl", "wb") as f:
-        pickle.dump(std, f)
+    # with open(out_dir / "dict_mean_shot.pkl", "wb") as f:
+    #     pickle.dump(mean, f)
+    # with open(out_dir / "dict_std_shot.pkl", "wb") as f:
+    #     pickle.dump(std, f)
 
 
     flattened_dict_mean = mean
