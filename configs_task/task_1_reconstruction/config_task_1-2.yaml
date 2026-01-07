@@ -1,7 +1,7 @@
 subset_of_shots:
 local: true
 
-task_name: task_1-3
+task_name: task_1-2
 
 sources_and_signals:
   input_name: &input_keys
@@ -17,13 +17,12 @@ sources_and_signals:
   actuator_name: &actuator_keys null 
 
   output_name: &output_keys
-    - [equilibrium, psi]
+    - [equilibrium, lcfs_r]
+    - [equilibrium, lcfs_z]
 
 standardscaling_setting:
-  mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
-  std_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
-  # mean_path: "/../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
-  # std_path: "/../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
+  mean_path: "/../metadata/flattened_dict_mean_shot.pkl"
+  std_path: "/../metadata/flattened_dict_std_shot.pkl"
 
 task_window_segmenter:
   input_keys: *input_keys

@@ -23,13 +23,13 @@ from scripts.pipelines.utils.utils import (
     initialize_datasets,
     ComposeTransforms,
 )
-from scripts.pipelines.transforms.signal_level_transforms.stdscale_transform import (
+from scripts.transforms.stdscale_transform import (
     StdScalingTransform,
 )
-from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform import (
+from scripts.transforms.reshape_lcfs_transform import (
     ReshapeLcfsTransform,
 )
-from scripts.pipelines.transforms.signal_level_transforms.fill_profile_with_zeros_imputer_transform import (
+from scripts.transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform,
 )
 

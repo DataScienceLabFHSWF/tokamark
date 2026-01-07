@@ -1,7 +1,7 @@
-subset_of_shots: 
+subset_of_shots:
 local: true
 
-task_name: task_1-1
+task_name: task_2-1
 
 sources_and_signals:
   input_name: &input_keys
@@ -14,9 +14,14 @@ sources_and_signals:
     - [pf_active, solenoid_current]
     - [summary, ip]
 
-  actuator_name: &actuator_keys null
+  actuator_name: &actuator_keys  
+    - [pf_active, coil_voltage]
+    - [summary, power_nbi]
 
   output_name: &output_keys
+    - [pf_active, coil_current]
+    - [pf_active, solenoid_current]
+    - [summary, ip]
     - [equilibrium, elongation]
     - [equilibrium, elongation_axis]
     - [equilibrium, triangularity_upper]
@@ -34,18 +39,16 @@ sources_and_signals:
     - [equilibrium, bphi_rmag]
 
 standardscaling_setting:
-  mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
-  std_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
-  # mean_path: "/../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
-  # std_path: "/../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
+  mean_path: "/../metadata/flattened_dict_mean_shot.pkl"
+  std_path: "/../metadata/flattened_dict_std_shot.pkl"
 
 task_window_segmenter:
   input_keys: *input_keys
   actuator_keys: *actuator_keys
   output_keys: *output_keys
   input_length: 0.005
-  output_length: 0.005
-  delta: -0.005 # this is reconstruction ie -delta = input_length = output_length
+  output_length: 0.025
+  delta: 0 # this is forecasting
   verbose: false
 
 paths:

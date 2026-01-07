@@ -26,7 +26,7 @@ from scripts.pipelines.utils.utils import read_data_split_csv
 
 from scripts.pipelines.utils.utils import ComposeTransforms
 
-from scripts.pipelines.transforms.signal_level_transforms.reshape_lcfs_transform import (
+from scripts.transforms.reshape_lcfs_transform import (
     ReshapeLcfsTransform
 )
 
@@ -181,24 +181,24 @@ if __name__ == "__main__":
 
     preprocessing_train_dataset = MastDataset(
         local=LOCAL_FLAG,
-        # shots_list=train_sh,
-        shots_list=train_sh[0:50],
+        shots_list=train_sh,
+        # shots_list=train_sh[0:50],
         source_signal_list=source_signal_list_,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=None
     )
 
-    # BATCH_SIZE = 512
-    # NUM_WORKERS = 32
-    BATCH_SIZE = 3
-    NUM_WORKERS = 0
+    BATCH_SIZE = 256
+    NUM_WORKERS = 32
+    # BATCH_SIZE = 3
+    # NUM_WORKERS = 0
 
     mean, std = compute_mean_std(preprocessing_train_dataset, 
                     batch_size=BATCH_SIZE, 
                     num_workers=NUM_WORKERS)
 
 
-    out_dir = Path("preprocessing")
+    out_dir = Path("metadata")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with open(out_dir / "dict_mean_shot.pkl", "wb") as f:

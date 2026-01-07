@@ -1,7 +1,7 @@
 subset_of_shots:
 local: true
 
-task_name: task_4-5
+task_name: task_4-4
 
 sources_and_signals:
   input_name: &input_keys
@@ -27,14 +27,11 @@ sources_and_signals:
     - [gas_injection, total_injected]
 
   output_name: &output_keys
-    - [magnetics, b_field_tor_probe_cc_field]
-    - [magnetics, b_field_pol_probe_omv_voltage]
-
+    - [summary, ip]
+    
 standardscaling_setting:
-  mean_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_mean_shot.pkl"
-  std_path: "/../metadata/2025-09-22_stdscaling/flattened_dict_std_shot.pkl"
-  # mean_path: "/../metadata/2025-09-22_stdscaling/dict_mean_shot.pkl"
-  # std_path: "/../metadata/2025-09-22_stdscaling/dict_std_shot.pkl"
+  mean_path: "/../metadata/flattened_dict_mean_shot.pkl"
+  std_path: "/../metadata/flattened_dict_std_shot.pkl"
 
 task_window_segmenter:
   input_keys: *input_keys

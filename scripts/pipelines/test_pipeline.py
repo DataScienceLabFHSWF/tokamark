@@ -3,13 +3,14 @@ import yaml
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
+from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 from typing import Dict, Any
 
 # -------------------------------------------------------------------
 # Repo-specific imports
 # -------------------------------------------------------------------
-from .globals import REPO_ROOT
+from globals import REPO_ROOT
 from scripts.pipelines.utils.device_utils import get_device
 
 from scripts.pipelines.utils.utils import (
@@ -71,13 +72,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_task",
         type=str,
-        default="/scripts/pipelines/configs/configs_task/config_task_0-0.yaml",
+        default="/configs_task/config_task_0-0.yaml",
         help="Path to the task YAML config file",
     )
     parser.add_argument(
         "--config_model",
         type=str,
-        default="/scripts/pipelines/configs/configs_cnn/config_cnn_reconstruction.yaml",  # CHANGE HERE
+        default="/scripts/pipelines/config_test.yaml",  # CHANGE HERE
         help="Path to the model YAML config file",
     )
     args, _ = parser.parse_known_args()
@@ -148,31 +149,35 @@ if __name__ == "__main__":
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # -------------------------------------------------------------------
 
-    # model_specific_transform = ModelSpecificTransform() # CHANGE HERE
+    model_specific_transform = ModelSpecificTransform() # CHANGE HERE
 
-    # datasets_model = initialize_model_datasets(
-    #     datasets_train_val_test,
-    #     dict_metadata,
-    #     config_task,
-    #     model_specific_transform,
-    #     verbose = True)
+    datasets_model = initialize_model_datasets(
+        datasets_train_val_test,
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose = True)
 
     # dataloaders_model = initialize_dataloaders( datasets_model,
     #                                             model_collate_fn,
     #                                             **config_model['dataloader_setting'])
+    train_dataloader = DataLoader(
+            dataset=datasets_model["test"],
+            collate_fn=model_collate_fn,
+            **config_model['dataloader_setting']
+        )
 
-    # train_dataloader = dataloaders_model["train"]
-    # for batch_idx, batch in enumerate(train_dataloader):
+    for batch_idx, batch in enumerate(train_dataloader):
 
-    #     print(f"\nBatch {batch_idx}")
-    #     # print(batch)
-    #     shot_id, window_index, x_train, y_train = batch
+        print(f"\nBatch {batch_idx}")
+        # print(batch)
+        shot_id, window_index, x_train, y_train = batch
 
-    #     print("The list of shot ID is an object of shape, ", shot_id.shape)
-    #     print("The list of window Index is an object of shape, ", window_index.shape)
-    #     print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
-    #     print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
+        print("The list of shot ID is an object of shape, ", shot_id.shape)
+        print("The list of window Index is an object of shape, ", window_index.shape)
+        print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
+        print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
 
-    # print(x_train[0][0:10])
-    # print("\n\n\n")
-    # print(y_train[0][0:10])
+    print(x_train[0][0:10])
+    print("\n\n\n")
+    print(y_train[0][0:10])
