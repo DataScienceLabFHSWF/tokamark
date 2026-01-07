@@ -2,6 +2,352 @@ import numpy as np
 
 from scripts.MAST_tools.MAST_dataset import MastDataset
 
+<<<<<<< HEAD:scripts/pipeline_tools/Task_Model_Wrapper.py
+=======
+
+# ----------------------------------------------------------------------------------------------------------------------
+def set_seed(seed: int, deterministic: bool = True, warn_only: bool = True):
+    """
+    Global reproducibility across Python, NumPy, and PyTorch (CPU/CUDA/MPS).
+    Call once at startup, before building datasets/loaders/models.
+    """
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    # Needed for strict cuBLAS determinism (matmul). Safe if CUDA isn't present.
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    # cuDNN + global deterministic guard
+    try:
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = bool(deterministic)
+    except Exception as ee:
+        print(f"WARNING - torch exception triggered: {ee}")
+        pass
+
+    torch.use_deterministic_algorithms(bool(deterministic), warn_only=bool(warn_only))
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def seed_worker(worker_id: int):
+    """
+    Top-level (picklable) worker init. Derives a per-worker seed from
+    PyTorch's worker seed so it's consistent with DataLoader's Generator.
+    """
+    worker_seed = (torch.initial_seed() + worker_id) % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def make_data_generator(seed: int) -> torch.Generator:
+    """
+    Top-level helper to create a reproducible DataLoader generator.
+    """
+    g = torch.Generator()
+    g.manual_seed(seed)
+    return g
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def dataloader_seed_parts(seed: int):
+    # reuse the top-level function so it's picklable under 'spawn'
+    return seed_worker, make_data_generator(seed)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def get_train_test_val_shots(
+    max_index = None,
+    max_index_for_train = None,
+    max_index_for_val = None,
+    max_index_for_test = None,
+    shuffle = False,
+    seed = None
+    ):
+    
+    """
+    Generate lists of shot IDs for training, testing, and validation.
+    These lists can be subsets of the corresponding complete lists.
+
+    Parameters
+    ----------
+    max_index : int, optional
+        If not None, all lists will have the same length given by max_index.
+    max_index_for_train : int, optional
+        Number of shot IDs for the training set.
+        Overrides max_index.
+    max_index_for_val : int, optional
+        Number of shot IDs for the validation set.
+        Overrides max_index.
+    max_index_for_test : int, optional
+        Number of shot IDs for the testing set.
+        Overrides max_index.
+    shuffle: bool
+        True if we need shuffled samples.
+    seed: int 
+        For reproducibility of the rnd sequence.
+
+    Returns
+    -------
+    tuple of lists
+        Three lists of shot IDs for training, testing, and validation, respectively.
+
+    """
+
+    # Read full data splits
+    train_set_full, test_set_full, val_set_full = read_data_split_csv()
+
+    if shuffle:
+        if seed is not None:
+            if not isinstance(seed, int):
+                raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")
+            random.seed(seed)  
+            
+        random.shuffle(train_set_full)
+        random.shuffle(test_set_full)
+        random.shuffle(val_set_full)
+        
+    train_set = train_set_full
+    test_set = test_set_full
+    val_set = val_set_full
+    
+    # If max_index is provided, override all other limits
+    if max_index is not None and max_index > 0:
+        train_set = train_set_full[:max_index]
+        val_set = val_set_full[:max_index]
+        test_set = test_set_full[:max_index]
+
+    # Apply individual limits if provided and positive
+    if max_index_for_train is not None and max_index_for_train > 0:
+        train_set = train_set_full[:max_index_for_train]
+
+    if max_index_for_val is not None and max_index_for_val > 0:
+        val_set = val_set_full[:max_index_for_val]
+
+    if max_index_for_test is not None and max_index_for_test > 0:
+        test_set = test_set_full[:max_index_for_test]
+        
+    return train_set, test_set, val_set
+
+# ----------------------------------------------------------------------------------------------------------------------
+def read_data_split_csv(csv_path="metadata/2025-05-12/data_splits.csv"):
+    """Read the csv file containing the lists of shot IDs for
+    training, validation and testing.
+    """
+
+    full_path = os.path.join(REPO_ROOT, csv_path)
+
+    if not os.path.exists(full_path):
+        raise FileNotFoundError(f"CSV not found at: {full_path}")
+
+    df = pd.read_csv(full_path)
+
+    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa
+    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa
+    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa
+
+    return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def initialize_datasets(
+    sources_and_signals,
+    shots,
+    sig_tran_map,
+    shot_tran,
+    local_flag=False,
+    return_incomplete_shots=True,
+    verbose=False,
+):
+    datasets_ = {"train": None, "val": None, "test": None}
+
+    # ..................................................................................................................
+    # Train
+
+    if shots["train"]:
+        datasets_["train"] = MastDataset(
+            local=local_flag,
+            shots_list=shots["train"],
+            source_signal_list=sources_and_signals,
+            signal_level_transform_map=sig_tran_map,
+            shot_level_transform=shot_tran,
+            return_incomplete_shots=return_incomplete_shots,
+        )
+        if verbose:
+            print(f"len(mast_train_dataset): {len(datasets_['train'])}")
+
+    # ..................................................................................................................
+    # Val
+
+    if shots["val"]:
+        datasets_["val"] = MastDataset(
+            local=local_flag,
+            shots_list=shots["val"],
+            source_signal_list=sources_and_signals,
+            signal_level_transform_map=sig_tran_map,
+            shot_level_transform=shot_tran,
+            return_incomplete_shots=return_incomplete_shots,
+        )
+        if verbose:
+            print(f"len(val_dataset): {len(datasets_['val'])}")
+
+    # ..................................................................................................................
+    # Test
+
+    if shots["test"]:
+        datasets_["test"] = MastDataset(
+            local=local_flag,
+            shots_list=shots["test"],
+            source_signal_list=sources_and_signals,
+            signal_level_transform_map=sig_tran_map,
+            shot_level_transform=shot_tran,
+            return_incomplete_shots=return_incomplete_shots,
+        )
+        if verbose:
+            print(f"len(test_dataset): {len(datasets_['test'])}")
+
+    # ..................................................................................................................
+    # Return
+
+    return datasets_
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def initialize_model_datasets(
+    datasets_train_val_test,
+    dict_metadata,
+    config_task,
+    model_specific_transform=None,
+    verbose=False,
+):
+    datasets_ = {"train": None, "val": None, "test": None}
+
+    # ..................................................................................................................
+    # Train
+
+    datasets_["train"] = TaskModelTransformWrapper(
+        datasets_train_val_test["train"],
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose,
+    )
+    if verbose:
+        print(f"len(mast_train_dataset): {len(datasets_['train'])}")
+
+    # ..................................................................................................................
+    # Val
+
+    datasets_["val"] = TaskModelTransformWrapper(
+        datasets_train_val_test["val"],
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose=False,
+    )
+    if verbose:
+        print(f"len(mast_val_dataset): {len(datasets_['val'])}")
+
+    # ..................................................................................................................
+    # Test
+
+    datasets_["test"] = TaskModelTransformWrapper(
+        datasets_train_val_test["test"],
+        dict_metadata,
+        config_task,
+        model_specific_transform,
+        verbose=False,
+    )
+    if verbose:
+        print(f"len(mast_test_dataset): {len(datasets_['test'])}")
+
+    # ..................................................................................................................
+    # Return
+
+    return datasets_
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def initialize_dataloaders(
+    datasets,
+    collate_function,
+    batch_size,
+    num_workers,
+    shuffle=True,
+    drop_last=False,
+    verbose=False,
+    seed: int | None = None,
+    pin_memory: bool | None = None,
+):
+    dataloaders_ = {"train": None, "val": None, "test": None}
+
+    if verbose:
+        print("\n\n----------DATASET & DATALOADER INITIALIZATION----------\n")
+
+    # ▶ Prepare reproducible seeding parts for DataLoader
+    worker_fn = None
+    generator = None
+    if seed is not None:
+        worker_fn = seed_worker
+        generator = make_data_generator(seed)
+
+    # sensible default for pin_memory
+    if pin_memory is None:
+        pin_memory = torch.cuda.is_available()
+
+    # ..................................................................................................................
+    # Train
+    if datasets["train"]:
+        dataloaders_["train"] = DataLoader(
+            dataset=datasets["train"],
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            collate_fn=collate_function,
+            worker_init_fn=worker_fn,  # ▶
+            generator=generator,  # ▶ controls shuffle order deterministically
+            pin_memory=pin_memory,
+        )
+
+    # ..................................................................................................................
+    # Val
+    if datasets["val"]:
+        dataloaders_["val"] = DataLoader(
+            dataset=datasets["val"],
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            collate_fn=collate_function,
+            worker_init_fn=worker_fn,  # ▶ ensures worker RNG is fixed
+            generator=generator,  # ▶ reproducible order if shuffle=True
+            pin_memory=pin_memory,
+        )
+
+    # ..................................................................................................................
+    # Test
+    if datasets["test"]:
+        dataloaders_["test"] = DataLoader(
+            dataset=datasets["test"],
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            collate_fn=collate_function,
+            worker_init_fn=worker_fn,
+            generator=generator,
+            pin_memory=pin_memory,
+        )
+
+    return dataloaders_
+
+
+>>>>>>> origin/main:scripts/pipelines/utils/utils.py
 # ======================================================================================================================
 class TaskModelTransformWrapper(MastDataset):
     def __init__(
