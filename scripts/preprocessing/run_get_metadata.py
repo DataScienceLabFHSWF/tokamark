@@ -18,8 +18,6 @@ from scripts.pipeline_tools.utils import get_train_test_val_shots
 
 
 def collate_preprocessing (batch):
-
-    print('enter collate fn')
     
     sources_signals = batch[0].keys()
 
@@ -51,8 +49,6 @@ def collate_preprocessing (batch):
 def compute_mean_std(dataset, 
                      batch_size, 
                      num_workers):
-    
-    print('Inside compute_mean_std')
 
     sources_signals = dataset[0].keys()
 
@@ -66,11 +62,7 @@ def compute_mean_std(dataset,
                         shuffle=False,
                         collate_fn=collate_preprocessing)
 
-    print('Loader created with batch size', batch_size)
-
     for batch in loader:
-
-        print('new batch')
 
         for var in sources_signals:
 
@@ -112,7 +104,7 @@ def compute_mean_std(dataset,
 # ======================================================================================================================
 if __name__ == "__main__":
 
-    print(f"Number of available CPU cores: {cpu_count()}\n")
+    # print(f"Number of available CPU cores: {cpu_count()}\n")
     mp.set_start_method("spawn", force=True)
 
     # -------------------------------------------------------------------
@@ -122,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="/scripts/stdscaling/config_get_metadata.yaml",
+        default="/scripts/preprocessing/config_get_metadata.yaml",
         help="Path to the task YAML config file",
     )
     args, _ = parser.parse_known_args()

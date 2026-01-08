@@ -106,19 +106,19 @@ if __name__ == "__main__":
     train_MAST_dataset = initialize_MAST_dataset( 
         config_task,
         train_shots_,
-        use_std_scaling = False,
+        use_std_scaling = True,
         return_incomplete_shots=True
     )
     val_MAST_dataset = initialize_MAST_dataset( 
         config_task,
         val_shots_,
-        use_std_scaling = False,
+        use_std_scaling = True,
         return_incomplete_shots=True
     )
     test_MAST_dataset = initialize_MAST_dataset( 
         config_task,
         test_shots_,
-        use_std_scaling = False,
+        use_std_scaling = True,
         return_incomplete_shots=True
     )
 
