@@ -1,0 +1,264 @@
+Number of available CPU cores: 76
+
+
+INPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable magnetics-flux_loop_flux
+    frequency: 0.0002
+    dim shape: (15,)
+    we expect a window of length: 125
+
+ACTUATOR VARIABLES L=0.05s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 10
+
+OUTPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable equilibrium-psi
+    frequency: 0.005
+    dim shape: (65, 65)
+    we expect a window of length: 5
+Variable equilibrium-elongation_axis
+    frequency: 0.005
+    dim shape: (1,)
+    we expect a window of length: 5
+
+
+
+shot_id is  21719
+window_id is  0
+input
+dict_keys(['equilibrium-lcfs_r', 'magnetics-flux_loop_flux'])
+[(170, 5), (15, 125)]
+actuator
+dict_keys(['equilibrium-lcfs_r'])
+[(170, 10)]
+output
+dict_keys(['equilibrium-lcfs_r', 'equilibrium-psi', 'equilibrium-elongation_axis'])
+[(170, 5), (65, 65, 5), (5,)]
+dict_keys(['shot_id', 'window_index', 'input', 'actuator', 'output', 't_cut'])
+
+
+
+shot_id is  21719
+window_id is  0
+input,  dict_keys(['equilibrium-lcfs_r', 'magnetics-flux_loop_flux'])
+actuator,  dict_keys(['equilibrium-lcfs_r'])
+output,  dict_keys(['equilibrium-lcfs_r', 'equilibrium-psi', 'equilibrium-elongation_axis'])
+
+INPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable magnetics-flux_loop_flux
+    frequency: 0.0002
+    dim shape: (15,)
+    we expect a window of length: 125
+
+ACTUATOR VARIABLES L=0.05s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 10
+
+OUTPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable equilibrium-psi
+    frequency: 0.005
+    dim shape: (65, 65)
+    we expect a window of length: 5
+Variable equilibrium-elongation_axis
+    frequency: 0.005
+    dim shape: (1,)
+    we expect a window of length: 5
+
+INPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable magnetics-flux_loop_flux
+    frequency: 0.0002
+    dim shape: (15,)
+    we expect a window of length: 125
+
+ACTUATOR VARIABLES L=0.05s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 10
+
+OUTPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable equilibrium-psi
+    frequency: 0.005
+    dim shape: (65, 65)
+    we expect a window of length: 5
+Variable equilibrium-elongation_axis
+    frequency: 0.005
+    dim shape: (1,)
+    we expect a window of length: 5
+
+INPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable magnetics-flux_loop_flux
+    frequency: 0.0002
+    dim shape: (15,)
+    we expect a window of length: 125
+
+ACTUATOR VARIABLES L=0.05s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 10
+
+OUTPUT VARIABLES L=0.025s
+Variable equilibrium-lcfs_r
+    frequency: 0.005
+    dim shape: (170,)
+    we expect a window of length: 5
+Variable equilibrium-psi
+    frequency: 0.005
+    dim shape: (65, 65)
+    we expect a window of length: 5
+Variable equilibrium-elongation_axis
+    frequency: 0.005
+    dim shape: (1,)
+    we expect a window of length: 5
+
+Number of samples from batch = 32 shots is N = 3674
+[Warning] No valid Δt found in any output signals for shot 25481
+
+Number of samples from batch = 18 shots is N = 1907
+
+Batch 0
+The list of shot ID is an object of shape,  torch.Size([3674])
+The list of window Index is an object of shape,  torch.Size([3674])
+The x_train has been collated to shape (B, ..., T),  [torch.Size([3674, 170, 5]), torch.Size([3674, 15, 125]), torch.Size([3674, 170, 10])]
+The y_train has been collated to shape (B, ..., T),  [torch.Size([3674, 170, 5]), torch.Size([3674, 65, 65, 5]), torch.Size([3674, 5])]
+
+Batch 1
+The list of shot ID is an object of shape,  torch.Size([1907])
+The list of window Index is an object of shape,  torch.Size([1907])
+The x_train has been collated to shape (B, ..., T),  [torch.Size([1907, 170, 5]), torch.Size([1907, 15, 125]), torch.Size([1907, 170, 10])]
+The y_train has been collated to shape (B, ..., T),  [torch.Size([1907, 170, 5]), torch.Size([1907, 65, 65, 5]), torch.Size([1907, 5])]
+tensor([[[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        ...,
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]]], dtype=torch.float64)
+
+
+
+
+tensor([[[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        ...,
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]],
+
+        [[nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         ...,
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan]]], dtype=torch.float64)

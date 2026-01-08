@@ -35,8 +35,15 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["scripts*", "transforms*", "preprocessing*", "utils*", "data*", "models*"]
+where = ["src"]
 
+# Ensure non-code data inside the benchmark package is included in wheels
+[tool.setuptools.package-data]
+MAST_benchmark = [
+    "metadata/**",
+    "task_configs/**",
+]
+
+# Turn on include-package-data for good measure (honors MANIFEST.in rules)
 [tool.setuptools]
-py-modules = ["globals"]
+include-package-data = true
