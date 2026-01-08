@@ -8,12 +8,12 @@ from torch.utils.data._utils.collate import default_collate
 
 from MAST_benchmark.tools.utils import get_device
 from MAST_benchmark.tools.utils import get_config_from_yaml
+from MAST_benchmark.data_split import get_train_test_val_shots
+from MAST_benchmark.tasks import get_task_metadata
 from MAST_benchmark.data import (
-    initialize_model_dataset
+    initialize_MAST_dataset, initialize_model_dataset
 )
-from MAST_benchmark.data import (
-    initialize_datasets_and_metadata_for_task,
-)
+
 
 # Set device
 device = get_device()
@@ -73,17 +73,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_model",
         type=str,
-        default="config_test.yaml",  # CHANGE HERE
+        default="scripts/config_test.yaml",  # CHANGE HERE
         # default="/home/ir-zaya1/fusion/fairmast-data-preprocessing/scripts/config_test.yaml",
         help="Path to the model YAML config file",
     )
     args, _ = parser.parse_known_args()
 
     # Note: instead of loading benchmark task, here we load a simple task from external file
-    config_task = get_config_from_yaml("config_task_0-0.yaml")
+    # config_task = get_config_from_yaml("scripts/config_task_0-0.yaml")
     # Note: Uncomment the next 2 lines to use benchmark tasks
-    # from MAST_benchmark.tasks import get_task_config
-    # config_task = get_task_config(args.task)    
+    from MAST_benchmark.tasks import get_task_config
+    config_task = get_task_config(args.task)    
 
     # Load CNN YAML config
     config_model = get_config_from_yaml(args.config_model)
@@ -91,54 +91,83 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------
     # Initialize datasets and metadata
     # -------------------------------------------------------------------
-    datasets_train_val_test, dict_metadata = initialize_datasets_and_metadata_for_task(
-        config_task
+
+    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
+        max_index=config_task["subset_of_shots"]
+    )
+
+    train_MAST_dataset = initialize_MAST_dataset( 
+        config_task,
+        train_shots_,
+        use_std_scaling = True,
+        return_incomplete_shots=True
+    )
+    val_MAST_dataset = initialize_MAST_dataset( 
+        config_task,
+        val_shots_,
+        use_std_scaling = True,
+        return_incomplete_shots=True
+    )
+    test_MAST_dataset = initialize_MAST_dataset( 
+        config_task,
+        test_shots_,
+        use_std_scaling = True,
+        return_incomplete_shots=True
+    )
+
+    # -------------------------------------------------------------------
+    # Initialize task-specific metadata
+    # -------------------------------------------------------------------
+
+    dict_metadata = get_task_metadata(
+        config_task,
+        verbose=False
     )
 
     # -------------------------------------------------------------------
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # -------------------------------------------------------------------
 
-    train_model_dataset = initialize_model_dataset(
-        datasets_train_val_test["train"], dict_metadata, config_task, None, verbose=True
-    )
+    # train_model_dataset = initialize_model_dataset(
+    #     train_MAST_dataset, dict_metadata, config_task, None, verbose=True
+    # )
 
 
-    # The set of windows of 1 shot is saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
+    # # The set of windows of 1 shot is saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
 
-    # You can transform them to list of list via:
-    list_list_shot_0 = [
-        (
-            item["shot_id"],
-            item["window_index"],
-            item["input"],
-            item["actuator"],
-            item["output"],
-        )
-        for item in train_model_dataset[0]
-    ]
+    # # You can transform them to list of list via:
+    # list_list_shot_0 = [
+    #     (
+    #         item["shot_id"],
+    #         item["window_index"],
+    #         item["input"],
+    #         item["actuator"],
+    #         item["output"],
+    #     )
+    #     for item in train_model_dataset[0]
+    # ]
 
-    shot_id, window_index, input, actuator, output = list_list_shot_0[0]
-    print("\n\n\nshot_id is ", shot_id)
-    print("window_id is ", window_index)
-    print("input")
-    print(input.keys())
-    print([input[var]["values"].shape for var in input])
-    print("actuator")
-    print(actuator.keys())
-    print([actuator[var]["values"].shape for var in actuator])
-    print("output")
-    print(output.keys())
-    print([output[var]["values"].shape for var in output])
+    # shot_id, window_index, input, actuator, output = list_list_shot_0[0]
+    # print("\n\n\nshot_id is ", shot_id)
+    # print("window_id is ", window_index)
+    # print("input")
+    # print(input.keys())
+    # print([input[var]["values"].shape for var in input])
+    # print("actuator")
+    # print(actuator.keys())
+    # print([actuator[var]["values"].shape for var in actuator])
+    # print("output")
+    # print(output.keys())
+    # print([output[var]["values"].shape for var in output])
 
-    # Or keep a list of dict with:
-    list_dict_shot_0 = [item for item in train_model_dataset[0]]
-    print(list_dict_shot_0[0].keys())
-    print("\n\n\nshot_id is ", list_dict_shot_0[0]["shot_id"])
-    print("window_id is ", list_dict_shot_0[0]["window_index"])
-    print("input, ", list_dict_shot_0[0]["input"].keys())
-    print("actuator, ", list_dict_shot_0[0]["actuator"].keys())
-    print("output, ", list_dict_shot_0[0]["output"].keys())
+    # # Or keep a list of dict with:
+    # list_dict_shot_0 = [item for item in train_model_dataset[0]]
+    # print(list_dict_shot_0[0].keys())
+    # print("\n\n\nshot_id is ", list_dict_shot_0[0]["shot_id"])
+    # print("window_id is ", list_dict_shot_0[0]["window_index"])
+    # print("input, ", list_dict_shot_0[0]["input"].keys())
+    # print("actuator, ", list_dict_shot_0[0]["actuator"].keys())
+    # print("output, ", list_dict_shot_0[0]["output"].keys())
 
     # -------------------------------------------------------------------
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
@@ -147,27 +176,24 @@ if __name__ == "__main__":
     model_specific_transform = ModelSpecificTransform() # CHANGE HERE
 
     train_model_dataset = initialize_model_dataset(
-        datasets_train_val_test["train"],
+        train_MAST_dataset,
         dict_metadata,
         config_task,
         model_specific_transform,
-        verbose = True)
+        verbose = False)
     val_model_dataset = initialize_model_dataset(
-        datasets_train_val_test["val"],
+        val_MAST_dataset,
         dict_metadata,
         config_task,
         model_specific_transform,
-        verbose = True)
+        verbose = False)
     test_model_dataset = initialize_model_dataset(
-        datasets_train_val_test["test"],
+        test_MAST_dataset,
         dict_metadata,
         config_task,
         model_specific_transform,
-        verbose = True)
+        verbose = False)
 
-    # dataloaders_model = initialize_dataloaders( datasets_model,
-    #                                             model_collate_fn,
-    #                                             **config_model['dataloader_setting'])
     train_dataloader = DataLoader(
             dataset=train_model_dataset,
             collate_fn=model_collate_fn,
