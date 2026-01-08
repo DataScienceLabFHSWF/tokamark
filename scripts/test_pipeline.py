@@ -80,10 +80,10 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     # Note: instead of loading benchmark task, here we load a simple task from external file
-    # config_task = get_config_from_yaml("config_task_0-0.yaml")
+    config_task = get_config_from_yaml("config_task_0-0.yaml")
     # Note: Uncomment the next 2 lines to use benchmark tasks
-    from MAST_benchmark.tasks import get_task_config
-    config_task = get_task_config(args.task)    
+    # from MAST_benchmark.tasks import get_task_config
+    # config_task = get_task_config(args.task)    
 
     # Load CNN YAML config
     config_model = get_config_from_yaml(args.config_model)
