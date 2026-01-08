@@ -1,4 +1,4 @@
-subset_of_shots: 10
+subset_of_shots: 
 local: true
 
 task_name: task_1-1
