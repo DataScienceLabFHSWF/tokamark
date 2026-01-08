@@ -34,16 +34,9 @@ dependencies = [
   "imageio",
 ]
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
-
-# Ensure non-code data inside the benchmark package is included in wheels
-[tool.setuptools.package-data]
-MAST_benchmark = [
-    "metadata/**",
-    "task_configs/**",
-]
-
-# Turn on include-package-data for good measure (honors MANIFEST.in rules)
-[tool.setuptools]
-include-package-data = true
+include = ["MAST_tools*", "MAST_benchmark*"]
