@@ -1,4 +1,5 @@
-from typing import Dict, List
+from typing import List
+import pickle 
 
 from scripts.pipeline_tools.transforms.compose_transform import (
     ComposeTransforms,
@@ -16,22 +17,29 @@ from scripts.pipeline_tools.transforms.fill_profile_with_zeros_imputer_transform
 # ----------------------------------------------------------------------------------------------------------------------
 def build_common_signal_transform_map(
     source_signal_list: List[tuple],
-    dict_mean: Dict[str, float],
-    dict_std: Dict[str, float],
+    use_std_scaling: bool = True,   # <--- new flag
 ):
     """Builds the signal transform map for each variable."""
+
+    def maybe_std(var):
+        """Return StdScalingTransform if enabled, else empty list."""
+        if use_std_scaling:
+            with open("metadata/flattened_dict_mean_shot.pkl", "rb") as f:
+                dict_mean = pickle.load(f)
+            with open("metadata/flattened_dict_std_shot.pkl", "rb") as f:
+                dict_std = pickle.load(f)
+            return [StdScalingTransform(dict_mean[var], dict_std[var])]
+        return []
 
     # Define base signal_transform_map
     signal_transform_map = {
         var: ComposeTransforms(
-            [
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-            ]
+            maybe_std(var)
         )
         for var in [f"{source}-{signal}" for source, signal in source_signal_list]
     }
 
-    # Specific case of profiles with Nans in full channel
+    # Specific case of profiles with NaNs in full channel
     for var in [
         "magnetics-flux_loop_flux",
         "magnetics-b_field_pol_probe_ccbv_field",
@@ -42,8 +50,7 @@ def build_common_signal_transform_map(
         "thomson_scattering-n_e"
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            [
-                StdScalingTransform(dict_mean[var], dict_std[var]),
+            maybe_std(var) + [
                 FillProfileWithZerosTransform(),
             ]
         )
@@ -53,8 +60,7 @@ def build_common_signal_transform_map(
         signal_transform_map[var] = ComposeTransforms(
             [
                 ReshapeLcfsTransform(),
-                StdScalingTransform(dict_mean[var], dict_std[var]),
-            ]
+            ] + maybe_std(var)
         )
 
     return signal_transform_map
