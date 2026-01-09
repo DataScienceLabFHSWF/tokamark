@@ -23,4 +23,3 @@ task_window_segmenter:
   input_length: 0.005
   output_length: 0.005
   delta: -0.005 # this is reconstruction ie -delta = input_length = output_length
-  verbose: false

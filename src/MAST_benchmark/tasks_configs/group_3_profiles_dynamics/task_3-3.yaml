@@ -32,4 +32,3 @@ task_window_segmenter:
   input_length: 0.150
   output_length: 0.005
   delta: 0 # this is forecasting
-  verbose: false
