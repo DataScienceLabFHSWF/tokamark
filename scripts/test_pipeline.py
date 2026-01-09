@@ -100,22 +100,22 @@ if __name__ == "__main__":
 
     train_MAST_dataset = initialize_MAST_dataset( 
         config_task,
-        local_flag,
         train_shots_,
+        local_flag,
         use_std_scaling = True,
         return_incomplete_shots=True
     )
     val_MAST_dataset = initialize_MAST_dataset( 
         config_task,
-        local_flag,
         val_shots_,
+        local_flag,
         use_std_scaling = True,
         return_incomplete_shots=True
     )
     test_MAST_dataset = initialize_MAST_dataset( 
         config_task,
-        local_flag,
         test_shots_,
+        local_flag,
         use_std_scaling = True,
         return_incomplete_shots=True
     )

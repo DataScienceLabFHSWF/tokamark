@@ -129,8 +129,8 @@ if __name__ == "__main__":
     # Create unstandardized train dataset 
     preprocessing_train_dataset = initialize_MAST_dataset( 
         config,
-        local_flag,
         train_shots_,
+        local_flag,
         use_std_scaling = False,
         return_incomplete_shots=True
     )

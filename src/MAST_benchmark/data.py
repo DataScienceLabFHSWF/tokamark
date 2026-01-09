@@ -14,8 +14,8 @@ from MAST_benchmark.tools.MAST_composite_transform import (
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_MAST_dataset(
     config_task,
-    local_flag,
     shots_list,
+    local_flag = True,
     use_std_scaling = True,
     return_incomplete_shots=True
 ):
