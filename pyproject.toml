@@ -34,9 +34,9 @@ dependencies = [
   "imageio",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["scripts*", "transforms*", "preprocessing*", "utils*", "data*", "models*"]
-
 [tool.setuptools]
-py-modules = ["globals"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["MAST_tools*", "MAST_benchmark*"]

@@ -39,6 +39,32 @@ For usage on [CSD3](https://docs.hpc.cam.ac.uk/hpc/index.html).
    conda activate fairmast-data-preprocessing
    ```
 
+## Configure PYTHONPATH for packages imports
+
+There are a few possible options:
+1. You can simply update PYTHONPATH variable in your virtual environment. This has temporary effect and should be repeated everytime you restart your environment. 
+      ```bash
+      export PYTHONPATH=/your/custom/path/fairmast-data-preprocessing/src:$PYTHONPATH
+      ```
+2. Enable persistent change to PYTHONPATH in conda environment:
+   1. Create the directory if it doesn't exist:
+      ```bash
+      mkdir -p ~/miniconda3/envs/your_env_name/etc/conda/activate.d
+      ```
+   2. Create the script:
+      ```bash
+      echo 'export PYTHONPATH=/your/custom/path/fairmast-data-preprocessing/src:$PYTHONPATH' > ~/miniconda3/envs/your_env_name/etc/conda/activate.d/env_vars.sh
+      ```
+   3. Unset PYTHONPATH on deactivation
+      ```bash
+      mkdir -p ~/miniconda3/envs/your_env_name/etc/conda/deactivate.d
+      echo 'unset PYTHONPATH' > ~/miniconda3/envs/your_env_name/etc/conda/deactivate.d/env_vars.sh
+      ```
+2. Install package into a global package repo (Warning: not fully tested yet):
+      ```bash
+      pip install -e .
+      ```
+
 ## CSD3 instructions
 
 Running computational workloads on CSD3 (including Jupyter Notebooks) should be done using the worker nodes.
