@@ -29,10 +29,6 @@ sources_and_signals:
     - [soft_x_rays, horizontal_cam_lower]
     - [soft_x_rays, horizontal_cam_upper]
 
-standardscaling_setting:
-  mean_path: flattened_dict_mean_shot.pkl
-  std_path: flattened_dict_std_shot.pkl
-
 task_window_segmenter:
   input_keys: *input_keys
   actuator_keys: *actuator_keys
@@ -41,6 +37,3 @@ task_window_segmenter:
   output_length: 0.100
   delta: 0 # this is forecasting
   verbose: false
-
-paths:
-  data_split_csv_path: data_splits.csv
