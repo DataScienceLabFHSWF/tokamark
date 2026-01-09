@@ -93,23 +93,28 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------
 
     train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index=config_task["subset_of_shots"]
+        max_index = config_model["subset_of_shots"]
     )
+
+    local_flag = config_model["local"]
 
     train_MAST_dataset = initialize_MAST_dataset( 
         config_task,
+        local_flag,
         train_shots_,
         use_std_scaling = True,
         return_incomplete_shots=True
     )
     val_MAST_dataset = initialize_MAST_dataset( 
         config_task,
+        local_flag,
         val_shots_,
         use_std_scaling = True,
         return_incomplete_shots=True
     )
     test_MAST_dataset = initialize_MAST_dataset( 
         config_task,
+        local_flag,
         test_shots_,
         use_std_scaling = True,
         return_incomplete_shots=True

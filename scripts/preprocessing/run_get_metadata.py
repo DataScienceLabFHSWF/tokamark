@@ -123,10 +123,13 @@ if __name__ == "__main__":
         max_index=config["subset_of_shots"]
     )
 
+    local_flag= config["local"]
+
     # ..................................................................................................................
     # Create unstandardized train dataset 
     preprocessing_train_dataset = initialize_MAST_dataset( 
         config,
+        local_flag,
         train_shots_,
         use_std_scaling = False,
         return_incomplete_shots=True

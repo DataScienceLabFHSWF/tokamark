@@ -13,22 +13,19 @@ from MAST_benchmark.tools.MAST_composite_transform import (
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_MAST_dataset(
-    config,
+    config_task,
+    local_flag,
     shots_list,
     use_std_scaling = True,
     return_incomplete_shots=True
 ):
-    
-    # ..................................................................................................................
-    # Get local flag
-    local_flag = config["local"]
 
     # ..................................................................................................................
     # Get unique source-signal
     source_signal_list = (
-        (config["sources_and_signals"].get("input_name") or [])
-        + (config["sources_and_signals"].get("actuator_name") or [])
-        + (config["sources_and_signals"].get("output_name") or [])
+        (config_task["sources_and_signals"].get("input_name") or [])
+        + (config_task["sources_and_signals"].get("actuator_name") or [])
+        + (config_task["sources_and_signals"].get("output_name") or [])
     )
     source_signal_list = [
         s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]

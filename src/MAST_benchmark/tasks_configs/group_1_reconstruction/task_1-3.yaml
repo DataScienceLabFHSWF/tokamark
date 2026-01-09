@@ -1,6 +1,3 @@
-subset_of_shots:
-local: true
-
 task_name: task_1-3
 
 sources_and_signals:
