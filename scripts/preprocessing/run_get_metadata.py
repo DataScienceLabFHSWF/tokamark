@@ -149,11 +149,9 @@ if __name__ == "__main__":
     # Get expected variable count
     first_sample = next(iter(preprocessing_train_dataset))
     target_vars = set(first_sample.keys())
-    # print("Expected is ", target_vars)
 
     for i, sample in enumerate(preprocessing_train_dataset):
-
-        print(i)
+        # print(i)
 
         if i >= max_samples:
             break  # stop after limit, but keep what we collected
@@ -194,9 +192,9 @@ if __name__ == "__main__":
         raise ValueError("❌ No valid signals found within limit.")
 
             
-    out_dir = Path("src/MAST_benchmark/metadata")
+    out_dir = Path("artifacts")
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / 'dict_metadata_new.pkl', 'wb') as f_:
+    with open(out_dir / 'dict_metadata.pkl', 'wb') as f_:
         pickle.dump(dict_metadata, f_)
 
 
