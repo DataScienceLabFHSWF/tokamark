@@ -77,10 +77,8 @@ def get_task_metadata(
     output_length = config_task["task_window_segmenter"]["output_length"]
     delta = config_task["task_window_segmenter"]["delta"]
 
-    # Get stride from all dt --> this is now a top block, it's common to all the signals
-    sec_stride = min(
-        [dict_metadata[key]["dt"] for key in output_keys]
-    )  # min for training, max for test is enviseagable
+    # Get stride from config file
+    sec_stride = config_task["stride_window"] # min([dict_metadata[key]["dt"] for key in output_keys])
 
     # --- plit into role-scoped dicts (avoid overwriting) ---
     out = {"sec_stride": sec_stride, "input": {}, "actuator": {}, "output": {}}

@@ -36,3 +36,5 @@ task_window_segmenter:
   input_length: 0.150
   output_length: 0.100
   delta: 0 # this is forecasting
+
+stride_window: 0.001
