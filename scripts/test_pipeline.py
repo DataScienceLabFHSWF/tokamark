@@ -178,8 +178,8 @@ if __name__ == "__main__":
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # -------------------------------------------------------------------
 
-    model_specific_transform = ModelSpecificTransform() # CHANGE HERE
-
+    model_specific_transform = ModelSpecificTransform() # likely depends on dict_task_metadata
+    
     train_model_dataset = initialize_model_dataset(
         train_MAST_dataset,
         dict_task_metadata,
