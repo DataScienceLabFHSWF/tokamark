@@ -140,37 +140,62 @@ if __name__ == "__main__":
                                  num_workers=config['dataloader_setting']['num_workers'])
 
     
+    dict_metadata = {}
+    max_samples = 100
+
+    # Get expected variable count
+    first_sample = next(iter(preprocessing_train_dataset))
+    target_vars = set(first_sample.keys())
+    # print("Expected is ", target_vars)
+
     for i, sample in enumerate(preprocessing_train_dataset):
-        
-        max_samples=100
+
+        print(i)
+
         if i >= max_samples:
-            raise ValueError("❌ No valid sample found within limit.")
+            break  # stop after limit, but keep what we collected
 
-        # Check that each signal has a non-empty time array
-        valid = all(len(signal.get("time", [])) > 1 for signal in sample.values())
-        if not valid:
-            continue  # Skip invalid sample
-
-        # Found a valid sample
-        dict_metadata = {}
         for var, signal in sample.items():
-            time = np.array(signal["time"])
-            values = np.array(signal["values"])
+
+            # Only compute once per variable
+            if var in dict_metadata:
+                continue
+
+            time = np.array(signal.get("time", []))
+            values = np.array(signal.get("values", []))
+
+            # Skip invalid signal
+            if len(time) == 0 or len(values) == 0:
+                print("Skipping var", var)
+                continue
+            
+            # print("\nSaving var", var)
 
             # Compute median dt
-            dt = round(np.median(np.diff(time)), 6) if len(time) > 1 else None
+            dt = round(np.median(np.diff(time)), 6)
 
             dict_metadata[var] = {
                 "dt": dt,
                 "values_shape": values.shape[:-1],  # exclude time dimension
-                "mean": dict_mean[var],
+                "mean": dict_mean[var], 
                 "std": dict_std[var],
             }
+        
+        # ✅ Stop once all variables are filled
+        if set(dict_metadata.keys()) == target_vars:
+            print("✅ dict_metadata fully filled. Stopping.")
+            break
+
+    # Optional safety check
+    if len(dict_metadata) == 0:
+        raise ValueError("❌ No valid signals found within limit.")
+
             
-    out_dir = Path("artifacts")
+    out_dir = Path("src/MAST_benchmark/metadata")
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / 'dict_metadata.pkl', 'wb') as f_:
-            pickle.dump(dict_metadata, f_)
+    with open(out_dir / 'dict_metadata_new.pkl', 'wb') as f_:
+        pickle.dump(dict_metadata, f_)
+
 
 
     
