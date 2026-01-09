@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # Initialize task-specific metadata
     # -------------------------------------------------------------------
 
-    dict_metadata = get_task_metadata(
+    dict_task_metadata = get_task_metadata(
         config_task,
         verbose=False
     )
@@ -182,19 +182,19 @@ if __name__ == "__main__":
 
     train_model_dataset = initialize_model_dataset(
         train_MAST_dataset,
-        dict_metadata,
+        dict_task_metadata,
         config_task,
         model_specific_transform,
         verbose = False)
     val_model_dataset = initialize_model_dataset(
         val_MAST_dataset,
-        dict_metadata,
+        dict_task_metadata,
         config_task,
         model_specific_transform,
         verbose = False)
     test_model_dataset = initialize_model_dataset(
         test_MAST_dataset,
-        dict_metadata,
+        dict_task_metadata,
         config_task,
         model_specific_transform,
         verbose = False)

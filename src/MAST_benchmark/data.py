@@ -52,7 +52,7 @@ def initialize_MAST_dataset(
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_model_dataset(
     dataset: Optional[MastDataset],
-    dict_metadata: Mapping[str, Any],
+    dict_task_metadata: Mapping[str, Any],
     config_task: Mapping[str, Any],
     model_specific_transform=None,
     *,
@@ -68,7 +68,7 @@ def initialize_model_dataset(
     ----------
     dataset:
         Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
-    dict_metadata:
+    dict_task_metadata:
         Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
     config_task:
         Task configuration dict containing `task_window_segmenter` (keys, lengths, delta).
@@ -87,7 +87,7 @@ def initialize_model_dataset(
 
     return TaskModelTransformWrapper(
         dataset,
-        dict_metadata,
+        dict_task_metadata,
         config_task,
         model_specific_transform,
         verbose=verbose,

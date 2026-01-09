@@ -7,14 +7,14 @@ class TaskModelTransformWrapper(MastDataset):
     def __init__(
         self,
         base_dataset,
-        dict_metadata,
+        dict_task_metadata,
         config_task,
         model_transform=None,
         verbose=False,
     ):
         self.base = base_dataset
         self.shots_list = self.base.shots_list
-        self.dict_metadata = dict_metadata
+        self.dict_task_metadata = dict_task_metadata
 
         self.input_keys = [
             f"{source}-{signal}"
@@ -39,7 +39,7 @@ class TaskModelTransformWrapper(MastDataset):
         self.output_length = config_task["task_window_segmenter"]["output_length"]
         self.delta = config_task["task_window_segmenter"]["delta"]
 
-        self.stride = float(self.dict_metadata["sec_stride"])
+        self.stride = float(self.dict_task_metadata["sec_stride"])
 
         self.model_transform = model_transform
 
@@ -48,7 +48,7 @@ class TaskModelTransformWrapper(MastDataset):
         if self.verbose:
             print(f"\nINPUT VARIABLES L={self.input_length}s")
             for key in self.input_keys:
-                md = self.dict_metadata["input"][key]
+                md = self.dict_task_metadata["input"][key]
                 freq_key = md["dt"]
                 dim_key = md["values_shape"]
                 ts_length = md["ts_length"]
@@ -61,7 +61,7 @@ class TaskModelTransformWrapper(MastDataset):
                 f"\nACTUATOR VARIABLES L={self.input_length + self.delta + self.output_length}s"
             )
             for key in self.actuator_keys:
-                md = self.dict_metadata["actuator"][key]
+                md = self.dict_task_metadata["actuator"][key]
                 freq_key = md["dt"]
                 dim_key = md["values_shape"]
                 ts_length = md["ts_length"]
@@ -72,7 +72,7 @@ class TaskModelTransformWrapper(MastDataset):
 
             print(f"\nOUTPUT VARIABLES L={self.output_length}s")
             for key in self.output_keys:
-                md = self.dict_metadata["output"][key]
+                md = self.dict_task_metadata["output"][key]
                 freq_key = md["dt"]
                 dim_key = md["values_shape"]
                 ts_length = md["ts_length"]
@@ -121,7 +121,7 @@ class TaskModelTransformWrapper(MastDataset):
             input_slice = {}
 
             for key in self.input_keys:
-                md = self.dict_metadata["input"][key]
+                md = self.dict_task_metadata["input"][key]
                 freq_key = md["dt"]
                 shape_values = md["values_shape"]
                 ts_input = md["ts_length"]
@@ -170,7 +170,7 @@ class TaskModelTransformWrapper(MastDataset):
             output_slice = {}
 
             for key in self.output_keys:
-                md = self.dict_metadata["output"][key]
+                md = self.dict_task_metadata["output"][key]
                 freq_key = md["dt"]
                 shape_values = md["values_shape"]
                 ts_output = md["ts_length"]
@@ -231,7 +231,7 @@ class TaskModelTransformWrapper(MastDataset):
             actuator_slice = {}
 
             for key in self.actuator_keys:
-                md = self.dict_metadata["actuator"][key]
+                md = self.dict_task_metadata["actuator"][key]
                 freq_key = md["dt"]
                 shape_values = md["values_shape"]
 
