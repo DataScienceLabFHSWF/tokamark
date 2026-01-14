@@ -73,7 +73,7 @@ def build_common_signal_transform_map(
     ]:
         signal_transform_map[var] = ComposeTransforms(
             [
-                DownsampleTransform(factor=1),
+                DownsampleTransform(factor=50),
             ]
             + maybe_std(var)
         )
