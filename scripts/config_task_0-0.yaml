@@ -1,6 +1,3 @@
-subset_of_shots: 50
-local: true
-
 task_name: task_0-0 JUST FOR TEST
 
 sources_and_signals:
@@ -29,5 +26,4 @@ task_window_segmenter:
   delta: 0 # this is reconstruction ie -delta = input_length = output_length
   verbose: false
 
-paths:
-  data_split_csv_path: data_splits.csv
+stride_window: 0.001
