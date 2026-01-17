@@ -1,11 +1,13 @@
 import pandas as pd
+import numpy as np
 
 
 # ======================================================================================================================
 class FillProfileWithZerosTransform:
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, dict_):
+    # @profile
+    def __call__old(self, dict_):
         """
         Input: torch dict with key 'time' and key 'values'.
 
@@ -27,6 +29,23 @@ class FillProfileWithZerosTransform:
             'values': df.values
         }
 
+    # @profile
+    def __call__(self, dict_):
+        time = dict_['time']
+        values = dict_['values'].copy()
+
+        # checking for indeces with NaN values
+        nan_ind = np.isnan(values)
+        # excluding columns comprised of NaNs only
+        nan_cols = np.isnan(values).all(axis=0)
+        nan_ind[:,nan_cols] = False
+        # replacing NaNs in profile components
+        values[nan_ind] = 0
+
+        return {
+            'time': time,
+            'values': values
+        }
     # ------------------------------------------------------------------------------------------------------------------
 
 
