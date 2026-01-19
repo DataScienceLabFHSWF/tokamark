@@ -1,6 +1,6 @@
 import os
 from typing import List
-import pickle 
+import yaml
 
 from MAST_benchmark.tools.path import METADATA_DIR
 from MAST_benchmark.tools.transforms.compose_transform import (
@@ -26,9 +26,9 @@ def build_common_signal_transform_map(
     def maybe_std(var):
         """Return StdScalingTransform if enabled, else empty list."""
         if use_std_scaling:
-            with open(os.path.join(METADATA_DIR, "dict_metadata.pkl"), "rb") as f:
-                dict_metadata = pickle.load(f)
-            return [StdScalingTransform(dict_metadata[var]['mean'], dict_metadata[var]['std'])]
+            with open(os.path.join(METADATA_DIR, "dict_stats_metadata.yaml"), "r") as f:
+                dict_stats_metadata = yaml.safe_load(f)
+            return [StdScalingTransform(dict_stats_metadata[var]['mean'], dict_stats_metadata[var]['std'])]
         return []
 
     # Define base signal_transform_map
