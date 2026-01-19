@@ -1,6 +1,5 @@
 import os
 import pickle
-from pathlib import Path
 import numpy as np
 
 from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR

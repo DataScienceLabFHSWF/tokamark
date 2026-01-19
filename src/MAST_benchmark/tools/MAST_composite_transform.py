@@ -15,9 +15,6 @@ from MAST_benchmark.tools.transforms.reshape_lcfs_transform import (
 from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform,
 )
-from MAST_benchmark.tools.transforms.downsample_transform import (
-    DownsampleTransform,
-)
 
 # ----------------------------------------------------------------------------------------------------------------------
 def build_common_signal_transform_map(
@@ -64,18 +61,6 @@ def build_common_signal_transform_map(
             [
                 ReshapeLcfsTransform(),
             ] + maybe_std(var)
-        )
-
-    # Specific case of x-soft rays
-    for var in [
-        "soft_x_rays-horizontal_cam_upper",
-        "soft_x_rays-horizontal_cam_lower",
-    ]:
-        signal_transform_map[var] = ComposeTransforms(
-            [
-                DownsampleTransform(factor=10),
-            ]
-            + maybe_std(var)
         )
 
     return signal_transform_map
