@@ -1,4 +1,4 @@
-import pandas as pd
+import numpy as np
 
 
 # ======================================================================================================================
@@ -6,25 +6,20 @@ class FillProfileWithZerosTransform:
 
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(self, dict_):
-        """
-        Input: torch dict with key 'time' and key 'values'.
-
-        Returns: torch dict with key 'time' and key 'values with NaNs of profiles (i.e., when one full channel in the
-        profile is missing) filled with zeros.
-        """
-
         time = dict_['time']
-        values = dict_['values']
-        df = pd.DataFrame(values)
-        # print('\nBefore filling with zeros: ', list(df.isna().sum(axis=0)))
-        for col in df.columns:
-            if not df[col].isna().all():
-                df[col] = df[col].fillna(value=0)
-        # print('After filling with zeros: ', list(df.isna().sum(axis=0)))
-        
+        values = dict_['values'].copy()
+
+        # checking for indeces with NaN values
+        nan_ind = np.isnan(values)
+        # excluding columns comprised of NaNs only
+        nan_cols = np.isnan(values).all(axis=0)
+        nan_ind[:,nan_cols] = False
+        # replacing NaNs in profile components
+        values[nan_ind] = 0
+
         return {
             'time': time,
-            'values': df.values
+            'values': values
         }
 
     # ------------------------------------------------------------------------------------------------------------------
