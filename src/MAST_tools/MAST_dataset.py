@@ -218,46 +218,64 @@ class MastDataset(Dataset):
 
         shot = {}
 
-        # Collect variables (i.e. source-signal) of interest
+        # Group signals per source
+        source_signals = {}
         for source, signal in self.source_signal_list:
-            shot_profile = self.sig.get_signal_profile(
-                data_origin=store,
-                source_name=source,
-                signal_name=signal,
-                verbose=self.verbose
+            if source in source_signals:
+                source_signals[source].append(signal)
+            else:
+                source_signals[source] = [signal]
+
+        # Iterate over each source to get source store 
+        # and then over each signal in source group
+        for source in source_signals:
+            source_store = self.sig.get_source_profiles(
+                store, 
+                source
             )
 
-            if shot_profile is not None:
-                try:
-                    shot_time, _ = self.sig.get_signal_times_and_time_type(
-                        signal_name=signal,
-                        data_origin=store,
-                        source_name=source,
-                        verbose=self.verbose
-                    )
-                except Exception as e:
-                    print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
-                    shot_time = None
-                try:
-                    shot_vals = (
-                        np.expand_dims(shot_profile.values, axis=0)
-                        if shot_profile.values.ndim == 1
-                        else shot_profile.values
-                    )
-                except AttributeError:
-                    shot_vals = None
-            else:
+            for signal in source_signals[source]:
                 shot_vals = None
                 shot_time = None
 
-            # Apply variable-level transforms only if we have both time and values
-            if self.signal_level_transform_map and (shot_vals is not None and shot_time is not None):
-                shot[f"{source}-{signal}"] = self.signal_level_transform_map[f"{source}-{signal}"](
-                    {"time": shot_time, "values": shot_vals}
-                )
-            else:
-                # Keep missing signals as {"time": np.array([]), "values": np.array([])}
-                shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
+                if source_store is not None:
+                    signal_profile = self.sig.get_signal_profile(
+                        data_origin=source_store,
+                        signal_name=signal,
+                        verbose=self.verbose
+                    )
+
+                    if signal_profile is not None:
+                        try:
+                            shot_time, _ = self.sig.get_signal_times_and_time_type(
+                                signal_name=signal,
+                                data_origin=source_store,
+                                source_name=source,
+                                verbose=self.verbose
+                            )
+                        except Exception as e:
+                            print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
+                            shot_time = None
+                        try:
+                            shot_vals = (
+                                np.expand_dims(signal_profile.values, axis=0)
+                                if signal_profile.values.ndim == 1
+                                else signal_profile.values
+                            )
+                        except AttributeError:
+                            shot_vals = None
+
+                # Apply variable-level transforms only if we have both time and values
+                if shot_vals is not None and shot_time is not None:
+                    if self.signal_level_transform_map is not None:
+                        shot[f"{source}-{signal}"] = self.signal_level_transform_map[f"{source}-{signal}"](
+                            {"time": shot_time, "values": shot_vals}
+                        )
+                    else:
+                        shot[f"{source}-{signal}"] = {"time": shot_time, "values": shot_vals}                            
+                else:
+                    # Keep missing signals as {"time": np.array([]), "values": np.array([])}
+                    shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
 
         # Apply shot-level transforms to obtain a list of training objects (windows)
         if self.shot_level_transform:
@@ -379,9 +397,14 @@ def tests() -> None:
     # ..................................................................................................................
 
     dummy_dataset = MastDataset(
-        local=False,
+        local=True,
         shots_list=[30421],
-        source_signal_list=[["summary", "power_nbi"], ["magnetics", "b_field_pol_probe_obr_field"]],
+        source_signal_list=[
+            ["summary", "power_nbi"],
+            ["magnetics", "b_field_pol_probe_obr_field"],
+            ["magnetics", "b_field_pol_probe_omv_voltage"],
+            ["magnetics", "b_field_tor_probe_omaha_channel"]
+        ],
         signal_level_transform_map=None,
         shot_level_transform=None,
     )
