@@ -1,5 +1,6 @@
 import argparse
 from typing import Dict, Any
+import numpy as np
 
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
@@ -214,8 +215,12 @@ if __name__ == "__main__":
         print("The list of shot ID is an object of shape, ", shot_id.shape)
         print("The list of window Index is an object of shape, ", window_index.shape)
         print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
+        print("Mean x_train", [np.nanmean(arr) for arr in x_train])
+        print("Std x_train", [np.nanstd(arr) for arr in x_train])
         print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
+        print("Mean y_train", [np.nanmean(arr) for arr in y_train])
+        print("Std y_train", [np.nanstd(arr) for arr in y_train])
 
-    print(x_train[0][0:10])
-    print("\n\n\n")
-    print(y_train[0][0:10])
+    # print(x_train[0][0:10])
+    # print("\n\n\n")
+    # print(y_train[0][0:10])
