@@ -1,4 +1,4 @@
-subset_of_shots: 
+subset_of_shots: 128
 local: true
 
 cnn_settings:
@@ -8,7 +8,7 @@ dataloader_setting:
   # batch_size: 256
   # num_workers: 32
   batch_size: 32
-  num_workers: 32
+  num_workers: 4
 
 training_args:
   lr: 0.00001
