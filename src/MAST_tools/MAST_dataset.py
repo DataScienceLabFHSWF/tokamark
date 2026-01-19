@@ -219,19 +219,28 @@ class MastDataset(Dataset):
         shot = {}
 
         # Collect variables (i.e. source-signal) of interest
+        source_stores = {}
         for source, signal in self.source_signal_list:
-            shot_profile = self.sig.get_signal_profile(
-                data_origin=store,
-                source_name=source,
+            if source in source_stores:
+                source_store = source_stores[source]
+            else:
+                source_store = self.sig.get_source_profiles(
+                    data_origin=store,
+                    source_name=source
+                )
+                source_stores[source] = source_store
+
+            signal_profile = self.sig.get_signal_profile(
+                data_origin=source_store,
                 signal_name=signal,
                 verbose=self.verbose
             )
 
-            if shot_profile is not None:
+            if signal_profile is not None:
                 try:
                     shot_time, _ = self.sig.get_signal_times_and_time_type(
                         signal_name=signal,
-                        data_origin=store,
+                        data_origin=source_store,
                         source_name=source,
                         verbose=self.verbose
                     )
@@ -240,9 +249,9 @@ class MastDataset(Dataset):
                     shot_time = None
                 try:
                     shot_vals = (
-                        np.expand_dims(shot_profile.values, axis=0)
-                        if shot_profile.values.ndim == 1
-                        else shot_profile.values
+                        np.expand_dims(signal_profile.values, axis=0)
+                        if signal_profile.values.ndim == 1
+                        else signal_profile.values
                     )
                 except AttributeError:
                     shot_vals = None
@@ -379,9 +388,14 @@ def tests() -> None:
     # ..................................................................................................................
 
     dummy_dataset = MastDataset(
-        local=False,
+        local=True,
         shots_list=[30421],
-        source_signal_list=[["summary", "power_nbi"], ["magnetics", "b_field_pol_probe_obr_field"]],
+        source_signal_list=[
+            ["summary", "power_nbi"],
+            ["magnetics", "b_field_pol_probe_obr_field"],
+            ["magnetics", "b_field_pol_probe_omv_voltage"],
+            ["magnetics", "b_field_tor_probe_omaha_channel"]
+        ],
         signal_level_transform_map=None,
         shot_level_transform=None,
     )
