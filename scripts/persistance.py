@@ -114,27 +114,28 @@ def MAST_collate_fn(batch, verbose=True):
                                     sample["x"], 
                                     sample["y"]))
 
-    batch = default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
+    flattened_batch = default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
     if verbose:
         proc = psutil.Process(os.getpid())
         mem = proc.memory_info().rss / (1024**2)
         print(f"[Worker PID={proc.pid}] Memory={mem:.2f} MB")
 
-        print(
-            f"The batch contains: {len(batch)} shots and {len(flattened_batch)} samples"
-        )
-        if len(flattened_batch) == 0:
+        if flattened_batch is None:
             print("batch is None")
+        else:
+            print(
+                f"The batch contains: {len(batch)} shots and {len(flattened_batch[0])} samples"
+            )
 
-        x = batch[2]
-        y = batch[3]
-        tensor_size = lambda t: t.nelement() * t.element_size() / 1024**2
-        size = sum([tensor_size(t) for _,t in x.items()])
-        size = size + sum([tensor_size(t) for _,t in y.items()])
-        print(f"X and Y tensors memory={size:.2f} MB")
+            x = flattened_batch[2]
+            y = flattened_batch[3]
+            tensor_size = lambda t: t.nelement() * t.element_size() / 1024**2
+            size = sum([tensor_size(t) for _,t in x.items()])
+            size = size + sum([tensor_size(t) for _,t in y.items()])
+            print(f"X and Y tensors memory={size:.2f} MB")
 
-    return batch
+    return flattened_batch
 
 
 def persistance_evaluation_per_shot(
@@ -162,8 +163,6 @@ def persistance_evaluation_per_shot(
 
         # === Compute RMSEs per feature ===
         for feature_name in feature_names:
-            feature_name = f"{feature_name[0]}-{feature_name[1]}"
-
             y_t = (
                 y_test[feature_name]
                 .squeeze(1)
@@ -199,7 +198,7 @@ if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
 
     script_config = {
-        "subset_of_shots" : 4,
+        "subset_of_shots" : 50,
         "local_flag" : True,
         "output_dir" : pl.Path(__file__).parent/'eval',
         "dataloader_setting" : {
@@ -273,8 +272,7 @@ if __name__ == "__main__":
         eval_file_path.unlink()
     writer = AutoAppendingDataFrame(eval_file_path)
     
-    feature_names = config_task["sources_and_signals"].get("output_name", [])
-    persistance_evaluation_per_shot(test_dataloader, feature_names, writer)
+    persistance_evaluation_per_shot(test_dataloader, singnals, writer)
 
     print('DONE')
     # cnn_save_traces_per_shot(
