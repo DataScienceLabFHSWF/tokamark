@@ -81,19 +81,6 @@ if __name__ == "__main__":
     local_flag= config["local"]
 
     # ..................................................................................................................
-    # Create unstandardized train dataset 
-    preprocessing_train_dataset = initialize_MAST_dataset( 
-        config,
-        train_shots_,
-        local_flag,
-        use_std_scaling = False,
-        return_incomplete_shots=True
-    )
-
-    csv_path = "shot_statistics_train.csv"
-    compute_mean_std_per_shot_to_csv(preprocessing_train_dataset, csv_path)
-
-    # ..................................................................................................................
     # Create unstandardized val dataset 
     preprocessing_val_dataset = initialize_MAST_dataset( 
         config,
@@ -106,7 +93,7 @@ if __name__ == "__main__":
     csv_path = "shot_statistics_val.csv"
     compute_mean_std_per_shot_to_csv(preprocessing_val_dataset, csv_path)
 
-        # ..................................................................................................................
+    # ..................................................................................................................
     # Create unstandardized test dataset 
     preprocessing_test_dataset = initialize_MAST_dataset( 
         config,
@@ -118,3 +105,16 @@ if __name__ == "__main__":
 
     csv_path = "shot_statistics_test.csv"
     compute_mean_std_per_shot_to_csv(preprocessing_test_dataset, csv_path)
+
+    # ..................................................................................................................
+    # Create unstandardized train dataset 
+    preprocessing_train_dataset = initialize_MAST_dataset( 
+        config,
+        train_shots_,
+        local_flag,
+        use_std_scaling = False,
+        return_incomplete_shots=True
+    )
+
+    csv_path = "shot_statistics_train.csv"
+    compute_mean_std_per_shot_to_csv(preprocessing_train_dataset, csv_path)
