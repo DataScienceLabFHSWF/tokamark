@@ -18,7 +18,7 @@ def initialize_MAST_dataset(
     local_flag = True,
     use_std_scaling = True,
     return_incomplete_shots=True,
-    remove_outliers=False,
+    remove_outliers=True,
     verbose=False
 ):
 
