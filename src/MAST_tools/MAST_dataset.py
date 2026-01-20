@@ -3,12 +3,15 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
+import os
 import time
 import yaml
 import numpy as np
+from pathlib import Path
 from pprint import pprint
 from typing import Union, Callable, Optional
 from torch.utils.data import Dataset
+from MAST_benchmark.tools.path import METADATA_DIR
 try:
     from . import signal_utils
 except ImportError:
@@ -165,8 +168,10 @@ class MastDataset(Dataset):
         self.shot_level_transform = shot_level_transform
         self.return_incomplete_shots = return_incomplete_shots
         self.remove_outliers = remove_outliers
-        with open("src/MAST_benchmark/metadata/dict_outlier_metadata.yaml", 'r') as outlier_path:
-            self.dict_outlier_metadata = yaml.safe_load(outlier_path)
+        if self.remove_outliers :
+            metadata_path = os.path.join(METADATA_DIR, 'dict_outlier_metadata.yaml')
+            with open(metadata_path, 'r') as f:
+                self.dict_outlier_metadata = yaml.safe_load(f)
 
         # Signal manager instance
         self.sig = signal_utils.MASTSignalManager(store_manager_settings=store_manager_settings)
