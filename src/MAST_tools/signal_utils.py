@@ -121,7 +121,8 @@ class MASTSignalManager:
     def get_source_profiles(
            self,
            data_origin: Union[dict, cc.ZarrStoreType],
-           source_name: str
+           source_name: str,
+           verbose: bool = False
     ) -> xr.Dataset:
         """
         Get source profiles from a given data origin.
@@ -153,7 +154,14 @@ class MASTSignalManager:
             # From store
             store = data_origin
 
-        return xr.open_zarr(store=store, group=source_name)
+        source_profile = None
+        try:
+            source_profile = xr.open_zarr(store=store, group=source_name)
+        except KeyError as e:
+            if verbose:
+                print(f"Exception: {e}")
+
+        return source_profile
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_signal_values(
