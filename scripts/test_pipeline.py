@@ -1,6 +1,6 @@
 import argparse
 from typing import Dict, Any
-import numpy as np
+import torch
 
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
@@ -38,16 +38,14 @@ class ModelSpecificTransform:  # TEMPLATE
         }
 
 # ----------------------------------------------------------------------------------------------------------------------
-def model_collate_fn(batch, verbose=True):
+def model_collate_fn(batch, verbose=False):
+    
     flattened_batch = [
         (item["shot_id"], item["window_index"], item["x"], item["y"])
         for sublist in batch
         for item in sublist
-        # if not (
-        #     any(np.isnan(np.array(x)).any() for x in item['x']) or
-        #     any(np.isnan(np.array(y)).any() for y in item['y'])
-        #     )
     ]
+
     if verbose:
         print(
             f"\nNumber of shots in a batch = {len(batch)}; number of samples (segments) = {len(flattened_batch)}"
@@ -104,21 +102,27 @@ if __name__ == "__main__":
         train_shots_,
         local_flag,
         use_std_scaling = True,
-        return_incomplete_shots=True
+        return_incomplete_shots=True,
+        remove_outliers = True,
+        verbose=True
     )
     val_MAST_dataset = initialize_MAST_dataset( 
         config_task,
         val_shots_,
         local_flag,
         use_std_scaling = True,
-        return_incomplete_shots=True
+        return_incomplete_shots=True,
+        remove_outliers = True,
+        verbose=True
     )
     test_MAST_dataset = initialize_MAST_dataset( 
         config_task,
         test_shots_,
         local_flag,
         use_std_scaling = True,
-        return_incomplete_shots=True
+        return_incomplete_shots=True,
+        remove_outliers = True,
+        verbose=True
     )
 
     # -------------------------------------------------------------------
@@ -215,11 +219,11 @@ if __name__ == "__main__":
         print("The list of shot ID is an object of shape, ", shot_id.shape)
         print("The list of window Index is an object of shape, ", window_index.shape)
         print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
-        print("Mean x_train", [np.nanmean(arr) for arr in x_train])
-        print("Std x_train", [np.nanstd(arr) for arr in x_train])
+        # print("Mean x_train", [torch.nanmean(arr) for arr in x_train])
+        # print("Std x_train", [np.nanstd(arr) for arr in x_train])
         print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
-        print("Mean y_train", [np.nanmean(arr) for arr in y_train])
-        print("Std y_train", [np.nanstd(arr) for arr in y_train])
+        # print("Mean y_train", [torch.nanmean(arr) for arr in y_train])
+        # print("Std y_train", [np.nanstd(arr) for arr in y_train])
 
     # print(x_train[0][0:10])
     # print("\n\n\n")

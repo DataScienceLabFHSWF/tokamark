@@ -7,10 +7,10 @@ cnn_settings:
 dataloader_setting:
   # batch_size: 256
   # num_workers: 32
-  # batch_size: 32
-  # num_workers: 4
-  batch_size: 8
-  num_workers: 0
+  batch_size: 32
+  num_workers: 4
+  # batch_size: 8
+  # num_workers: 0
 
 training_args:
   lr: 0.00001
