@@ -21,9 +21,7 @@ class StdScalingTransform:
         values = d['values']
 
         if values is not None:
-            std_is_zero = ( self.std[..., None] == 0 )
-            self.std[..., None][std_is_zero] = 1.0  # avoid division by zero
-            values = (values - self.mean[..., None]) / self.std[..., None]
+            values = (values - self.mean) / self.std
         return {
             'time': time,
             'values': values

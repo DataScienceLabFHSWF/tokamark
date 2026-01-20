@@ -1,6 +1,5 @@
 import os
-import pickle
-from pathlib import Path
+import yaml
 import numpy as np
 
 from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR
@@ -41,9 +40,9 @@ def get_task_metadata(
     
     # ..................................................................................................................
     # Import data metadata
-    metadata_path = os.path.join(METADATA_DIR, 'dict_metadata.pkl')
-    with open(metadata_path, "rb") as f:  # 'rb' = read binary
-        dict_metadata = pickle.load(f)
+    metadata_path = os.path.join(METADATA_DIR, 'dict_stats_metadata.yaml')
+    with open(metadata_path, "r") as f:  # 'rb' = read binary
+        dict_stats_metadata = yaml.safe_load(f)
 
     # ..................................................................................................................
     # Import task specific roles
@@ -89,13 +88,13 @@ def get_task_metadata(
     # ---------------------------------------------------------------------
     # input
     for key in input_keys:
-        dt = dict_metadata[key]["dt"]
+        dt = dict_stats_metadata[key]["dt"]
         sec_length = config_task["task_window_segmenter"]["input_length"]
-        out["input"][key] = dict(dict_metadata[key])
+        out["input"][key] = dict(dict_stats_metadata[key])
         out["input"][key]["dt"] = dt
-        out["input"][key]["values_shape"] = dict_metadata[key]["values_shape"]
-        out["input"][key]["mean"] = dict_metadata[key]["mean"]
-        out["input"][key]["std"] = dict_metadata[key]["std"]
+        out["input"][key]["values_shape"] = dict_stats_metadata[key]["values_shape"]
+        out["input"][key]["mean"] = dict_stats_metadata[key]["mean"]
+        out["input"][key]["std"] = dict_stats_metadata[key]["std"]
         out["input"][key]["sec_length"] = sec_length
         out["input"][key]["ts_length"] = int(np.round(sec_length / dt))
         out["input"][key]["ts_stride"] = int(np.round(sec_stride / dt))
@@ -103,13 +102,13 @@ def get_task_metadata(
     # ---------------------------------------------------------------------
     # actuator
     for key in actuator_keys:
-        dt = dict_metadata[key]["dt"]
+        dt = dict_stats_metadata[key]["dt"]
         sec_length = input_length + delta + output_length
-        out["actuator"][key] = dict(dict_metadata[key])
+        out["actuator"][key] = dict(dict_stats_metadata[key])
         out["actuator"][key]["dt"] = dt
-        out["actuator"][key]["values_shape"] = dict_metadata[key]["values_shape"]
-        out["actuator"][key]["mean"] = dict_metadata[key]["mean"]
-        out["actuator"][key]["std"] = dict_metadata[key]["std"]
+        out["actuator"][key]["values_shape"] = dict_stats_metadata[key]["values_shape"]
+        out["actuator"][key]["mean"] = dict_stats_metadata[key]["mean"]
+        out["actuator"][key]["std"] = dict_stats_metadata[key]["std"]
         out["actuator"][key]["sec_length"] = sec_length
         out["actuator"][key]["ts_length"] = int(np.round(sec_length / dt))
         out["actuator"][key]["ts_stride"] = int(np.round(sec_stride / dt))
@@ -117,13 +116,13 @@ def get_task_metadata(
     # ---------------------------------------------------------------------
     # output
     for key in output_keys:
-        dt = dict_metadata[key]["dt"]
+        dt = dict_stats_metadata[key]["dt"]
         sec_length = output_length
-        out["output"][key] = dict(dict_metadata[key])
+        out["output"][key] = dict(dict_stats_metadata[key])
         out["output"][key]["dt"] = dt
-        out["output"][key]["values_shape"] = dict_metadata[key]["values_shape"]
-        out["output"][key]["mean"] = dict_metadata[key]["mean"]
-        out["output"][key]["std"] = dict_metadata[key]["std"]
+        out["output"][key]["values_shape"] = dict_stats_metadata[key]["values_shape"]
+        out["output"][key]["mean"] = dict_stats_metadata[key]["mean"]
+        out["output"][key]["std"] = dict_stats_metadata[key]["std"]
         out["output"][key]["sec_length"] = sec_length
         out["output"][key]["ts_length"] = int(np.round(sec_length / dt))
         out["output"][key]["ts_stride"] = int(np.round(sec_stride / dt))
