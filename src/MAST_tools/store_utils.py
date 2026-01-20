@@ -950,9 +950,9 @@ class MASTStorageManager:
                 path=zarr_filepath
             )
 
-        if verbose:
-            store_type = 'LocalStore' if parsed_shot_info["local"] else 'FsspecStore'
-            print(f"{store_type} store for shot {parsed_shot_info['shot_id']} created.")
+        # if verbose:
+        #     store_type = 'LocalStore' if parsed_shot_info["local"] else 'FsspecStore'
+        #     print(f"{store_type} store for shot {parsed_shot_info['shot_id']} created.")
 
         return store
 
