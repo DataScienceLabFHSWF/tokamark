@@ -190,18 +190,21 @@ if __name__ == "__main__":
         dict_task_metadata,
         config_task,
         model_specific_transform,
+        test_mode=True,
         verbose = False)
     val_model_dataset = initialize_model_dataset(
         val_MAST_dataset,
         dict_task_metadata,
         config_task,
         model_specific_transform,
+        test_mode=True,
         verbose = False)
     test_model_dataset = initialize_model_dataset(
         test_MAST_dataset,
         dict_task_metadata,
         config_task,
         model_specific_transform,
+        test_mode=True,
         verbose = False)
 
     train_dataloader = DataLoader(
