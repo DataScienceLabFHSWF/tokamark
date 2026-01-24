@@ -59,6 +59,7 @@ def initialize_model_dataset(
     dict_task_metadata: Mapping[str, Any],
     config_task: Mapping[str, Any],
     model_specific_transform=None,
+    test_mode=False,
     *,
     verbose: bool = False,
 ) -> Optional[Any]:
@@ -93,6 +94,7 @@ def initialize_model_dataset(
         dataset,
         dict_task_metadata,
         config_task,
-        model_specific_transform,
+        model_transform=model_specific_transform,
+        test_mode=test_mode,
         verbose=verbose,
     )

@@ -2,6 +2,14 @@ import numpy as np
 
 from MAST_tools.MAST_dataset import MastDataset
 
+def all_vars_have_nans(dict_obj):
+    # print('ALL?', [ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ] )
+    return all([ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ])
+
+def any_vars_have_nans(dict_obj):
+    # print('ANY?', [ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ] )
+    return any([ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ])
+
 # ======================================================================================================================
 class TaskModelTransformWrapper(MastDataset):
     def __init__(
@@ -10,6 +18,7 @@ class TaskModelTransformWrapper(MastDataset):
         dict_task_metadata,
         config_task,
         model_transform=None,
+        test_mode=False, # If True, keeping window with any no nans input or actuator, and all full outputs
         verbose=False,
     ):
         self.base = base_dataset
@@ -42,6 +51,7 @@ class TaskModelTransformWrapper(MastDataset):
         self.stride = float(self.dict_task_metadata["sec_stride"])
 
         self.model_transform = model_transform
+        self.test_mode = test_mode
 
         self.verbose = verbose
 
@@ -103,9 +113,10 @@ class TaskModelTransformWrapper(MastDataset):
                 if len(dts) > 0:
                     delta_ts.append(np.min(dts))
         if not delta_ts:
-            print(
-                f"[Warning] No valid Δt found in any output signals for shot {self.get_shot_id(idx_shot)}"
-            )
+            if self.verbose: 
+                print(
+                    f"[Warning] No valid Δt found in any output signals for shot {self.get_shot_id(idx_shot)}"
+                )
             return  # stop processing this sample
 
         start_time = np.min(t_start)
@@ -311,14 +322,26 @@ class TaskModelTransformWrapper(MastDataset):
                 "window_index": idx_t,  # we need this to cache shots for external models
             }
 
-            obj2 = self.model_transform(obj) if self.model_transform else obj
-            if obj2 is None:
+            if self.test_mode:
+                window_valid = (
+                    not ( all_vars_have_nans(obj["input"]) and all_vars_have_nans(obj["actuator"]) )
+                    and not any_vars_have_nans(obj["output"])
+                )
+            else:
+                window_valid=True
+
+            if window_valid: 
+                obj2 = self.model_transform(obj) if self.model_transform else obj
+                if obj2 is None:
+                    continue
+                yield {
+                    "shot_id": self.get_shot_id(idx_shot),
+                    "window_index": idx_t,
+                    **obj2,
+                }
+            else:
+                # If window not valid
                 continue
-            yield {
-                "shot_id": self.get_shot_id(idx_shot),
-                "window_index": idx_t,
-                **obj2,
-            }
 
     def __len__(self):
         return len(self.base)
