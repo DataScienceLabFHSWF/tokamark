@@ -42,6 +42,8 @@ class WindowMetricsWriter():
 
 def aggregate_windows_metrics(df):
     # Compute signal level score within each shot
+    if 'RMSE' in df.columns:
+        df['RMSE'] = df['RMSE']**2
     df_signals_shots = (
         df
         .drop(columns='window_id')
@@ -49,6 +51,8 @@ def aggregate_windows_metrics(df):
         .mean()
         .reset_index()
     )
+    if 'RMSE' in df_signals_shots.columns:
+        df_signals_shots['RMSE'] = df_signals_shots['RMSE']**0.5
 
     # Normalise signals per shot
     signal_std = get_signals_metadata()
