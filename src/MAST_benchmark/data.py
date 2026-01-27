@@ -17,7 +17,9 @@ def initialize_MAST_dataset(
     shots_list,
     local_flag = True,
     use_std_scaling = True,
-    return_incomplete_shots=True
+    return_incomplete_shots=True,
+    remove_outliers=True,
+    verbose=False
 ):
 
     # ..................................................................................................................
@@ -44,6 +46,8 @@ def initialize_MAST_dataset(
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=None,
         return_incomplete_shots=return_incomplete_shots,
+        remove_outliers=remove_outliers,
+        verbose=verbose
     )
 
     return MAST_dataset

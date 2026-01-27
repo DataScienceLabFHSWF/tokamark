@@ -3,11 +3,15 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
+import os
 import time
+import yaml
 import numpy as np
+from pathlib import Path
 from pprint import pprint
 from typing import Union, Callable, Optional
 from torch.utils.data import Dataset
+from MAST_benchmark.tools.path import METADATA_DIR
 try:
     from . import signal_utils
 except ImportError:
@@ -68,6 +72,7 @@ class MastDataset(Dataset):
         signal_level_transform_map: Optional[dict[str, Callable]] = None,
         shot_level_transform: Optional[Callable] = None,
         return_incomplete_shots: bool = False,
+        remove_outliers: bool = False,
         store_manager_settings: Optional[dict] = None,
         other_mast_settings: Optional[dict] = None,
         verbose: bool = False
@@ -162,6 +167,11 @@ class MastDataset(Dataset):
         self.signal_level_transform_map = signal_level_transform_map
         self.shot_level_transform = shot_level_transform
         self.return_incomplete_shots = return_incomplete_shots
+        self.remove_outliers = remove_outliers
+        if self.remove_outliers :
+            metadata_path = os.path.join(METADATA_DIR, 'dict_outlier_metadata.yaml')
+            with open(metadata_path, 'r') as f:
+                self.dict_outlier_metadata = yaml.safe_load(f)
 
         # Signal manager instance
         self.sig = signal_utils.MASTSignalManager(store_manager_settings=store_manager_settings)
@@ -218,9 +228,23 @@ class MastDataset(Dataset):
 
         shot = {}
 
+        # Removing outliers from signal to load
+        if self.remove_outliers:
+            all_outliers = set(self.dict_outlier_metadata.get(self.shots_list[idx], []))
+            source_signal_to_load = []
+            for source, signal in self.source_signal_list:
+                if f"{source}-{signal}" in all_outliers:
+                    if self.verbose:
+                        print(f"Replacing outlier {source}-{signal} from shot {self.shots_list[idx]}")
+                    shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
+                else:
+                    source_signal_to_load.append([source, signal])
+        else:
+            source_signal_to_load = self.source_signal_list
+
         # Group signals per source
         source_signals = {}
-        for source, signal in self.source_signal_list:
+        for source, signal in source_signal_to_load:
             if source in source_signals:
                 source_signals[source].append(signal)
             else:
@@ -237,7 +261,7 @@ class MastDataset(Dataset):
             for signal in source_signals[source]:
                 shot_vals = None
                 shot_time = None
-
+                        
                 if source_store is not None:
                     signal_profile = self.sig.get_signal_profile(
                         data_origin=source_store,
