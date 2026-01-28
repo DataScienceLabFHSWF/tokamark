@@ -42,15 +42,15 @@ class ShotStatsDataset(Dataset):
 
             # initialize nested dict
             stats[var] = {
-                "length":None,
+                "n_dim_shot":None,
                 "mean": None,
                 "variance": None,
             }
 
             if len(values) > 0:
                 mean_sample = np.nanmean(values)
-                # std_sample = np.nanstd(values, ddof=1) # unbiaised std NOT REALLY
-                variance_sample = np.nanvar(values, ddof=1) # unbiaised variance
+                # std_sample = np.nanstd(values) # unbiaised std NOT REALLY
+                variance_sample = np.nanvar(values, ddof=0) # unbiaised variance
 
                 # handle all-NaN arrays
                 if np.isnan(mean_sample):
@@ -58,7 +58,8 @@ class ShotStatsDataset(Dataset):
                 if np.isnan(variance_sample):
                     variance_sample = None
 
-                stats[var]["length"] = values.shape[-1] if hasattr(values, "shape") else len(values)
+
+                stats[var]["n_dim_shot"] = values.size if hasattr(values, "size") else None
                 stats[var]["mean"] = float(mean_sample) if mean_sample is not None else None
                 stats[var]["variance"] = float(variance_sample) if variance_sample is not None else None
 
@@ -87,16 +88,15 @@ def compute_mean_std_per_shot_to_csv(dataset, csv_path,
     )
 
     # ensure directory exists
-    csv_dir = os.path.dirname(csv_path)
-    if csv_dir:
-        os.makedirs(csv_dir, exist_ok=True)
+    # csv_dir = os.path.dirname(csv_path)
+    # os.makedirs(csv_dir, exist_ok=True)
 
     # overwrite CSV
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
 
         # write header
-        header = ["shot_idx", "shot_id", "variable", "length_shot", "mean", "variance"]
+        header = ["shot_idx", "shot_id", "variable", "n_dim_shot", "mean", "variance"]
         writer.writerow(header)
 
         counter = 0
@@ -113,7 +113,7 @@ def compute_mean_std_per_shot_to_csv(dataset, csv_path,
                         shot_stats["shot_idx"],
                         shot_stats["shot_id"],
                         var,
-                        shot_stats[var].get("length", None),  # safe fallback
+                        shot_stats[var].get("n_dim_shot", None),  # safe fallback
                         shot_stats[var]["mean"],
                         shot_stats[var]["variance"]
                     ]
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="config_get_metadata.yaml",
+        default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
         # default="/config_get_metadata.yaml",
         help="Path to the task YAML config file",
     )
