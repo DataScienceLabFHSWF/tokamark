@@ -33,19 +33,19 @@ magnetics-b_field_tor_probe_cc_field:
   values_shape:
   - 3
   mean: -3.0715533042047245e-07
-  std: 2.0016966812990756e-05
+  std: 2.0014198523339808e-05
 magnetics-b_field_pol_probe_omv_voltage:
   dt: 2.0e-06
   values_shape:
   - 3
   mean: 0.0034782653863861803
-  std: 0.17027287312452768
+  std: 0.1701782179706301
 pf_active-coil_voltage:
   dt: 0.00025
   values_shape:
   - 4
   mean: -2.589970227263919
-  std: 3072.4951032315585
+  std: 3070.670524401914
 pf_active-coil_current:
   dt: 0.00025
   values_shape:
@@ -75,7 +75,7 @@ interferometer-n_e_line:
   values_shape:
   - 1
   mean: 8.067915915650877e+19
-  std: 5.134147209828501e+20
+  std: 5.1341456073130797e+20
 summary-power_nbi:
   dt: 0.00025
   values_shape:
@@ -112,7 +112,7 @@ equilibrium-elongation_axis:
   values_shape:
   - 1
   mean: 1.4391313292091665
-  std: 0.2108500158754125
+  std: 0.2108499505498801
 equilibrium-triangularity_upper:
   dt: 0.005
   values_shape:
@@ -142,7 +142,7 @@ equilibrium-x_point_r:
   values_shape:
   - 2
   mean: 0.504223316560303
-  std: 0.7722743540595363
+  std: 0.7676277491973306
 equilibrium-x_point_z:
   dt: 0.005
   values_shape:
@@ -178,31 +178,31 @@ equilibrium-beta_tor:
   values_shape:
   - 1
   mean: 2.432305538420569
-  std: 3.5105500033105375
+  std: 3.4722593461825495
 equilibrium-beta_pol:
   dt: 0.005
   values_shape:
   - 1
   mean: 0.2151170675631981
-  std: 0.32617997891720063
+  std: 0.32607499340986884
 equilibrium-beta_normal:
   dt: 0.005
   values_shape:
   - 1
   mean: 1.0284405027554158
-  std: 1.348843296314552
+  std: 1.3481414758352757
 equilibrium-bvac_rmag:
   dt: 0.005
   values_shape:
   - 1
   mean: -0.4445585220997438
-  std: 0.1679373219813864
+  std: 0.16793731542503698
 equilibrium-bphi_rmag:
   dt: 0.005
   values_shape:
   - 1
   mean: -0.5127951434607065
-  std: 0.19562360443261467
+  std: 0.19562135129562927
 spectrometer_visible-filter_spectrometer_dalpha_voltage:
   dt: 2.0e-05
   values_shape:
@@ -220,7 +220,7 @@ soft_x_rays-horizontal_cam_upper:
   values_shape:
   - 18
   mean: 0.0032371164368277415
-  std: 5.074867284971474e+26
+  std: 0.02705686927273422
 thomson_scattering-t_e:
   dt: 0.005
   values_shape:
@@ -232,4 +232,4 @@ thomson_scattering-n_e:
   values_shape:
   - 120
   mean: 1.6891822717128243e+19
-  std: 1.4295330476929028e+19
+  std: 1.4289468333579725e+19

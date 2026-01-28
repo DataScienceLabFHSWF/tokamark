@@ -153,6 +153,8 @@
 - equilibrium-beta_tor
 12237:
 - equilibrium-beta_tor
+13298:
+- soft_x_rays-horizontal_cam_upper
 15926:
 - equilibrium-beta_pol
 19352:
@@ -193,6 +195,7 @@
 - equilibrium-beta_tor
 19409:
 - equilibrium-beta_normal
+- equilibrium-beta_tor
 19410:
 - equilibrium-beta_normal
 - equilibrium-beta_pol

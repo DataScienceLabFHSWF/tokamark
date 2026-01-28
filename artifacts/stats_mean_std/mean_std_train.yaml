@@ -1,273 +1,195 @@
 equilibrium-beta_normal:
   mean:
-    all: 0.9849341911973034
     no_outliers_z6: 1.0284405027554158
   std:
-    all: 1.812396292708583
-    no_outliers_z6: 1.348843296314552
+    no_outliers_z6: 1.3481414758352757
 equilibrium-beta_pol:
   mean:
-    all: 0.20684196519649187
     no_outliers_z6: 0.2151170675631981
   std:
-    all: 0.39027679358957496
-    no_outliers_z6: 0.32617997891720063
+    no_outliers_z6: 0.32607499340986884
 equilibrium-beta_tor:
   mean:
-    all: 2.9493900175838395
     no_outliers_z6: 2.432305538420569
   std:
-    all: 15.015217796703867
-    no_outliers_z6: 3.5105500033105375
+    no_outliers_z6: 3.4722593461825495
 equilibrium-bphi_rmag:
   mean:
-    all: -0.5137340409418538
     no_outliers_z6: -0.5127951434607065
   std:
-    all: 0.20086881430191145
-    no_outliers_z6: 0.19562360443261467
+    no_outliers_z6: 0.19562135129562927
 equilibrium-bvac_rmag:
   mean:
-    all: -0.4445115954391929
     no_outliers_z6: -0.4445585220997438
   std:
-    all: 0.16807913100785346
-    no_outliers_z6: 0.1679373219813864
+    no_outliers_z6: 0.16793731542503698
 equilibrium-elongation:
   mean:
-    all: 1.7327046202038623
     no_outliers_z6: 1.7327046202038623
   std:
-    all: 0.21410663586405176
     no_outliers_z6: 0.21410663586405176
 equilibrium-elongation_axis:
   mean:
-    all: 1.439297304432672
     no_outliers_z6: 1.4391313292091665
   std:
-    all: 0.21172310442030562
-    no_outliers_z6: 0.2108500158754125
+    no_outliers_z6: 0.2108499505498801
 equilibrium-lcfs_r:
   mean:
-    all: 0.7430755265547497
     no_outliers_z6: 0.7430755265547497
   std:
-    all: 0.37748767246074244
     no_outliers_z6: 0.37748767246074244
 equilibrium-lcfs_z:
   mean:
-    all: -0.03329687494695711
     no_outliers_z6: -0.03329687494695711
   std:
-    all: 0.6483089767168372
     no_outliers_z6: 0.6483089767168372
 equilibrium-magnetic_axis_r:
   mean:
-    all: 0.8522809345781048
     no_outliers_z6: 0.8522809345781048
   std:
-    all: 0.09452175581202235
     no_outliers_z6: 0.09452175581202235
 equilibrium-magnetic_axis_z:
   mean:
-    all: -0.02407555701451834
     no_outliers_z6: -0.02407555701451834
   std:
-    all: 0.07326059803662123
     no_outliers_z6: 0.07326059803662123
 equilibrium-minor_radius:
   mean:
-    all: 0.5439020280562962
     no_outliers_z6: 0.5439020280562962
   std:
-    all: 0.06326515462972619
     no_outliers_z6: 0.06326515462972619
 equilibrium-psi:
   mean:
-    all: -0.02335569818330801
     no_outliers_z6: -0.02335569818330801
   std:
-    all: 0.05579013302818227
     no_outliers_z6: 0.05579013302818227
 equilibrium-q95:
   mean:
-    all: 7.726024266209744
     no_outliers_z6: 7.726024266209744
   std:
-    all: 3.4019046681184504
     no_outliers_z6: 3.4019046681184504
 equilibrium-triangularity_lower:
   mean:
-    all: 0.3480931926602389
     no_outliers_z6: 0.3480931926602389
   std:
-    all: 0.0979637370356623
     no_outliers_z6: 0.0979637370356623
 equilibrium-triangularity_upper:
   mean:
-    all: 0.32541466354483645
     no_outliers_z6: 0.32541466354483645
   std:
-    all: 0.10214302330679821
     no_outliers_z6: 0.10214302330679821
 equilibrium-x_point_r:
   mean:
-    all: 0.5897967152690557
     no_outliers_z6: 0.504223316560303
   std:
-    all: 2.393975566913849
-    no_outliers_z6: 0.7722743540595363
+    no_outliers_z6: 0.7676277491973306
 equilibrium-x_point_z:
   mean:
-    all: -0.07758928119459549
     no_outliers_z6: -0.07758928119459549
   std:
-    all: 7.140605937927534
     no_outliers_z6: 7.140605937927534
 gas_injection-total_injected:
   mean:
-    all: 2.505385236708265e+21
     no_outliers_z6: 2.505385236708265e+21
   std:
-    all: 2.469140379526533e+21
     no_outliers_z6: 2.469140379526533e+21
 interferometer-n_e_line:
   mean:
-    all: 8.110657244364418e+19
     no_outliers_z6: 8.067915915650877e+19
   std:
-    all: 5.3769310818010936e+20
-    no_outliers_z6: 5.134147209828501e+20
+    no_outliers_z6: 5.1341456073130797e+20
 magnetics-b_field_pol_probe_ccbv_field:
   mean:
-    all: 0.08100472297250123
     no_outliers_z6: 0.08100472297250123
   std:
-    all: 0.14410162330015613
     no_outliers_z6: 0.14410162330015613
 magnetics-b_field_pol_probe_obr_field:
   mean:
-    all: -0.00476935976395406
     no_outliers_z6: -0.00476935976395406
   std:
-    all: 0.07735630879948949
     no_outliers_z6: 0.07735630879948949
 magnetics-b_field_pol_probe_obv_field:
   mean:
-    all: -0.021480868508110814
     no_outliers_z6: -0.021480868508110814
   std:
-    all: 0.03321186356517636
     no_outliers_z6: 0.03321186356517636
 magnetics-b_field_pol_probe_omv_voltage:
   mean:
-    all: -0.002198481078113585
     no_outliers_z6: 0.0034782653863861803
   std:
-    all: 0.3476848878465221
-    no_outliers_z6: 0.17027287312452768
+    no_outliers_z6: 0.1701782179706301
 magnetics-b_field_tor_probe_cc_field:
   mean:
-    all: -6.400484975416124e-07
     no_outliers_z6: -3.0715533042047245e-07
   std:
-    all: 2.572165639185449e-05
-    no_outliers_z6: 2.0016966812990756e-05
+    no_outliers_z6: 2.0014198523339808e-05
 magnetics-b_field_tor_probe_saddle_voltage:
   mean:
-    all: 0.10374492184738746
     no_outliers_z6: 0.10374492184738746
   std:
-    all: 0.7207909506296567
     no_outliers_z6: 0.7207909506296567
 magnetics-flux_loop_flux:
   mean:
-    all: -0.23392699580285178
     no_outliers_z6: -0.23392699580285178
   std:
-    all: 0.3898702217219659
     no_outliers_z6: 0.3898702217219659
 pf_active-coil_current:
   mean:
-    all: 557.226274809436
     no_outliers_z6: 557.226274809436
   std:
-    all: 5065.041009986871
     no_outliers_z6: 5065.041009986871
 pf_active-coil_voltage:
   mean:
-    all: 103.28113041489057
     no_outliers_z6: -2.589970227263919
   std:
-    all: 4763.414595348444
-    no_outliers_z6: 3072.4951032315585
+    no_outliers_z6: 3070.670524401914
 pf_active-solenoid_current:
   mean:
-    all: -2930.2381650905713
     no_outliers_z6: -2930.2381650905713
   std:
-    all: 12593.767717493254
     no_outliers_z6: 12593.767717493254
 pulse_schedule-i_plasma:
   mean:
-    all: 423507.65327603207
     no_outliers_z6: 423507.65327603207
   std:
-    all: 317643.69664110435
     no_outliers_z6: 317643.69664110435
 pulse_schedule-n_e_line:
   mean:
-    all: 5.3311961282852905e+19
     no_outliers_z6: 5.3311961282852905e+19
   std:
-    all: 5.5098207617880285e+19
     no_outliers_z6: 5.5098207617880285e+19
 soft_x_rays-horizontal_cam_lower:
   mean:
-    all: 0.005473743155456756
     no_outliers_z6: 0.005473743155456756
   std:
-    all: 0.030200036131898835
     no_outliers_z6: 0.030200036131898835
 soft_x_rays-horizontal_cam_upper:
   mean:
-    all: 5.074867284971474e+26
     no_outliers_z6: 0.0032371164368277415
   std:
-    all: 7.944389052471898e+28
-    no_outliers_z6: 5.074867284971474e+26
+    no_outliers_z6: 0.02705686927273422
 spectrometer_visible-filter_spectrometer_dalpha_voltage:
   mean:
-    all: 0.35036990936371293
     no_outliers_z6: 0.35036990936371293
   std:
-    all: 0.4497144347106105
     no_outliers_z6: 0.4497144347106105
 summary-ip:
   mean:
-    all: 333267.40301860194
     no_outliers_z6: 333267.40301860194
   std:
-    all: 324391.5494323114
     no_outliers_z6: 324391.5494323114
 summary-power_nbi:
   mean:
-    all: 731879.237006398
     no_outliers_z6: 731879.237006398
   std:
-    all: 1109663.2740711092
     no_outliers_z6: 1109663.2740711092
 thomson_scattering-n_e:
   mean:
-    all: 1.7315522394628223e+19
     no_outliers_z6: 1.6891822717128243e+19
   std:
-    all: 4.5013344907732206e+19
-    no_outliers_z6: 1.4295330476929028e+19
+    no_outliers_z6: 1.4289468333579725e+19
 thomson_scattering-t_e:
   mean:
-    all: 325.4568908146307
     no_outliers_z6: 325.4568908146307
   std:
-    all: 334.8295236665037
     no_outliers_z6: 334.8295236665037
