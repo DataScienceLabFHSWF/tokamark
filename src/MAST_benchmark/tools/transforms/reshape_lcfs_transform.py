@@ -1,16 +1,44 @@
+
 import numpy as np
 from scipy.ndimage import zoom
+from typing import Mapping
+
 
 # ======================================================================================================================
 class ReshapeLcfsTransform:
+    """
+    Transform to reshape LCFS profiles.
+
+    Attributes
+    ----------
+    None.
+
+    Methods
+    -------
+    __call__
+        Call method for the class to behave like a function.
+
+    """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, dict_):
+    def __call__(
+            self,
+            dict_: Mapping
+    ) -> Mapping:
         """
-        Input: torch dict with key 'time' and key 'values'.
+        Call method for the class to behave like a function.
 
-        Returns: torch dict with key 'time' and key 'values with NaNs of profiles (i.e., when one full channel in the
-        profile is missing) filled with zeros.
+        Parameters
+        ----------
+        dict_ : Mapping
+            Torch dict with key 'time' and 'key' values.
+
+        Returns
+        -------
+        Mapping
+            Torch dict with key 'time' and 'key' values with NaNs of profiles (i.e., when one full channel in the
+            profile is missing) filled with zeros.
+
         """
 
         time = dict_['time']

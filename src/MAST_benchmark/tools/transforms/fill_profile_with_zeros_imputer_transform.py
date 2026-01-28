@@ -1,27 +1,61 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import numpy as np
+from typing import Mapping
 
 
 # ======================================================================================================================
 class FillProfileWithZerosTransform:
+    """
+    Transform to fill profile with zeros.
+
+    Attributes
+    ----------
+    None.
+
+    Methods
+    -------
+
+    __call__
+        Call method for the class to behave like a function.
+
+    """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, dict_):
+    def __call__(
+            self,
+            dict_: Mapping
+    ) -> Mapping:
         """
-        Input: torch dict with key 'time' and key 'values'.
+        Call method for the class to behave like a function.
 
-        Returns: torch dict with key 'time' and key 'values with NaNs of profiles (i.e., when one full channel in the
-        profile is missing) filled with zeros.
+        Parameters
+        ----------
+        dict_ : Mapping
+            Torch dict with key 'time' and 'key' values.
+
+        Returns
+        -------
+        dict
+            Torch dict with key 'time' and 'key' values with NaNs of profiles (i.e., when one full channel in the
+            profile is missing) filled with zeros.
+
         """
                 
         time = dict_['time']
         values = dict_['values'].copy()
 
-        # checking for indeces with NaN values
+        # Checking for indexes with NaN values
         nan_ind = np.isnan(values)
-        # excluding columns comprised of NaNs only
+
+        # Excluding columns comprised of NaNs only
         nan_cols = np.isnan(values).all(axis=0)
-        nan_ind[:,nan_cols] = False
-        # replacing NaNs in profile components
+        nan_ind[:, nan_cols] = False
+
+        # Replacing NaNs in profile components
         values[nan_ind] = 0
 
         return {

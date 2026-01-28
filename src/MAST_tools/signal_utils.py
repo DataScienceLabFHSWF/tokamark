@@ -9,12 +9,8 @@ import xarray as xr
 from typing import Union, Optional, Any
 from types import NoneType
 
-try:
-    from . import store_utils
-    from . import constants as cc
-except ImportError:
-    import store_utils
-    import constants as cc
+from MAST_tools import store_utils
+from MAST_tools import constants as cc
 
 
 # ======================================================================================================================
@@ -397,7 +393,7 @@ class MASTSignalManager:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def test() -> None:
+def tests() -> None:
     """
     Quick tests for module functionality.
 
@@ -423,7 +419,7 @@ def test() -> None:
 
     # ..................................................................................................................
 
-    shot_info = {"shot_id": 30421, "level": 2, "test_data": False, "local": False, "via_parquet": False}
+    shot_info = {"shot_id": 30421, "level": 2, "test_data": False, "local": True, "via_parquet": False}
     source_name = "magnetics"
     signal_name = "flux_loop_flux"
 
@@ -455,6 +451,7 @@ def test() -> None:
         )
 
         print(f"Signal values: {signal_values}\n")
+        print(f"Signal shape: {signal_values.shape}\n")
 
     # ..................................................................................................................
     # Get signal values from shot info
@@ -491,4 +488,4 @@ def test() -> None:
 
 # ======================================================================================================================
 if __name__ == "__main__":
-    test()
+    tests()

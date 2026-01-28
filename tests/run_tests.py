@@ -1,19 +1,39 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional, Union
 
-def run_test_scripts(test_dir=None, timeout=300):
-    """Run all Python scripts in the test directory.
+
+# ----------------------------------------------------------------------------------------------------------------------
+def run_test_scripts(
+        test_dir: Optional[Union[str, Path]] = None,
+        timeout: int = 300
+) -> bool:
+    """
+    Run all Python scripts in the test directory.
     
     Parameters
     ----------
-    test_dir : pathlib.Path, optional
-        Path to the test directory containing test scripts to run. The
-        module containing this function is excluded. Defaults to None,
-        which uses the parent directory of the current module.
-    timeout : int, optional
-        Timeout in seconds for each test. Defaults to 300.
+    test_dir : Optional[Union[str, Path]]
+        Path to the test directory containing test scripts to run. The module containing this function is excluded.
+        Defaults to None, which uses the parent directory of the current module.
+        Optional. Default: None.
+    timeout : int
+        Timeout in seconds for each test.
+        Optional. Default: 300.
+
+    Returns
+    -------
+    bool
+        If True, all tests passed. False otherwise.
+
     """
+
     if test_dir is None:
         test_dir = Path(__file__).parent
 
@@ -75,6 +95,8 @@ def run_test_scripts(test_dir=None, timeout=300):
         print("All tests passed")
         return True
 
+
+# ======================================================================================================================
 if __name__ == "__main__":
     success = run_test_scripts()
     sys.exit(0 if success else 1)

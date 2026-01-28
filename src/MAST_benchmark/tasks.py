@@ -1,6 +1,12 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import os
 import yaml
 import numpy as np
+from typing import Any, Mapping
 
 from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR
 from MAST_benchmark.tools.path import METADATA_DIR
@@ -25,7 +31,25 @@ tasks_configs_map = {
 }
 
 
-def get_task_config(task_name):
+# ----------------------------------------------------------------------------------------------------------------------
+def get_task_config(
+        task_name: str
+) -> Any:
+    """
+    Get task configuration by task name.
+
+    Parameters
+    ----------
+    task_name : str
+        Name of the target task.
+
+    Returns
+    -------
+    Any
+        Configuration from YAML file.
+
+    """
+
     task_path = tasks_configs_map[task_name]
     file_path = os.path.join(TASKS_CONFIGS_DIR, task_path)
 
@@ -34,9 +58,25 @@ def get_task_config(task_name):
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_task_metadata(
-    config_task, 
-    verbose=False
-):
+    config_task: Mapping,
+    verbose: bool = False
+) -> Mapping:
+    """
+    Get task metadata for target configuration task.
+
+    Parameters
+    ----------
+    config_task : Mapping
+        Dictionary with task configuration.
+    verbose : bool
+        If True, activate verbose mode.
+
+    Returns
+    -------
+    Mapping
+        Output mapping with task metadata.
+
+    """
     
     # ..................................................................................................................
     # Import data metadata
@@ -46,6 +86,7 @@ def get_task_metadata(
 
     # ..................................................................................................................
     # Import task specific roles
+
     # ---------------------------------------------------------------------
     # input
     input_keys = [
@@ -77,7 +118,7 @@ def get_task_metadata(
     delta = config_task["task_window_segmenter"]["delta"]
 
     # Get stride from config file
-    sec_stride = config_task["stride_window"] # min([dict_metadata[key]["dt"] for key in output_keys])
+    sec_stride = config_task["stride_window"]  # min([dict_metadata[key]["dt"] for key in output_keys])
 
     # --- plit into role-scoped dicts (avoid overwriting) ---
     out = {"sec_stride": sec_stride, "input": {}, "actuator": {}, "output": {}}
