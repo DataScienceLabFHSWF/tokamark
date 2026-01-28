@@ -1,351 +1,52 @@
+11892:
+- equilibrium-x_point_r
 11899:
-- equilibrium-x_point_z
-12004:
-- interferometer-n_e_line
-12130:
 - equilibrium-x_point_r
-12139:
+11901:
 - equilibrium-x_point_r
-12140:
+12053:
 - equilibrium-x_point_r
-- equilibrium-x_point_z
-12141:
-- equilibrium-x_point_r
-12142:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12143:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12144:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12145:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12146:
-- equilibrium-x_point_r
-12147:
-- equilibrium-x_point_r
-12148:
-- equilibrium-x_point_r
-12150:
-- equilibrium-x_point_r
-12151:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12152:
-- equilibrium-x_point_r
-12154:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12158:
-- equilibrium-x_point_r
-12161:
-- equilibrium-x_point_r
-12162:
-- equilibrium-x_point_r
-12163:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12164:
-- equilibrium-x_point_r
-12165:
-- equilibrium-x_point_r
-12166:
-- equilibrium-x_point_r
-12167:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
 12168:
-- equilibrium-x_point_z
-12169:
 - equilibrium-x_point_r
-- equilibrium-x_point_z
-12170:
-- equilibrium-x_point_r
-12171:
-- equilibrium-x_point_r
-12172:
-- equilibrium-x_point_r
-12173:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12174:
-- equilibrium-x_point_r
-12175:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12177:
-- equilibrium-x_point_r
-12178:
-- equilibrium-x_point_r
-12179:
-- equilibrium-x_point_r
-12180:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12181:
-- equilibrium-x_point_r
-12182:
-- equilibrium-x_point_r
-12183:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
 12184:
-- equilibrium-x_point_z
-12189:
 - equilibrium-x_point_r
-- equilibrium-x_point_z
-12190:
+12185:
 - equilibrium-x_point_r
-12191:
-- equilibrium-x_point_r
-12193:
-- equilibrium-x_point_r
-12194:
-- equilibrium-x_point_r
-12195:
-- equilibrium-x_point_r
-12196:
+12228:
 - equilibrium-beta_tor
-12198:
-- equilibrium-x_point_r
-12199:
-- equilibrium-x_point_r
-12200:
-- equilibrium-x_point_r
-- equilibrium-x_point_z
-12201:
-- equilibrium-x_point_r
-12202:
-- equilibrium-x_point_r
-12203:
+12231:
 - equilibrium-beta_tor
-- equilibrium-x_point_r
-12204:
-- equilibrium-beta_tor
-12208:
-- equilibrium-beta_tor
-12209:
-- equilibrium-beta_tor
-12210:
-- equilibrium-beta_tor
-12213:
-- equilibrium-beta_tor
-12214:
-- equilibrium-beta_tor
-12215:
-- equilibrium-beta_tor
-12216:
-- equilibrium-beta_tor
-12218:
-- equilibrium-beta_tor
-12219:
-- equilibrium-beta_tor
-12220:
-- equilibrium-beta_tor
-12221:
-- equilibrium-beta_tor
-12223:
-- equilibrium-beta_tor
-12224:
-- equilibrium-beta_tor
-12229:
-- equilibrium-beta_tor
-12230:
-- equilibrium-beta_tor
-12232:
-- equilibrium-beta_tor
-12233:
-- equilibrium-beta_tor
-12234:
-- equilibrium-beta_tor
-12236:
-- equilibrium-beta_tor
-12237:
-- equilibrium-beta_tor
-12283:
-- interferometer-n_e_line
-12929:
-- interferometer-n_e_line
-13055:
-- soft_x_rays-horizontal_cam_lower
-13059:
-- soft_x_rays-horizontal_cam_lower
-13060:
-- soft_x_rays-horizontal_cam_lower
-13061:
-- soft_x_rays-horizontal_cam_lower
-13063:
-- soft_x_rays-horizontal_cam_lower
-13064:
-- soft_x_rays-horizontal_cam_lower
-13065:
-- soft_x_rays-horizontal_cam_lower
-13822:
-- magnetics-b_field_pol_probe_omv_voltage
-13902:
-- soft_x_rays-horizontal_cam_lower
-14153:
-- equilibrium-elongation_axis
-14208:
-- equilibrium-psi
+13298:
+- soft_x_rays-horizontal_cam_upper
 15926:
-- equilibrium-beta_pol
-16553:
-- interferometer-n_e_line
-16569:
-- interferometer-n_e_line
-16572:
-- interferometer-n_e_line
-16575:
-- interferometer-n_e_line
-16577:
-- interferometer-n_e_line
-16578:
-- interferometer-n_e_line
-16579:
-- interferometer-n_e_line
-16581:
-- interferometer-n_e_line
-16909:
-- interferometer-n_e_line
-19352:
 - equilibrium-beta_normal
-- equilibrium-beta_pol
 19374:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19375:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19382:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-- equilibrium-bphi_rmag
+- equilibrium-beta_tor
 19386:
+- equilibrium-beta_tor
+19387:
 - equilibrium-beta_normal
-- equilibrium-beta_pol
 19388:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19391:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-19392:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
 - equilibrium-beta_tor
 19393:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19401:
+- equilibrium-beta_tor
+19408:
 - equilibrium-beta_normal
-- equilibrium-beta_pol
 19409:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19410:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19413:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-19414:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
+- equilibrium-beta_tor
 19415:
-- equilibrium-beta_pol
-19417:
 - equilibrium-beta_normal
-- equilibrium-beta_pol
-19419:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-19420:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-19432:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-19450:
-- soft_x_rays-horizontal_cam_upper
-19453:
-- soft_x_rays-horizontal_cam_upper
-19454:
-- soft_x_rays-horizontal_cam_upper
 19455:
-- equilibrium-beta_normal
-- equilibrium-beta_pol
-- soft_x_rays-horizontal_cam_upper
-19460:
-- soft_x_rays-horizontal_cam_upper
-19461:
-- soft_x_rays-horizontal_cam_upper
-19953:
-- thomson_scattering-n_e
-20038:
-- thomson_scattering-n_e
-20111:
-- thomson_scattering-n_e
-20124:
-- thomson_scattering-n_e
-20152:
-- thomson_scattering-n_e
-20166:
-- thomson_scattering-n_e
-20271:
-- thomson_scattering-n_e
-25260:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25261:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25262:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25263:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25264:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25265:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25266:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25267:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25268:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25269:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25270:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25272:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25273:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25274:
-- magnetics-b_field_pol_probe_omv_voltage
-- magnetics-b_field_tor_probe_cc_field
-25453:
-- pf_active-coil_voltage
-25454:
-- pf_active-coil_voltage
-25455:
-- pf_active-coil_voltage
-25456:
-- pf_active-coil_voltage
-25457:
-- pf_active-coil_voltage
+- equilibrium-beta_tor
