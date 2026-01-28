@@ -16,11 +16,10 @@ import logging
 from urllib.error import HTTPError
 from pprint import pprint
 import time
+from posixpath import join as posix_join
+from os.path import join as os_join
 
-try:
-    from . import constants as cc
-except ImportError:
-    import constants as cc
+from MAST_tools import constants as cc
 
 logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 
@@ -38,7 +37,7 @@ class MASTStorageManager:
         Target filesystem protocol for the selected base fsspec protocol.
     s3_endpoint_url : str
         Endpoint of the cloud S3 bucket used for remote data pulling.
-    base_remote_parquet_path : Optional[str]
+    base_remote_parquet_path : str
         Local root path used for remote metadata pulling in parquet format.
     base_local_zarr_path : Optional[str]
         Local root path used for local data pulling in zarr format.
@@ -103,9 +102,9 @@ class MASTStorageManager:
             base_fsspec_protocol: str = "simplecache",
             target_fsspec_protocol: str = "s3",
             s3_endpoint_url: str = "https://s3.echo.stfc.ac.uk",
-            base_remote_parquet_path: Optional[str] = "https://mastapp.site/parquet",
+            base_remote_parquet_path: str = "https://mastapp.site/parquet",
             base_local_zarr_path: Optional[str] = "/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp",
-            base_local_parquet_path: Optional[str] = "../../metadata/parquet",
+            base_local_parquet_path: Optional[str] = "artifacts/parquet",
             store_manager_id: str = ""
     ) -> None:
         """
@@ -135,7 +134,7 @@ class MASTStorageManager:
         s3_endpoint_url : str
             Endpoint of the cloud S3 bucket used for remote data pulling (i.e., for local=False in some methods).
             Default: "https://s3.echo.stfc.ac.uk".
-        base_remote_parquet_path : Optional[str]
+        base_remote_parquet_path : str
             Local root path used for remote metadata pulling (i.e., for local=False in some methods) in parquet format.
             Default: "https://mastapp.site/parquet/".
         base_local_zarr_path : Optional[str]
@@ -144,7 +143,7 @@ class MASTStorageManager:
             FIXME: Should this default value be included when open sourcing?
         base_local_parquet_path : Optional[str]
             Local root path used for local metadata pulling (i.e., for local=True in some methods) in parquet format.
-            Default: None.
+            Default: "artifacts/parquet".
         store_manager_id : str
             User defined manager ID. Default: "".
 
@@ -168,10 +167,32 @@ class MASTStorageManager:
         self.store_manager_id = store_manager_id
 
     # ------------------------------------------------------------------------------------------------------------------
-    def build_level_path(self, level: int | str, test_data: bool) -> str:
-        level_str = f"level{level}"
-        return os.path.join("test", level_str) if test_data else level_str
+    @staticmethod
+    def build_level_path(
+            level: int,
+            test_data: bool
+    ) -> str:
+        """
+        Build POSIX subpath involving level and test_data.
 
+        Parameters
+        ----------
+        level : int
+            Target MAST data level.
+        test_data : bool
+            Boolean tag to define if MAST data is pulled from test data (True) or curated data (False)
+
+        Returns
+        -------
+        str
+            Subpath build using POSIX standard.
+        """
+
+        level_str = f"level{level}"
+
+        return posix_join("test", level_str) if test_data else level_str
+
+    # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def _is_digit(
             item: Any
@@ -549,7 +570,8 @@ class MASTStorageManager:
         Parameters
         ----------
         level : int
-            Target level for the MAST data to be pulled. Default: 2.
+            Target level for the MAST data to be pulled.
+            Default: 2.
         test_data : bool
             If True, the target shot is pulled from test data, otherwise it is pulled from curated data.
             Optional. Default: False.
@@ -569,6 +591,9 @@ class MASTStorageManager:
 
         Raises
         ------
+        NotImplementedError
+            If `via_parquet` is True and parquet `level` is 1 or `test_data` is True.
+
         ValueError
             If `via_parquet` is True and parquet path is None.
 
@@ -579,25 +604,29 @@ class MASTStorageManager:
 
         if via_parquet:
             # Parquet pipeline
+
+            if (level == 1) or test_data:
+                raise NotImplementedError("Parquet metadata is not available for level 1 or test data.")
+
             base_parquet_path = self.base_local_parquet_path if local else self.base_remote_parquet_path
             if base_parquet_path is None:
                 raise ValueError(f"Invalid value '{base_parquet_path}' for attribute 'base_local_parquet_path' of the "
                                  f"MASTStorageManager instance.")
 
             if local:
-                full_path = os.path.join(base_parquet_path,test_and_level_case,"shots_metadata.parquet")
+                full_path = os_join(base_parquet_path, test_and_level_case, "shots_metadata.parquet")
             else:
-                full_path = os.path.join(base_parquet_path,test_and_level_case,"shots")
+                full_path = posix_join(base_parquet_path, test_and_level_case, "shots")
 
             summary_dataframe = self._read_parquet_data(path=full_path, local=local)
             raw_shot_ids = summary_dataframe["shot_id"].values
         else:
             # FSSpec pipeline
             if local:
-                local_path = os.path.join(self.base_local_zarr_path,test_and_level_case)
+                local_path = os_join(self.base_local_zarr_path, test_and_level_case)
                 all_filenames = self._read_fsspec_listdir(path=local_path, local=True)
             else:
-                remote_path = os.path.join("mast",test_and_level_case,"shots")
+                remote_path = posix_join("mast", test_and_level_case, "shots")
                 all_filenames = [item["Key"] for item in self._read_fsspec_listdir(path=remote_path, local=False)]
 
             raw_shot_ids = [
@@ -636,7 +665,7 @@ class MASTStorageManager:
         Raises
         ------
         FileNotFoundError
-            If invalid availability_data_filepath is provided.
+            If invalid `availability_data_filepath` is provided.
 
         """
 
@@ -697,6 +726,8 @@ class MASTStorageManager:
 
         Raises
         ------
+        NotImplementedError
+            If `via_parquet` is True and parquet `level` is 1 or `test_data` is True.
         ValueError
             If `via_parquet` is True and parquet path is None.
 
@@ -706,10 +737,12 @@ class MASTStorageManager:
         if shot_ids is not None:
             self._check_list_of_shot_ids(shot_ids=shot_ids)
 
-        test_and_level_case = self.build_level_path(level, test_data)
-
         if via_parquet:
             # Parquet pipeline
+
+            if (level == 1) or test_data:
+                raise NotImplementedError("Parquet metadata is not available for level 1 or test data.")
+            test_and_level_case = self.build_level_path(level, test_data)
 
             base_parquet_path = self.base_local_parquet_path if local else self.base_remote_parquet_path
             if base_parquet_path is None:
@@ -717,9 +750,9 @@ class MASTStorageManager:
                                  f"MASTStorageManager instance.")
 
             if local:
-                full_path = os.path.join(base_parquet_path,test_and_level_case,"shots_sources.parquet")
+                full_path = os_join(base_parquet_path, test_and_level_case, "shots_sources.parquet")
             else:
-                full_path = os.path.join(base_parquet_path,test_and_level_case,"sources")
+                full_path = posix_join(base_parquet_path, test_and_level_case, "sources")
             summary_dataframe = self._read_parquet_data(path=full_path, local=local)
             if shot_ids:
                 composite_condition = summary_dataframe["shot_id"] == shot_ids[0]
@@ -770,7 +803,7 @@ class MASTStorageManager:
 
         Parameters
         ----------
-        shot_ids : Optional[list of ints]
+        shot_ids : Optional[list[ints]]
             Target shot IDs to be checked in the MAST database. If None is provided, all shots are checked.
             Default: None.
         level : int
@@ -798,8 +831,10 @@ class MASTStorageManager:
 
         Raises
         ------
+        NotImplementedError
+            If `via_parquet` is True and parquet `level` is 1 or `test_data` is True.
         ValueError
-            If 'via_parquet' is True and parquet path is None.
+            If `via_parquet` is True and parquet path is None.
 
         Notes
         -----
@@ -813,11 +848,13 @@ class MASTStorageManager:
             shot_ids = self.list_all_shots(level=level, test_data=test_data, local=local, via_parquet=via_parquet)
         else:
             self._check_list_of_shot_ids(shot_ids=shot_ids)
-
-        test_and_level_case = self.build_level_path(level, test_data)
         
         if via_parquet:
             # Parquet pipeline
+
+            if (level == 1) or test_data:
+                raise NotImplementedError("Parquet metadata is not available for level 1 or test data.")
+            test_and_level_case = self.build_level_path(level, test_data)
 
             base_parquet_path = self.base_local_parquet_path if local else self.base_remote_parquet_path
             if base_parquet_path is None:
@@ -826,7 +863,12 @@ class MASTStorageManager:
 
             signal_info = {}
             if local:
-                root_signals_path = os.path.join(base_parquet_path,test_and_level_case,"all_signals")
+                root_signals_path = os_join(base_parquet_path, test_and_level_case, "all_signals")
+
+                if not os.path.isdir(root_signals_path):
+                    raise FileNotFoundError(f"Subdirectory {root_signals_path} does not exits. Download all signals "
+                                            f"metadata via the `download_all_signals_metadata_parquet` method in "
+                                            f"`src/MAST_tools/metadata_utils.py` and try again.")
 
                 all_signal_names = os.listdir(root_signals_path)
                 len_all_signals = len(all_signal_names)
@@ -853,8 +895,8 @@ class MASTStorageManager:
             else:
                 len_shot_ids = len(shot_ids)
                 for ii, shot_id_ii in enumerate(shot_ids):
-                    full_path = f"{base_parquet_path}/{test_and_level_case}/signals?shot_id={shot_id_ii}"
-                    df = self._read_parquet_data(path=full_path, local=local)
+                    target_url = f"{base_parquet_path}/{test_and_level_case}/signals?shot_id={shot_id_ii}"
+                    df = self._read_parquet_data(path=target_url, local=local)
                     signal_info[shot_id_ii] = [f"{row['source']}__{row['name']}" for index, row in df.iterrows()]
 
                     if verbose:
@@ -935,14 +977,23 @@ class MASTStorageManager:
         """
 
         parsed_shot_info = self._parse_shot_info_dict(shot_info=shot_info)
-        test_and_level_case = self.build_level_path(parsed_shot_info["level"],parsed_shot_info["test_data"])
+        test_and_level_case = self.build_level_path(parsed_shot_info["level"], parsed_shot_info["test_data"])
 
         if parsed_shot_info["local"]:
-            zarr_filepath = os.path.join(self.base_local_zarr_path,test_and_level_case,f"{parsed_shot_info['shot_id']}.zarr")
+            zarr_filepath = os_join(
+                self.base_local_zarr_path,
+                test_and_level_case,
+                f"{parsed_shot_info['shot_id']}.zarr"
+            )
             
             store = zarr.storage.LocalStore(root=zarr_filepath)
         else:
-            zarr_filepath = os.path.join( "mast",test_and_level_case,"shots",f"{parsed_shot_info['shot_id']}.zarr" )
+            zarr_filepath = posix_join(
+                "mast",
+                test_and_level_case,
+                "shots",
+                f"{parsed_shot_info['shot_id']}.zarr"
+            )
             
             store = zarr.storage.FsspecStore(
                 fs=self.fs_remote_s3fs,
@@ -950,9 +1001,9 @@ class MASTStorageManager:
                 path=zarr_filepath
             )
 
-        # if verbose:
-        #     store_type = 'LocalStore' if parsed_shot_info["local"] else 'FsspecStore'
-        #     print(f"{store_type} store for shot {parsed_shot_info['shot_id']} created.")
+        if verbose:
+            store_type = 'LocalStore' if parsed_shot_info["local"] else 'FsspecStore'
+            print(f"{store_type} store for shot {parsed_shot_info['shot_id']} created.")
 
         return store
 
@@ -996,18 +1047,27 @@ class MASTStorageManager:
             # Create group from shot info dictionary.
 
             parsed_shot_info = self._parse_shot_info_dict(shot_info=data_origin)
-            test_and_level_case = self.build_level_path(parsed_shot_info["level"],parsed_shot_info["test_data"])
+            test_and_level_case = self.build_level_path(parsed_shot_info["level"], parsed_shot_info["test_data"])
             
             if parsed_shot_info['local']:
                 # Create group by implicitly creating a writable LocalStore
-                local_path = os.path.join( self.base_local_zarr_path, test_and_level_case,f"{parsed_shot_info['shot_id']}.zarr")
+                local_path = os_join(
+                    self.base_local_zarr_path,
+                    test_and_level_case,
+                    f"{parsed_shot_info['shot_id']}.zarr"
+                )
                     
                 group = zarr.open_group(store=local_path, mode="r")
                 # Source: https://zarr.readthedocs.io/en/latest/user-guide/storage.html#implicit-store-creation
             else:
                 # Create group by implicitly creating a read-only FsspecStore
                 
-                remote_shot_path = os.path.join("/mast",test_and_level_case, "shots", f"{parsed_shot_info['shot_id']}.zarr")
+                remote_shot_path = posix_join(
+                    "/mast",
+                    test_and_level_case,
+                    "shots",
+                    f"{parsed_shot_info['shot_id']}.zarr"
+                )
 
                 group = zarr.open_group(
                     store=f"{self.target_fsspec_protocol}:/{remote_shot_path}",
@@ -1057,7 +1117,7 @@ def tests() -> None:
         s3_endpoint_url="https://s3.echo.stfc.ac.uk",
         base_remote_parquet_path="https://mastapp.site/parquet",
         base_local_zarr_path="/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp",
-        base_local_parquet_path="../../metadata/parquet",
+        base_local_parquet_path="artifacts/parquet",
         store_manager_id="my_store_manager"
     )
 
@@ -1152,7 +1212,7 @@ def tests() -> None:
 
     if TESTS_TO_RUN["check_signal_availability"]:
 
-        signal_availability_file = "../../metadata/2025-04-17/data_level2_signal_availability.csv"
+        signal_availability_file = "artifacts/2025-04-17/data_level2_signal_availability.csv"
         dict_target_signals = {
             "thomson_scattering": ["n_e"],
             "spectrometer_visible": ["filter_spectrometer_bes_voltage"],

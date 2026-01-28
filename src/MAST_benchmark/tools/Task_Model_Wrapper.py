@@ -1,26 +1,135 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import numpy as np
+from typing import Optional, Mapping, Any
 
 from MAST_tools.MAST_dataset import MastDataset
 
-def all_vars_have_nans(dict_obj):
-    # print('ALL?', [ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ] )
-    return all([ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ])
 
-def any_vars_have_nans(dict_obj):
-    # print('ANY?', [ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ] )
-    return any([ np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys() ])
+# ----------------------------------------------------------------------------------------------------------------------
+def all_vars_have_nans(
+        dict_obj: Mapping
+) -> bool:
+    """
+    Check if bool(x) is True for all values x in `dict_obj`.
+
+    Parameters
+    ----------
+    dict_obj : Mapping
+        Input mapping.
+
+    Returns
+    -------
+    bool
+        If the iterable is empty, return True.
+
+    """
+
+    # print('ALL?', [np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()] )
+    return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def any_vars_have_nans(
+        dict_obj: Mapping
+):
+    """
+    Check if bool(x) is True for any values x in `dict_obj`.
+
+    Parameters
+    ----------
+    dict_obj
+        Input mapping.
+
+    Returns
+    -------
+    bool
+        If the iterable is empty, return True.
+
+    """
+
+    # print('ANY?', [np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()] )
+    return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+
 
 # ======================================================================================================================
 class TaskModelTransformWrapper(MastDataset):
+    """
+    Wrapper for task model transform.
+
+    Attributes
+    ----------
+    base : Optional[MastDataset]
+        Target base MAST dataset.
+    shots_list : tuple
+        List of shots from the target base MAST dataset.
+    dict_task_metadata : Mapping[str, Any]
+        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
+    input_keys : tuple
+        List of input keys for the task window segmenter.
+    actuator_keys : tuple
+        List of actuator keys for the task window segmenter.
+    output_keys : tuple
+        List of output keys for the task window segmenter.
+    input_length : int
+        Input length for the task window segmenter.
+    output_length : int
+        Output length for the task window segmenter.
+    delta : int
+        Target delta for the task window segmenter.
+    stride : float
+        Target stride.
+    model_transform : Any
+        Target model transform.
+    test_mode: bool
+        If True, keeping window with any no nans input or actuator, and all full outputs.
+    verbose : bool
+        If True, activate verbose mode.
+
+    Methods
+    -------
+    __getitem__(idx)
+        Return dataset item by shot index.
+    __len__
+        Get length of base dataset.
+    get_shot_id(idx)
+        Get shot ID from shot index.
+
+    """
+
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(
         self,
-        base_dataset,
-        dict_task_metadata,
-        config_task,
-        model_transform=None,
-        test_mode=False, # If True, keeping window with any no nans input or actuator, and all full outputs
-        verbose=False,
+        base_dataset: Optional[MastDataset],
+        dict_task_metadata: Mapping[str, Any],
+        config_task: Mapping[str, Any],
+        model_transform: Optional[Any] = None,
+        test_mode: bool = False,
+        verbose: bool = False,
     ):
+        """
+        Initialise class attributes.
+
+        Parameters
+        ----------
+        base_dataset : Optional[MastDataset]
+            Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
+        dict_task_metadata : Mapping[str, Any]
+            Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
+        config_task : Mapping[str, Any]
+            Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
+        model_transform : Optional[Any]
+            Optional model-specific transform chain applied per window.
+        test_mode : bool
+            If True, keeping window with any no nans input or actuator, and all full outputs.
+        verbose : bool
+            If True, activate verbose mode.
+
+        """
+
         self.base = base_dataset
         self.shots_list = self.base.shots_list
         self.dict_task_metadata = dict_task_metadata
@@ -91,7 +200,13 @@ class TaskModelTransformWrapper(MastDataset):
                 print(f"    dim shape: {dim_key}")
                 print(f"    we expect a window of length: {ts_length}")
 
-    def __getitem__(self, idx_shot):
+    # ------------------------------------------------------------------------------------------------------------------
+    def __getitem__(
+            self,
+            idx_shot: int
+    ):
+        """Return dataset item by shot index."""
+
         # process = psutil.Process(os.getpid())
         # mem = process.memory_info().rss / (1024 ** 2)
         # print(f"[Worker {os.getpid()}] __getitem__ mem: {mem:.2f} MB, idx={self.shots_list[idx]}")
@@ -113,7 +228,7 @@ class TaskModelTransformWrapper(MastDataset):
                 if len(dts) > 0:
                     delta_ts.append(np.min(dts))
         if not delta_ts:
-            if self.verbose: 
+            if self.verbose:
                 print(
                     f"[Warning] No valid Δt found in any output signals for shot {self.get_shot_id(idx_shot)}"
                 )
@@ -324,13 +439,13 @@ class TaskModelTransformWrapper(MastDataset):
 
             if self.test_mode:
                 window_valid = (
-                    not ( all_vars_have_nans(obj["input"]) and all_vars_have_nans(obj["actuator"]) )
+                    not (all_vars_have_nans(obj["input"]) and all_vars_have_nans(obj["actuator"]))
                     and not any_vars_have_nans(obj["output"])
                 )
             else:
-                window_valid=True
+                window_valid = True
 
-            if window_valid: 
+            if window_valid:
                 obj2 = self.model_transform(obj) if self.model_transform else obj
                 if obj2 is None:
                     continue
@@ -343,8 +458,17 @@ class TaskModelTransformWrapper(MastDataset):
                 # If window not valid
                 continue
 
+    # ------------------------------------------------------------------------------------------------------------------
     def __len__(self):
+        """Get length of base dataset."""
+
         return len(self.base)
 
-    def get_shot_id(self, idx: int):
+    # ------------------------------------------------------------------------------------------------------------------
+    def get_shot_id(
+            self,
+            idx: int
+    ):
+        """Get shot ID from shot index."""
+
         return self.base.shots_list[idx]

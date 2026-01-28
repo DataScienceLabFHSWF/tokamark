@@ -13,14 +13,9 @@ from typing import Union, Optional
 from types import NoneType
 import warnings
 
-try:
-    from . import store_utils
-    from . import signal_utils
-    from . import constants as cc
-except ImportError:
-    import store_utils
-    import signal_utils
-    import constants as cc
+from MAST_tools import store_utils
+from MAST_tools import signal_utils
+from MAST_tools import constants as cc
 
 
 # ======================================================================================================================
@@ -82,7 +77,7 @@ class MASTPlottingManager:
     @staticmethod
     def _plot_single_1d_profile(
             profile: xr.DataArray,
-            ax: Optional[np.ndarray, plt.Axes] = None
+            ax: Optional[Union[np.ndarray, plt.Axes]] = None
     ) -> None:
         """
         Helper function for plotting single 1D profiles.
@@ -91,7 +86,7 @@ class MASTPlottingManager:
         ----------
         profile : xr.DataArray
             Profile data.
-        ax : Optional[np.ndarray, plt.Axes]
+        ax : Optional[Union[np.ndarray, plt.Axes]]
             Matplotlib axis.
 
         Returns
@@ -115,14 +110,14 @@ class MASTPlottingManager:
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def _check_fig_size(
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for checking `fig_size`.
 
         Parameters
         ----------
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -150,7 +145,7 @@ class MASTPlottingManager:
     def plot_1d_profiles(
             self,
             profiles: Union[xarrayDataArray, xarrayDataset],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting 1D profiles, either from `xarrayDataArray` (single profile) or from `xarrayDataset`
@@ -160,7 +155,7 @@ class MASTPlottingManager:
         ----------
         profiles : Union[xarrayDataArray, xarrayDataset]
             Target 1D signal profiles.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -202,7 +197,7 @@ class MASTPlottingManager:
             data_origin: Union[dict, cc.ZarrStoreType],
             source_name: str,
             signal_name: str,
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting individual signals.
@@ -215,7 +210,7 @@ class MASTPlottingManager:
             Name of target source.
         signal_name : str
             Name of target signal.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -240,7 +235,7 @@ class MASTPlottingManager:
             self,
             data_origin: Union[int, cc.ZarrStoreType],
             source_name: str,
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting entire group of signals.
@@ -251,7 +246,7 @@ class MASTPlottingManager:
             Origin of data for group plotting.
         source_name : str
             Name of target source.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -302,7 +297,7 @@ class MASTPlottingManager:
     def plot_plasma_current(
             self,
             data_origin: Union[dict, cc.ZarrStoreType],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `summary__plasma_current` signal.
@@ -311,7 +306,7 @@ class MASTPlottingManager:
         ----------
         data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for signal plotting.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -331,7 +326,7 @@ class MASTPlottingManager:
     def plot_power_nbi(
             self,
             data_origin: Union[dict, cc.ZarrStoreType],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `summary__power_nbi` signal.
@@ -340,7 +335,7 @@ class MASTPlottingManager:
         ----------
         data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for signal plotting.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -360,7 +355,7 @@ class MASTPlottingManager:
     def plot_magnetics(
             self,
             data_origin: Union[dict, cc.ZarrStoreType],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `magnetics` group.
@@ -369,7 +364,7 @@ class MASTPlottingManager:
         ----------
         data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for signal plotting.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -389,7 +384,7 @@ class MASTPlottingManager:
     def plot_spectrometer(
             self,
             data_origin: Union[dict, cc.ZarrStoreType],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `spectrometer_visible` group.
@@ -398,7 +393,7 @@ class MASTPlottingManager:
         ----------
         data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for signal plotting.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -418,7 +413,7 @@ class MASTPlottingManager:
     def plot_charge_exchange(
             self,
             data_origin: Union[dict, cc.ZarrStoreType],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `charge_exchange` group.
@@ -427,7 +422,7 @@ class MASTPlottingManager:
         ----------
         data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for signal plotting.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -450,7 +445,7 @@ class MASTPlottingManager:
     def plot_thomson_scattering(
             self,
             data_origin: Union[dict, cc.ZarrStoreType],
-            fig_size: Optional[list[int], set[int]] = None
+            fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `thomson_scattering` group.
@@ -459,7 +454,7 @@ class MASTPlottingManager:
         ----------
         data_origin : Union[dict, cc.ZarrStoreType]
             Origin of data for signal plotting.
-        fig_size : Optional[list[int], set[int]]
+        fig_size : Optional[Union[list[int], set[int]]]
             Size of target Matplotlib figure.
             Default: None.
 
@@ -482,7 +477,7 @@ class MASTPlottingManager:
     # def plot_cameras(
     #         self,
     #         data_origin: Union[int, cc.ZarrStoreType],
-    #         fig_size: Optional[list[int], set[int]] = None
+    #         fig_size: Optional[Union[list[int], set[int]]] = None
     # ):
     #     # if fig_size is None:
     #     #     fig_size = [8, 4]

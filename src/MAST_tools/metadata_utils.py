@@ -11,7 +11,7 @@ import json
 
 # ----------------------------------------------------------------------------------------------------------------------
 def download_all_signals_metadata_parquet(
-        sources_signals_json_file="../metadata/2025-04-17/data_level2_sources_with_signals.json",
+        sources_signals_json_file="artifacts/2025-04-17/data_level2_sources_with_signals.json",
         level=2,
         target_subdir="all_signals",
         rewrite_files=False,
@@ -47,7 +47,7 @@ def download_all_signals_metadata_parquet(
         sources_with_signals = json.load(file)
     signal_names = sum(list(sources_with_signals.values()), [])
 
-    full_target_subdir = f"../metadata/parquet/level{level}/{target_subdir}"
+    full_target_subdir = f"artifacts/parquet/level{level}/{target_subdir}"
     if not os.path.isdir(full_target_subdir):
         os.makedirs(full_target_subdir)
 
@@ -101,7 +101,7 @@ def download_shots_metadata_parquet(
 
     """
 
-    target_subdir = f"../metadata/parquet/level{level}"
+    target_subdir = f"artifacts/parquet/level{level}"
     target_url = f"https://mastapp.site/parquet/level{level}/shots"
     target_filename = f"{target_subdir}/shots_metadata.parquet"
 
@@ -156,13 +156,13 @@ def download_signals_per_shot_metadata_parquet(
     """
 
     if local_metadata_file:
-        level_metadata = pd.read_parquet(f"../metadata/parquet/level{level}/shots_metadata.parquet")
+        level_metadata = pd.read_parquet(f"artifacts/parquet/level{level}/shots_metadata.parquet")
     else:
         level_metadata = pd.read_parquet(f"https://mastapp.site/parquet/level{level}/shots")
 
     shot_ids = level_metadata["shot_id"].values.tolist()
 
-    full_target_subdir = f"../metadata/parquet/level{level}/{target_subdir}"
+    full_target_subdir = f"artifacts/parquet/level{level}/{target_subdir}"
     if not os.path.isdir(full_target_subdir):
         os.makedirs(full_target_subdir)
 
@@ -208,7 +208,7 @@ def tests() -> None:
     if TESTS_TO_RUN["download_all_signals_parquet"]:
         download_all_signals_metadata_parquet(
             level=2,
-            sources_signals_json_file="../metadata/2025-04-17/data_level2_sources_with_signals.json",
+            sources_signals_json_file="artifacts/2025-04-17/data_level2_sources_with_signals.json",
             rewrite_files=False,
             verbose=True
         )

@@ -1,5 +1,10 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import os
-from typing import List
+from typing import List, Any, Mapping
 import yaml
 
 from MAST_benchmark.tools.path import METADATA_DIR
@@ -16,15 +21,49 @@ from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform i
     FillProfileWithZerosTransform,
 )
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 def build_common_signal_transform_map(
     source_signal_list: List[tuple],
-    use_std_scaling: bool = True,   # <--- new flag
-):
-    """Builds the signal transform map for each variable."""
+    use_std_scaling: bool = True
+) -> Any:
+    """
+    Build the signal transform map for each variable.
 
-    def maybe_std(var):
-        """Return StdScalingTransform if enabled, else empty list."""
+    Parameters
+    ----------
+    source_signal_list : List[tuple]
+        List of source-signal tuples.
+    use_std_scaling: bool
+        If True, use STD scaling.
+        Default: True
+
+    Returns
+    -------
+    Mapping
+        Signal transform map for each variable.
+
+    """
+
+    # ..................................................................................................................
+    def maybe_std(
+            var: str
+    ) -> Any:
+        """
+        Return StdScalingTransform if enabled, else empty list.
+
+        Parameters
+        ----------
+        var : str
+            Target variable.
+
+        Returns
+        -------
+        Any
+            StdScalingTransform if enabled, else empty list.
+
+        """
+
         if use_std_scaling:
             with open(os.path.join(METADATA_DIR, "dict_stats_metadata.yaml"), "r") as f:
                 dict_stats_metadata = yaml.safe_load(f)
@@ -64,4 +103,3 @@ def build_common_signal_transform_map(
         )
 
     return signal_transform_map
-
