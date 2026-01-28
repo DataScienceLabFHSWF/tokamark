@@ -1,7 +1,12 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 from typing import Optional, Mapping, Any
-import os
-import pickle
-import numpy as np
+# import os
+# import pickle
+# import numpy as np
 
 from MAST_tools.MAST_dataset import MastDataset
 from MAST_benchmark.tools.Task_Model_Wrapper import TaskModelTransformWrapper
@@ -13,14 +18,35 @@ from MAST_benchmark.tools.MAST_composite_transform import (
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_MAST_dataset(
-    config_task,
-    shots_list,
-    local_flag = True,
-    use_std_scaling = True,
-    return_incomplete_shots=True,
-    remove_outliers=True,
-    verbose=False
+    config_task: Mapping[str, Any],
+    shots_list: list,
+    local_flag: bool = True,
+    use_std_scaling: bool = True,
+    return_incomplete_shots: bool = True,
+    remove_outliers: bool = True,
+    verbose: bool = False
 ):
+    """
+    Initialize MAST dataset.
+
+    Parameters
+    ----------
+    config_task : Mapping[str, Any],
+        Task configuration dictionary.
+    shots_list : list
+        List of target shots.
+    local_flag : bool
+        If True, local mode is used.
+    use_std_scaling : bool
+        If True, standard scaling is used.
+    return_incomplete_shots :
+        If True, incomplete shots are allowed.
+    remove_outliers : bool
+        If True, outliers are removed.
+    verbose : bool
+        If True, verbose mode is activated.
+
+    """
 
     # ..................................................................................................................
     # Get unique source-signal
@@ -58,11 +84,11 @@ def initialize_model_dataset(
     dataset: Optional[MastDataset],
     dict_task_metadata: Mapping[str, Any],
     config_task: Mapping[str, Any],
-    model_specific_transform=None,
-    test_mode=False,
+    model_specific_transform: Optional[Any] = None,
+    test_mode: bool = False,
     *,
     verbose: bool = False,
-) -> Optional[Any]:
+) -> Optional[TaskModelTransformWrapper]:
     """
     Wrap a single baseline shot-level dataset with TaskModelTransformWrapper.
 
@@ -71,29 +97,33 @@ def initialize_model_dataset(
 
     Parameters
     ----------
-    dataset:
+    dataset : Optional[MastDataset]
         Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
-    dict_task_metadata:
+    dict_task_metadata : Mapping[str, Any],
         Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
-    config_task:
-        Task configuration dict containing `task_window_segmenter` (keys, lengths, delta).
-    model_specific_transform:
+    config_task : Mapping[str, Any],
+        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
+    model_specific_transform : Optional[Any]
         Optional model-specific transform chain applied per window.
-    verbose:
+    test_mode : bool
+        If True, activates test mode.
+    verbose : bool
         If True, enables verbose prints in the wrapper.
 
     Returns
     -------
-    TaskModelTransformWrapper | None
+    Optional[TaskModelTransformWrapper]
         Wrapped dataset, or None if input dataset is None.
+
     """
+
     if dataset is None:
         return None
 
     return TaskModelTransformWrapper(
-        dataset,
-        dict_task_metadata,
-        config_task,
+        base_dataset=dataset,
+        dict_task_metadata=dict_task_metadata,
+        config_task=config_task,
         model_transform=model_specific_transform,
         test_mode=test_mode,
         verbose=verbose,

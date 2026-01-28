@@ -9,13 +9,99 @@ import yaml
 import numpy as np
 from pathlib import Path
 from pprint import pprint
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, Sequence, Any
 from torch.utils.data import Dataset
+
+from MAST_tools import signal_utils
 from MAST_benchmark.tools.path import METADATA_DIR
-try:
-    from . import signal_utils
-except ImportError:
-    import signal_utils
+
+
+# ======================================================================================================================
+class CachedDataset(Dataset):
+    """
+    Class to cache a base dataset into local memory.
+
+    Attributes
+    ----------
+    base_dataset : Collection
+        Base dataset to be cached.
+    cache : list[Any]
+        List of cached dataset items.
+    _is_cached = list[Bool]
+        List of boolean flags to define if a given dataset item is cached or not.
+
+    Methods
+    -------
+    __len__
+        Return the size of the dataset.
+    __getitem__(idx)
+        Return samples by shot index.
+
+    """
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __init__(
+            self,
+            base_dataset: Sequence
+    ) -> None:
+        """
+        Initialise class attributes.
+
+        Parameters
+        ----------
+        base_dataset: Sequence
+            Base dataset to be cached.
+
+        Returns
+        -------
+        None
+
+        """
+
+        self.base_dataset = base_dataset
+        self.cache = [None] * len(base_dataset)
+        self._is_cached = [False] * len(base_dataset)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __len__(self):
+        """
+        Return the size of the dataset.
+
+        Returns
+        -------
+        int
+            Length of self.base_dataset.
+
+        """
+
+        return len(self.base_dataset)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __getitem__(
+            self,
+            idx
+    ) -> Any:
+        """
+        Return samples by shot index.
+
+        Parameters
+        ----------
+        idx : int
+            Shot index.
+
+        Returns
+        -------
+        Any
+            A cached dataset sample.
+
+        """
+
+        # If dataset item is not cached, load it once
+        if not self._is_cached[idx]:
+            self.cache[idx] = self.base_dataset[idx]
+            self._is_cached[idx] = True
+
+        return self.cache[idx]
 
 
 # ======================================================================================================================
@@ -130,8 +216,8 @@ class MastDataset(Dataset):
         """
 
         # General MAST settings
+        self.local = local
         if other_mast_settings:
-            self.local = local
             if "level" in other_mast_settings:
                 if isinstance(other_mast_settings["level"], int):
                     if other_mast_settings["level"] in [1, 2]:
@@ -157,7 +243,6 @@ class MastDataset(Dataset):
             else:
                 self.test_data = False
         else:
-            self.local = local
             self.level = 2
             self.test_data = False
 
@@ -168,7 +253,7 @@ class MastDataset(Dataset):
         self.shot_level_transform = shot_level_transform
         self.return_incomplete_shots = return_incomplete_shots
         self.remove_outliers = remove_outliers
-        if self.remove_outliers :
+        if self.remove_outliers:
             metadata_path = os.path.join(METADATA_DIR, 'dict_outlier_metadata.yaml')
             with open(metadata_path, 'r') as f:
                 self.dict_outlier_metadata = yaml.safe_load(f)
@@ -189,7 +274,7 @@ class MastDataset(Dataset):
         Returns
         -------
         int
-            Length of shot_list.
+            Length of self.shot_list.
 
         """
 
@@ -296,7 +381,7 @@ class MastDataset(Dataset):
                             {"time": shot_time, "values": shot_vals}
                         )
                     else:
-                        shot[f"{source}-{signal}"] = {"time": shot_time, "values": shot_vals}                            
+                        shot[f"{source}-{signal}"] = {"time": shot_time, "values": shot_vals}
                 else:
                     # Keep missing signals as {"time": np.array([]), "values": np.array([])}
                     shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
@@ -304,7 +389,7 @@ class MastDataset(Dataset):
         # Apply shot-level transforms to obtain a list of training objects (windows)
         if self.shot_level_transform:
             if self.return_incomplete_shots:
-                # Pass through even if some variables are missing;
+                # Pass through even if some variables are missing
                 item = self.shot_level_transform(shot)
                 return item if isinstance(item, list) else [item]
             else:
@@ -317,35 +402,6 @@ class MastDataset(Dataset):
         else:
             # No shot-level transform → return the raw shot dict (may include None fields)
             return shot
-
-    # ------------------------------------------------------------------------------------------------------------------
-    class CachedDataset(Dataset):
-        """ Cache base dataset into local memory
-
-        Parameters
-        ----------
-        Dataset : PyTorch Dataset
-        """
-        def __init__(self, base_dataset):
-            """
-            base_dataset: PyTorch Dataset
-            """
-            self.base_dataset = base_dataset
-            self.cache = [None] * len(base_dataset)
-            self._is_cached = [False] * len(base_dataset)
-        
-        def __getitem__(self, idx):
-            # If not cached, load it once
-            if not self._is_cached[idx]:
-                item = self.base_dataset[idx]
-
-                self.cache[idx] = item
-                self._is_cached[idx] = True
-
-            return self.cache[idx]
-
-        def __len__(self):
-            return len(self.base_dataset)
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_shot_id(

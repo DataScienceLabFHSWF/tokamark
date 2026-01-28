@@ -11,59 +11,31 @@ For usage on [CSD3](https://docs.hpc.cam.ac.uk/hpc/index.html).
 1. Connect to CSD3 following the instructions in the [user guide](https://docs.hpc.cam.ac.uk/hpc/user-guide/quickstart.html).
 2. Install Miniforge by following the instructions [here](https://github.com/conda-forge/miniforge). In brief:  
    1. Find the latest [release](https://github.com/conda-forge/miniforge/releases/).
-   2. Download the installer. For example:
+   2. Download and run the installer. For example:
       ```bash
       cd ~
       wget https://github.com/conda-forge/miniforge/releases/download/24.11.3-2/Miniforge3-24.11.3-2-Linux-x86_64.sh
-      ```
-   3. Run the installer. For example:
-      ```bash
       chmod +x Miniforge3-24.11.3-2-Linux-x86_64.sh
       ./Miniforge3-24.11.3-2-Linux-x86_64.sh
       ```
-   4. Source the base environment:
+   3. Source the base environment:
       ```bash
       source ~/miniforge3/bin/activate
       ```
-3. Set up the project virtual environment:
-   1. Move to the directory containing this repository. For example:
-      ```bash
-      cd ~/hncdi-fusion-plasma/fairmast-data-preprocessing
-      ```
-   2. Use conda to set up the virtual environment and install the dependencies:
-      ```bash
-      conda env create -f environment.yml
-      ```
-4. Activate the project conda environment:
+3. Move to the directory containing this repository. For example:
    ```bash
-   conda activate fairmast-data-preprocessing
+   cd ~/hncdi-fusion-plasma/fairmast-data-preprocessing
    ```
-
-## Configure PYTHONPATH for packages imports
-
-There are a few possible options:
-1. You can simply update PYTHONPATH variable in your virtual environment. This has temporary effect and should be repeated everytime you restart your environment. 
-      ```bash
-      export PYTHONPATH=/your/custom/path/fairmast-data-preprocessing/src:$PYTHONPATH
-      ```
-2. Enable persistent change to PYTHONPATH in conda environment:
-   1. Create the directory if it doesn't exist:
-      ```bash
-      mkdir -p ~/miniconda3/envs/your_env_name/etc/conda/activate.d
-      ```
-   2. Create the script:
-      ```bash
-      echo 'export PYTHONPATH=/your/custom/path/fairmast-data-preprocessing/src:$PYTHONPATH' > ~/miniconda3/envs/your_env_name/etc/conda/activate.d/env_vars.sh
-      ```
-   3. Unset PYTHONPATH on deactivation
-      ```bash
-      mkdir -p ~/miniconda3/envs/your_env_name/etc/conda/deactivate.d
-      echo 'unset PYTHONPATH' > ~/miniconda3/envs/your_env_name/etc/conda/deactivate.d/env_vars.sh
-      ```
-2. Install package into a global package repo (Warning: not fully tested yet):
-      ```bash
-      pip install -e .
-      ```
+4. Use conda to set up and activate a virtual environment with basic dependencies: 
+   ```bash
+   conda env create -f environment_basic.yml
+   conda activate fairmast-baseline
+   ```
+5. Run the command for the package-like installation of the project following [PEP 518](https://peps.python.org/pep-0518/)
+   requirements (which makes use of the provided `pyproject.toml` file):
+   ```bash
+   pip install -e .
+   ```
 
 ## CSD3 instructions
 

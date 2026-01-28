@@ -1,7 +1,10 @@
-import argparse
-from typing import Dict, Any
-import torch
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
 
+import argparse
+from typing import Dict, Any, Sequence, Optional
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
@@ -21,14 +24,65 @@ device = get_device()
 # print(f"Using device: {device}\n")
 
 
-# ----------------------------------------------------------------------------------------------------------------------
+# ======================================================================================================================
 class ModelSpecificTransform:  # TEMPLATE
-    def __init__(self, verbose=False):
+    """
+    Model specific transform.
+
+    Attributes
+    ----------
+    verbose : bool
+        If True, activate verbose mode.
+
+    Methods
+    -------
+    __call__(shot)
+        Call method.
+
+    """
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __init__(
+            self,
+            verbose=False
+    ) -> None:
+        """
+        Initialise class attributes.
+
+        Parameters
+        ----------
+        verbose : bool
+            If True, activate verbose mode.
+
+        Returns
+        -------
+        None
+
+        """
+
         # dictionary that persists across calls
         self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, shot: Dict[str, Any]) -> Dict[str, Any]:
+    def __call__(
+            self,
+            shot: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Call method.
+
+        Parameters
+        ----------
+        shot : Dict[str, Any]
+            Target shot.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Mapping with x and y values.
+
+        """
+
         return {
             "x": (
                 [data["values"] for var, data in shot["input"].items()]
@@ -37,9 +91,29 @@ class ModelSpecificTransform:  # TEMPLATE
             "y": [data["values"] for var, data in shot["output"].items()],
         }
 
+
 # ----------------------------------------------------------------------------------------------------------------------
-def model_collate_fn(batch, verbose=False):
-    
+def model_collate_fn(
+        batch: Sequence,
+        verbose: bool = False
+) -> Optional[Any]:
+    """
+    Model collate function.
+
+    Parameters
+    ----------
+    batch : Sequence
+        Input batch.
+    verbose : bool
+        If True, activate verbose mode.
+
+    Returns
+    -------
+    Optional[Any]
+        Default collate function evaluated on flattened batch if feasible, None otherwise.
+
+    """
+
     flattened_batch = [
         (item["shot_id"], item["window_index"], item["x"], item["y"])
         for sublist in batch
@@ -52,25 +126,28 @@ def model_collate_fn(batch, verbose=False):
         )
         if len(flattened_batch) == 0:
             print("batch is None")
+
     return default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
 
 
+# ======================================================================================================================
 if __name__ == "__main__":
-    print(f"Number of available CPU cores: {cpu_count()}\n")
-    mp.set_start_method("spawn", force=True)
 
-    # -------------------------------------------------------------------
+    print(f"Number of available CPU cores: {cpu_count()}\n")
+    mp.set_start_method(method="spawn", force=True)
+
+    # ------------------------------------------------------------------------------------------------------------------
     # Argument parsing
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--task",
+        name_or_flags="--task",
         type=str,
         default="task_1-1",
         help="The name of the task available in the benchmark",
     )
     parser.add_argument(
-        "--config_model",
+        name_or_flags="--config_model",
         type=str,
         default="scripts/config_test.yaml",  # CHANGE HERE
         # default="/home/ir-zaya1/fusion/fairmast-data-preprocessing/scripts/config_test.yaml",
@@ -82,68 +159,67 @@ if __name__ == "__main__":
     config_task = get_config_from_yaml("scripts/config_task_0-0.yaml")
     # Note: Uncomment the next 2 lines to use benchmark tasks
     # from MAST_benchmark.tasks import get_task_config
-    # config_task = get_task_config(args.task)    
+    # config_task = get_task_config(args.task)
 
     # Load CNN YAML config
     config_model = get_config_from_yaml(args.config_model)
 
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # Initialize datasets and metadata
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
 
     train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index = config_model["subset_of_shots"]
+        max_index=config_model["subset_of_shots"]
     )
 
     local_flag = config_model["local"]
 
-    train_MAST_dataset = initialize_MAST_dataset( 
-        config_task,
-        train_shots_,
-        local_flag,
-        use_std_scaling = True,
+    train_MAST_dataset = initialize_MAST_dataset(
+        config_task=config_task,
+        shots_list=train_shots_,
+        local_flag=local_flag,
+        use_std_scaling=True,
         return_incomplete_shots=True,
-        remove_outliers = True,
+        remove_outliers=True,
         verbose=True
     )
-    val_MAST_dataset = initialize_MAST_dataset( 
-        config_task,
-        val_shots_,
-        local_flag,
-        use_std_scaling = True,
+    val_MAST_dataset = initialize_MAST_dataset(
+        config_task=config_task,
+        shots_list=val_shots_,
+        local_flag=local_flag,
+        use_std_scaling=True,
         return_incomplete_shots=True,
-        remove_outliers = True,
+        remove_outliers=True,
         verbose=True
     )
-    test_MAST_dataset = initialize_MAST_dataset( 
-        config_task,
-        test_shots_,
-        local_flag,
-        use_std_scaling = True,
+    test_MAST_dataset = initialize_MAST_dataset(
+        config_task=config_task,
+        shots_list=test_shots_,
+        local_flag=local_flag,
+        use_std_scaling=True,
         return_incomplete_shots=True,
-        remove_outliers = True,
+        remove_outliers=True,
         verbose=True
     )
 
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # Initialize task-specific metadata
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
 
     dict_task_metadata = get_task_metadata(
         config_task,
         verbose=False
     )
 
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
 
     # train_model_dataset = initialize_model_dataset(
     #     train_MAST_dataset, dict_metadata, config_task, None, verbose=True
     # )
 
-
-    # # The set of windows of 1 shot is saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
+    # # Set of 1-shot windows saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
 
     # # You can transform them to list of list via:
     # list_list_shot_0 = [
@@ -179,33 +255,36 @@ if __name__ == "__main__":
     # print("actuator, ", list_dict_shot_0[0]["actuator"].keys())
     # print("output, ", list_dict_shot_0[0]["output"].keys())
 
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
-    # -------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
 
-    model_specific_transform = ModelSpecificTransform() # likely depends on dict_task_metadata
-    
+    model_specific_transform = ModelSpecificTransform()  # likely depends on dict_task_metadata
+
     train_model_dataset = initialize_model_dataset(
-        train_MAST_dataset,
-        dict_task_metadata,
-        config_task,
-        model_specific_transform,
+        dataset=train_MAST_dataset,
+        dict_task_metadata=dict_task_metadata,
+        config_task=config_task,
+        model_specific_transform=model_specific_transform,
         test_mode=True,
-        verbose = False)
+        verbose=False
+    )
     val_model_dataset = initialize_model_dataset(
-        val_MAST_dataset,
-        dict_task_metadata,
-        config_task,
-        model_specific_transform,
+        dataset=val_MAST_dataset,
+        dict_task_metadata=dict_task_metadata,
+        config_task=config_task,
+        model_specific_transform=model_specific_transform,
         test_mode=True,
-        verbose = False)
+        verbose=False
+    )
     test_model_dataset = initialize_model_dataset(
-        test_MAST_dataset,
-        dict_task_metadata,
-        config_task,
-        model_specific_transform,
+        dataset=test_MAST_dataset,
+        dict_task_metadata=dict_task_metadata,
+        config_task=config_task,
+        model_specific_transform=model_specific_transform,
         test_mode=True,
-        verbose = False)
+        verbose=False
+    )
 
     train_dataloader = DataLoader(
             dataset=train_model_dataset,
@@ -213,11 +292,11 @@ if __name__ == "__main__":
             **config_model['dataloader_setting']
         )
 
-    for batch_idx, batch in enumerate(train_dataloader):
+    for batch_idx, batch_ in enumerate(train_dataloader):
 
         print(f"\nBatch {batch_idx}")
-        # print(batch)
-        shot_id, window_index, x_train, y_train = batch
+        # print(batch_)
+        shot_id, window_index, x_train, y_train = batch_  # FIXME: Warning about more values to unpack.
 
         print("The list of shot ID is an object of shape, ", shot_id.shape)
         print("The list of window Index is an object of shape, ", window_index.shape)

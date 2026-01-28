@@ -1,42 +1,49 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import os
 
 import pandas as pd
 import random
+from typing import Optional
 
 from MAST_benchmark.tools.path import METADATA_DIR
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(
-    max_index = None,
-    max_index_for_train = None,
-    max_index_for_val = None,
-    max_index_for_test = None,
-    shuffle = False,
-    seed = None
-    ):
-    
+        max_index: Optional[int] = None,
+        max_index_for_train: Optional[int] = None,
+        max_index_for_val: Optional[int] = None,
+        max_index_for_test: Optional[int] = None,
+        shuffle: bool = False,
+        seed: Optional[int] = None
+):
     """
     Generate lists of shot IDs for training, testing, and validation.
     These lists can be subsets of the corresponding complete lists.
 
     Parameters
     ----------
-    max_index : int, optional
+    max_index : Optional[int]
         If not None, all lists will have the same length given by max_index.
-    max_index_for_train : int, optional
-        Number of shot IDs for the training set.
-        Overrides max_index.
-    max_index_for_val : int, optional
-        Number of shot IDs for the validation set.
-        Overrides max_index.
-    max_index_for_test : int, optional
-        Number of shot IDs for the testing set.
-        Overrides max_index.
-    shuffle: bool
+        Optional. Default: None.
+    max_index_for_train : Optional[int]
+        Number of shot IDs for the training set. Overrides max_index.
+        Optional. Default: None.
+    max_index_for_val : Optional[int]
+        Number of shot IDs for the validation set. Overrides max_index.
+        Optional. Default: None.
+    max_index_for_test : Optional[int]
+        Number of shot IDs for the testing set. Overrides max_index.
+        Optional. Default: None.
+    shuffle : bool
         True if we need shuffled samples.
-    seed: int 
+    seed : Optional[int]
         For reproducibility of the rnd sequence.
+        Optional. Default: None.
 
     Returns
     -------
@@ -50,10 +57,9 @@ def get_train_test_val_shots(
     train_set_full, test_set_full, val_set_full = read_data_split_csv(csv_path=file_path)
 
     if shuffle:
-        if seed is not None:
-            if not isinstance(seed, int):
-                raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")
-            random.seed(seed)  
+        if not isinstance(seed, int):
+            raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")
+        random.seed(seed)
             
         random.shuffle(train_set_full)
         random.shuffle(test_set_full)
@@ -83,9 +89,22 @@ def get_train_test_val_shots(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def read_data_split_csv(csv_path):
-    """Read the csv file containing the lists of shot IDs for
-    training, validation and testing.
+def read_data_split_csv(
+        csv_path: str
+) -> tuple:
+    """
+    Read the csv file containing the lists of shot IDs for training, testing, and validation.
+
+    Parameters
+    ----------
+    csv_path : str
+        Target CSV path.
+
+    Returns
+    -------
+    list
+        List of shot IDs for training, testing, and validation.
+
     """
 
     if not os.path.exists(csv_path):

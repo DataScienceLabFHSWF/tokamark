@@ -1,20 +1,62 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
+from typing import Mapping
 
 
 # ======================================================================================================================
 class StdScalingTransform:
+    """
+    STD scaling transform.
+
+    Methods
+    -------
+    __call__
+        Call method for the class to behave like a function. It normalizes each sample individually: subtract mean,
+        divide by std.
+    """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(self, mean, std):
+    def __init__(
+            self,
+            mean: float,
+            std: float
+    ) -> None:
+        """
+        Initialise class attributes.
+
+        Parameters
+        ----------
+        mean : float
+            Input mean.
+        std : float
+            Input STD.
+
+        """
+
         self.mean = mean
         self.std = std
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, d):
+    def __call__(
+            self,
+            d: Mapping
+    ):
         """
-        Normalize each sample individually: subtract mean, divide by std.
+        Call method for the class to behave like a function. It normalizes each sample individually: subtract mean,
+        divide by std.
 
-        Input: dict with 'time' and 'values' [features, time]
-        Output: same dict, with values normalized per feature
+        Parameters
+        ----------
+        d : Mapping
+            Dictionary with 'time' and 'values' [features, time].
+
+        Returns
+        -------
+        Mapping
+            Augmented input dictionary with values normalized per feature.
         """
 
         time = d['time']
