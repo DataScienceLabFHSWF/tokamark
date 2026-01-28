@@ -31,7 +31,8 @@ task_window_segmenter:
   input_keys: *input_keys
   actuator_keys: *actuator_keys
   output_keys: *output_keys
-  input_length: 0.150
+  # input_length: 0.150
+  input_length: 0.050
   output_length: 0.100
   delta: 0 # this is forecasting
 

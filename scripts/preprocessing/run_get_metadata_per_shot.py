@@ -165,7 +165,8 @@ if __name__ == "__main__":
         val_shots_,
         local_flag,
         use_std_scaling = False,
-        return_incomplete_shots=True
+        return_incomplete_shots=True,
+        remove_outliers=False
     )
 
     csv_path = "shot_statistics_val_NEW.csv"
@@ -181,7 +182,8 @@ if __name__ == "__main__":
         test_shots_,
         local_flag,
         use_std_scaling = False,
-        return_incomplete_shots=True
+        return_incomplete_shots=True,
+        remove_outliers=False
     )
 
     csv_path = "shot_statistics_test_NEW.csv"
@@ -197,7 +199,8 @@ if __name__ == "__main__":
         train_shots_,
         local_flag,
         use_std_scaling = False,
-        return_incomplete_shots=True
+        return_incomplete_shots=True,
+        remove_outliers=False
     )
 
     csv_path = "shot_statistics_train_NEW.csv"
