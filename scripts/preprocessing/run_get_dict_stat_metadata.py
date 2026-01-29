@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="scripts/preprocessing/config_get_metadata.yaml",
+        default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
         help="Path to the task YAML config file",
     )
     args, _ = parser.parse_known_args()
@@ -57,9 +57,8 @@ if __name__ == "__main__":
 
     # ..................................................................................................................
     # load mean_std_train.yaml
-    with open("./artifacts/stats_mean_std/mean_std_train.yaml") as f:
+    with open("/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/artifacts/stats_mean_std/mean_std_train.yaml") as f:
         dict_mean_std = yaml.safe_load(f)
-    # print(dict_mean_std)
 
     # ..................................................................................................................
     # Create unstandardized train dataset 
@@ -113,21 +112,18 @@ if __name__ == "__main__":
                 "std": dict_mean_std[var]["std"]["no_outliers_z6"],
             }
         
-        # ✅ Stop once all variables are filled
+        # Stop once all variables are filled
         if set(dict_metadata.keys()) == target_vars:
-            print("✅ dict_metadata fully filled. Stopping.")
+            print("dict_metadata fully filled. Stopping.")
             break
 
     # Optional safety check
     if len(dict_metadata) == 0:
-        raise ValueError("❌ No valid signals found within limit.")
+        raise ValueError("No valid signals found within limit.")
 
     clean_dict = to_python(dict_metadata)
-
-    out_dir = Path("artifacts")
-    out_dir.mkdir(parents=True, exist_ok=True)
     
-    with open(out_dir / "dict_stats_metadata.yaml", "w") as f_:
+    with open("dict_stats_metadata.yaml", "w") as f_:
         yaml.dump(clean_dict, f_, sort_keys=False)
 
 
