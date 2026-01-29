@@ -160,7 +160,6 @@ def run_persistence_pipeline(task, pipeline_config):
 
         config_task['sources_and_signals']['actuator_name'] = None
         config_task['task_window_segmenter']['actuator_keys'] = None
-        config_task['task_window_segmenter']['input_length'] = 0.005
     else:
         signals = [f'{source}-{signal}' for source,signal in config_task['sources_and_signals']['output_name']]
 
@@ -168,7 +167,6 @@ def run_persistence_pipeline(task, pipeline_config):
         config_task['task_window_segmenter']['input_keys'] = None
         config_task['sources_and_signals']['actuator_name'] = None
         config_task['task_window_segmenter']['actuator_keys'] = None
-        config_task['task_window_segmenter']['input_length'] = 0.005
 
 
     # -------------------------------------------------------------------
@@ -197,7 +195,11 @@ def run_persistence_pipeline(task, pipeline_config):
         )
 
         test_dataset = initialize_model_dataset(
-            test_MAST_dataset, dict_task_metadata, config_task, PersistanceTransform(signals)
+            test_MAST_dataset, 
+            dict_task_metadata, 
+            config_task, 
+            PersistanceTransform(signals),
+            test_mode = True
         )
         test_dataloader = DataLoader(
                 dataset=test_dataset,
