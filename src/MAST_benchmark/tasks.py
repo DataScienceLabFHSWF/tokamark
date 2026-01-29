@@ -13,6 +13,14 @@ from MAST_benchmark.tools.path import METADATA_DIR
 from MAST_benchmark.tools.utils import get_config_from_yaml
 
 
+group_tasks = {
+    1 : ['task_1-1', 'task_1-2', 'task_1-3'],
+    2 : ['task_2-1', 'task_2-2', 'task_2-3'],
+    3 : ['task_3-1', 'task_3-2', 'task_3-3'],
+    4 : ['task_4-1', 'task_4-2', 'task_4-3', 'task_4-4', 'task_4-5']
+}
+
+
 tasks_configs_map = {
     "task_1-1": "group_1_reconstruction/task_1-1.yaml",
     "task_1-2": "group_1_reconstruction/task_1-2.yaml",
@@ -56,6 +64,14 @@ def get_task_config(
     return get_config_from_yaml(file_path)
 
 
+def get_signals_metadata():
+    metadata_path = os.path.join(METADATA_DIR, 'dict_stats_metadata.yaml')
+    with open(metadata_path, "r") as f:
+        dict_stats_metadata = yaml.safe_load(f)
+
+    return dict_stats_metadata
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 def get_task_metadata(
     config_task: Mapping,
@@ -80,9 +96,7 @@ def get_task_metadata(
     
     # ..................................................................................................................
     # Import data metadata
-    metadata_path = os.path.join(METADATA_DIR, 'dict_stats_metadata.yaml')
-    with open(metadata_path, "r") as f:  # 'rb' = read binary
-        dict_stats_metadata = yaml.safe_load(f)
+    dict_stats_metadata = get_signals_metadata()
 
     # ..................................................................................................................
     # Import task specific roles
