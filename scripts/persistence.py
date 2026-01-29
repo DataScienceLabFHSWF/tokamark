@@ -163,8 +163,8 @@ def run_persistence_pipeline(task, pipeline_config):
     else:
         signals = [f'{source}-{signal}' for source,signal in config_task['sources_and_signals']['output_name']]
 
-        config_task['sources_and_signals']['input_name'] = None
-        config_task['task_window_segmenter']['input_keys'] = None
+        config_task['sources_and_signals']['input_name'] = [['magnetics', 'flux_loop_flux']]
+        config_task['task_window_segmenter']['input_keys'] = [['magnetics', 'flux_loop_flux']]
         config_task['sources_and_signals']['actuator_name'] = None
         config_task['task_window_segmenter']['actuator_keys'] = None
 
@@ -227,7 +227,7 @@ if __name__ == "__main__":
         "output_dir" : Path(__file__).parents[1]/'output/mean',
         "dataloader_setting" : {
             "batch_size" : 4,
-            "num_workers": 4
+            "num_workers": 0
         },
         "model" : "mean"
         # "model" : "persistence"
@@ -252,21 +252,3 @@ if __name__ == "__main__":
     
     # compute_all_metrics(pipeline_config["output_dir"])
     print('DONE')
-
-
-# sintr -A ukaea-ap002-cpu -p ukaea-amp -N1 -n1 --gres=gpu:1 -t 2:0:0
-# sintr --gres=gpu:1 -A ukaea-ap002-gpu -p ukaea-amp -N1 -n1 -t 1:00:00
-
-# sintr -A ukaea-ap002-cpu -p ukaea-amp -N1 -n1 --exclusive -t 2:0:0
-
-
-# sintr -A ukaea-ap002-cpu -p ukaea-icl -N1 --ntasks=1 --cpus-per-task=32 -t 1:00:00
-
-# task 3-2
-            # "batch_size" : 24,
-            # "num_workers": 6
-
-# task 4-5
-            # "batch_size" : 12,
-            # "num_workers": 3
-
