@@ -10,6 +10,7 @@ from typing import Optional, Mapping, Any
 
 from MAST_tools.MAST_dataset import MastDataset
 from MAST_benchmark.tools.Task_Model_Wrapper import TaskModelTransformWrapper
+from MAST_benchmark.tools.Task_Model_Wrapper_Iterable import TaskModelTransformWrapperIterable
 from MAST_benchmark.tools.path import METADATA_DIR
 from MAST_benchmark.tools.MAST_composite_transform import (
     build_common_signal_transform_map,
@@ -127,4 +128,37 @@ def initialize_model_dataset(
         model_transform=model_specific_transform,
         test_mode=test_mode,
         verbose=verbose,
+    )
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def initialize_model_dataset_iterable(
+    dataset: Optional[MastDataset],
+    dict_task_metadata: Mapping[str, Any],
+    config_task: Mapping[str, Any],
+    model_specific_transform: Optional[Any] = None,
+    test_mode: bool = False,
+    shuffle_windows = True,
+    shuffle_buffer_size = 2048,
+    *,
+    verbose: bool = False,
+# ) -> Optional[TaskModelTransformWrapper]:
+) -> Optional[TaskModelTransformWrapperIterable]:
+    """
+COmment to add
+
+    """
+
+    if dataset is None:
+        return None
+
+    return TaskModelTransformWrapperIterable(
+        base_dataset=dataset,
+        dict_task_metadata=dict_task_metadata,
+        config_task=config_task,
+        model_transform=model_specific_transform,
+        test_mode=test_mode,
+        verbose=verbose,
+        shuffle_windows=shuffle_windows,
+        shuffle_buffer_size = shuffle_buffer_size
     )
