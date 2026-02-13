@@ -129,14 +129,14 @@ def compute_all_metrics(output_dir='.', save_locally=True):
             df_tasks_shots = pd.concat(all_tasks)
             all_tasks = []
 
-            df_group_shots = (
-                df_tasks_shots
-                .drop(columns='task')
-                .groupby(by=['shot_id'])
-                .mean()
-            )
-            df_group = df_group_shots.mean().to_frame().T
-            df_group['task'] = f'group_{group_id}'
+            # df_group_shots = (
+            #     df_tasks_shots
+            #     .drop(columns='task')
+            #     .groupby(by=['shot_id'])
+            #     .mean()
+            # )
+            # df_group = df_group_shots.mean().to_frame().T
+            # df_group['task'] = f'group_{group_id}'
 
             df_tasks = (
                 df_tasks_shots
@@ -146,7 +146,15 @@ def compute_all_metrics(output_dir='.', save_locally=True):
                 .reset_index()
             )
 
-            all_groups.append(df_group)
+            df_groups = (
+                df_tasks
+                .drop(columns='task')
+                .mean()
+            )
+            df_groups = df_groups.to_frame().T
+            df_groups['task'] = f'group_{group_id}'
+
+            all_groups.append(df_groups)
             all_groups.append(df_tasks)
 
     if len(all_signals) > 0:
