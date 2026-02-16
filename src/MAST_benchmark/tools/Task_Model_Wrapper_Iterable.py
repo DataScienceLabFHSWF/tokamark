@@ -211,6 +211,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
     # ------------------------------------------------------------------
     def _process_shot(self, idx_shot):
 
+        # print('\n')
+        # print(self.get_shot_id(idx_shot))
+
         sample = self.base[idx_shot]
 
         # --------------------------------------------------------------
@@ -240,16 +243,14 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         # --------------------------------------------------------------
         for idx_t, t_cut in enumerate(t_cuts):
             
-            print('\n')
-            print(self.get_shot_id(idx_shot))
-            print(idx_t)
+            # print(idx_t)
 
             if self.task_type == "non_markovian":
-                print("Non Markovian")
+                # print("Non Markovian")
                 input_slice = self._build_non_markovian_input(sample, t_cut)
                 actuator_slice = self._build_non_markovian_actuator(sample, t_cut)
             else:
-                print("Markovian")
+                # print("Markovian")
                 input_slice = self._build_input(sample, t_cut)
                 actuator_slice = self._build_actuator(sample, t_cut)
 
@@ -268,7 +269,7 @@ class TaskModelTransformWrapperIterable(IterableDataset):
             # filtering
             # ----------------------------------------------------------
             if self.test_mode:
-                print("test_mode on")
+                # print("test_mode on")
                 window_valid = (
                     not (
                         all_vars_have_nans(obj["input"])
@@ -280,8 +281,10 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 window_valid = True
 
             if not window_valid:
-                print("window not valid")
+                # print("window not valid")
                 continue
+            # else:
+            #     print("window valid")
 
             obj2 = self.model_transform(obj) if self.model_transform else obj
             if obj2 is None:
@@ -378,7 +381,7 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 idx = np.clip(idx, 0, len(times) - 1)
 
                 # chosen = idx[:ts_len]
-                print('out', len(idx))
+                # print('out', len(idx))
 
                 selected_times = times[idx]
                 selected_values = values[..., idx]
@@ -489,7 +492,7 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 # idx = np.where(times < t_cut)[0][-ts_len:]
                 cut_idx = np.searchsorted(times, t_cut, side="left")
                 idx = np.arange(0, cut_idx)
-                print('markovian in', len(idx))
+                # print('markovian in', len(idx))
                 
                 selected_times = times[idx]
                 selected_values = values[..., idx]
@@ -547,8 +550,8 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
                 idx_out = np.clip(idx_out, 0, len(times) - 1)
 
-                print('markovian act in', len(idx_in))
-                print('markovian act out', len(idx_out))
+                # print('markovian act in', len(idx_in))
+                # print('markovian act out', len(idx_out))
 
                 selected_times = np.concatenate([times[idx_in], times[idx_out]])
                 selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
