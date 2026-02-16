@@ -8,18 +8,46 @@ from typing import Optional, Mapping, Any
 # helpers 
 # --------------------------------------------------------------------------------------
 
-def all_vars_have_nans(d):
-    for v in d.values():
-        if not np.all(np.isnan(v["values"])):
-            return False
-    return True
+# ----------------------------------------------------------------------------------------------------------------------
+def all_vars_have_nans(
+        dict_obj: Mapping
+) -> bool:
+    """
+    Check if bool(x) is True for all values x in `dict_obj`.
+
+    Parameters
+    ----------
+    dict_obj : Mapping
+        Input mapping.
+
+    Returns
+    -------
+    bool
+        If the iterable is empty, return True.
+
+    """
+    return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
 
 
-def any_vars_have_nans(d):
-    for v in d.values():
-        if np.any(np.isnan(v["values"])):
-            return True
-    return False
+# ----------------------------------------------------------------------------------------------------------------------
+def any_vars_have_nans(
+        dict_obj: Mapping
+):
+    """
+    Check if bool(x) is True for any values x in `dict_obj`.
+
+    Parameters
+    ----------
+    dict_obj
+        Input mapping.
+
+    Returns
+    -------
+    bool
+        If the iterable is empty, return True.
+
+    """
+    return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
 
 
 # --------------------------------------------------------------------------------------
@@ -44,6 +72,71 @@ def shuffle_buffer(iterator, buffer_size=512):
         yield buffer.pop(idx)
 
 
+
+import numpy as np
+
+def pad_timeseries_to_interval(
+    times,
+    values,
+    dt,
+    t_start,
+    t_end,
+    shape_values,
+):
+    """
+    Pad a timeseries so that [t_start, t_end] lies inside `times`.
+
+    Parameters
+    ----------
+    times : np.ndarray
+        1D time array.
+    values : np.ndarray
+        Data array with time on the last axis.
+    dt : float
+        Sampling interval.
+    t_start : float
+        Left boundary that must exist in times.
+    t_end : float
+        Right boundary that must exist in times.
+    shape_values : tuple
+        Shape of value dimensions excluding time axis.
+
+    Returns
+    -------
+    times, values : padded arrays
+    """
+
+    # ensure float dtype once (needed for NaNs)
+    if not np.issubdtype(values.dtype, np.floating):
+        values = values.astype(float)
+    
+    # ---------- LEFT PAD ----------
+    if times[0] > t_start:
+        n_pad = int(np.ceil((times[0] - t_start) / dt)) + 1
+
+        left_times = times[0] - dt * np.arange(n_pad, 0, -1)
+        times = np.concatenate([left_times, times])
+
+        pad_shape = shape_values + (n_pad,)
+        left_pad = np.full(pad_shape, np.nan)
+
+        values = np.concatenate([left_pad, values], axis=-1)
+
+    # ---------- RIGHT PAD ----------
+    if times[-1] < t_end:
+        n_pad = int(np.ceil((t_end - times[-1]) / dt)) + 1
+
+        right_times = times[-1] + dt * np.arange(1, n_pad + 1)
+        times = np.concatenate([times, right_times])
+
+        pad_shape = shape_values + (n_pad,)
+        right_pad = np.full(pad_shape, np.nan)
+
+        values = np.concatenate([values, right_pad], axis=-1)
+
+    return times, values
+
+
 # --------------------------------------------------------------------------------------
 # MAIN DATASET
 # --------------------------------------------------------------------------------------
@@ -66,6 +159,8 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         self.base = base_dataset
         self.shots_list = self.base.shots_list
         self.dict_task_metadata = dict_task_metadata
+
+        self.task_type = config_task["task_type"]
 
         seg = config_task["task_window_segmenter"]
 
@@ -144,10 +239,21 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         # build windows
         # --------------------------------------------------------------
         for idx_t, t_cut in enumerate(t_cuts):
+            
+            print('\n')
+            print(self.get_shot_id(idx_shot))
+            print(idx_t)
 
-            input_slice = self._build_input(sample, t_cut)
+            if self.task_type == "non_markovian":
+                print("Non Markovian")
+                input_slice = self._build_non_markovian_input(sample, t_cut)
+                actuator_slice = self._build_non_markovian_actuator(sample, t_cut)
+            else:
+                print("Markovian")
+                input_slice = self._build_input(sample, t_cut)
+                actuator_slice = self._build_actuator(sample, t_cut)
+
             output_slice = self._build_output(sample, t_cut)
-            actuator_slice = self._build_actuator(sample, t_cut)
 
             obj = {
                 "input": input_slice,
@@ -162,6 +268,7 @@ class TaskModelTransformWrapperIterable(IterableDataset):
             # filtering
             # ----------------------------------------------------------
             if self.test_mode:
+                print("test_mode on")
                 window_valid = (
                     not (
                         all_vars_have_nans(obj["input"])
@@ -173,6 +280,7 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 window_valid = True
 
             if not window_valid:
+                print("window not valid")
                 continue
 
             obj2 = self.model_transform(obj) if self.model_transform else obj
@@ -195,32 +303,36 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         for key in self.input_keys:
             md = self.dict_task_metadata["input"][key]
             ts_len = md["ts_length"]
+            dt = md["dt"]
             shape_values = tuple(md["values_shape"])
 
             times = sample[key]["time"]
             values = sample[key]["values"]
 
-            idx = np.where(times <= t_cut)[0]
-            chosen = idx[-ts_len:]
+            if times.size==0 or values.size==0:
+                selected_times = np.full(ts_len, np.nan)
+                selected_values = np.full(shape_values + (ts_len,), np.nan)
 
-            pad = ts_len - len(chosen)
-
-            selected_times = np.concatenate(
-                [np.full(pad, np.nan), times[chosen]]
-            )
-
-            if chosen.size:
-                sel_values = values[..., chosen]
             else:
-                sel_values = np.empty(shape_values + (0,))
+                times, values = pad_timeseries_to_interval(
+                    times,
+                    values,
+                    dt,
+                    t_cut - self.input_length, # t_start
+                    t_cut, # t_end
+                    shape_values,
+                )
 
-            selected_values = np.concatenate(
-                [
-                    np.full(shape_values + (pad,), np.nan),
-                    sel_values,
-                ],
-                axis=-1,
-            )
+                # idx = np.where(times < t_cut)[0][-ts_len:]
+                cut_idx = np.searchsorted(times, t_cut, side="left")
+                idx = np.arange(cut_idx - ts_len, cut_idx)
+                # chosen = idx[-ts_len:]
+                # print('in', len(idx), idx)
+                
+                selected_times = times[idx]
+                selected_values = values[..., idx]
+
+            # print(selected_values)
 
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
@@ -239,33 +351,40 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         for key in self.output_keys:
             md = self.dict_task_metadata["output"][key]
             ts_len = md["ts_length"]
+            dt = md["dt"]
             shape_values = tuple(md["values_shape"])
 
             times = sample[key]["time"]
             values = sample[key]["values"]
 
-            idx = np.where(times > t_cut + self.delta)[0]
-            chosen = idx[:ts_len]
+            if times.size==0 or values.size==0:
+                selected_times = np.full(ts_len, np.nan)
+                selected_values = np.full(shape_values + (ts_len,), np.nan)
 
-            pad = ts_len - len(chosen)
+            else: 
+                times, values = pad_timeseries_to_interval(
+                    times,
+                    values,
+                    dt,
+                    t_cut + self.delta, # t_start
+                    t_cut + self.delta + self.output_length, # t_end
+                    shape_values,
+                )
 
-            if chosen.size:
-                sel_values = values[..., chosen]
-            else:
-                sel_values = np.empty(shape_values + (0,))
+                # idx = np.where(times >= t_cut + self.delta)[0][:ts_len]
+                cut_time = t_cut + self.delta
+                start_idx = np.searchsorted(times, cut_time, side="left")
+                idx = np.arange(start_idx, start_idx + ts_len)
+                idx = np.clip(idx, 0, len(times) - 1)
 
-            selected_times = np.concatenate(
-                [times[chosen], np.full(pad, np.nan)]
-            )
+                # chosen = idx[:ts_len]
+                print('out', len(idx))
 
-            selected_values = np.concatenate(
-                [
-                    sel_values,
-                    np.full(shape_values + (pad,), np.nan),
-                ],
-                axis=-1,
-            )
-
+                selected_times = times[idx]
+                selected_values = values[..., idx]
+            
+            # print(selected_values)
+            
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
 
@@ -283,37 +402,47 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         for key in self.actuator_keys:
             md = self.dict_task_metadata["actuator"][key]
             freq = md["dt"]
+            dt = md["dt"]
             shape_values = tuple(md["values_shape"])
 
             ts_in = int(round(self.input_length / freq))
             ts_out = int(round(self.output_length / freq))
             ts_delta = int(round(self.delta / freq))
+            # print('ts_delta', ts_delta)
 
             times = sample[key]["time"]
             values = sample[key]["values"]
 
-            idx_in = np.where(times <= t_cut)[0][-ts_in:]
-            idx_out = np.where(times > t_cut + self.delta)[0][: ts_delta + ts_out]
+            if times.size==0 or values.size==0:
+                selected_times = np.full(ts_in + ts_delta + ts_out, np.nan)
+                selected_values = np.full(shape_values + (ts_in + ts_delta + ts_out,), np.nan)
 
-            pad_in = ts_in - len(idx_in)
-            pad_out = ts_delta + ts_out - len(idx_out)
+            else: 
+                times, values = pad_timeseries_to_interval(
+                    times,
+                    values,
+                    dt,
+                    t_cut - self.input_length, # t_start
+                    t_cut + self.delta + self.output_length, # t_end
+                    shape_values,
+                )
 
-            selected_times = np.concatenate([
-                np.full(pad_in, np.nan),
-                times[idx_in],
-                times[idx_out],
-                np.full(pad_out, np.nan),
-            ])
+                # idx_in = np.where(times < t_cut)[0][-ts_in:]
+                # idx_out = np.where(times >= t_cut)[0][: ts_delta + ts_out]
+                cut_idx = np.searchsorted(times, t_cut, side="left")
+                idx_in = np.arange(cut_idx - ts_in, cut_idx)
+                idx_in = np.clip(idx_in, 0, len(times) - 1)
+                
+                idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
+                idx_out = np.clip(idx_out, 0, len(times) - 1)
 
-            sel_in = values[..., idx_in] if idx_in.size else np.empty(shape_values + (0,))
-            sel_out = values[..., idx_out] if idx_out.size else np.empty(shape_values + (0,))
+                # print('act in', len(idx_in), idx_in)
+                # print('act out', len(idx_out), idx_out)
 
-            selected_values = np.concatenate([
-                np.full(shape_values + (pad_in,), np.nan),
-                sel_in,
-                sel_out,
-                np.full(shape_values + (pad_out,), np.nan),
-            ], axis=-1)
+                selected_times = np.concatenate([times[idx_in], times[idx_out]])
+                selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
+            
+            # print(selected_values)
 
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
@@ -325,3 +454,112 @@ class TaskModelTransformWrapperIterable(IterableDataset):
     # ------------------------------------------------------------------
     def get_shot_id(self, idx):
         return self.base.shots_list[idx]
+
+
+    # ------------------------------------------------------------------
+    # MARKOVIAN INPUT
+    # ------------------------------------------------------------------
+    def _build_non_markovian_input(self, sample, t_cut):
+
+        out = {}
+
+        for key in self.input_keys:
+            md = self.dict_task_metadata["input"][key]
+            ts_len = md["ts_length"]
+            dt = md["dt"]
+            shape_values = tuple(md["values_shape"])
+
+            times = sample[key]["time"]
+            values = sample[key]["values"]
+
+            if times.size==0 or values.size==0:
+                selected_times = np.full(ts_len, np.nan)
+                selected_values = np.full(shape_values + (ts_len,), np.nan)
+
+            else:
+                times, values = pad_timeseries_to_interval(
+                    times,
+                    values,
+                    dt,
+                    t_cut - self.input_length, # t_start is the warmup period
+                    t_cut, # t_end
+                    shape_values,
+                )
+
+                # idx = np.where(times < t_cut)[0][-ts_len:]
+                cut_idx = np.searchsorted(times, t_cut, side="left")
+                idx = np.arange(0, cut_idx)
+                print('markovian in', len(idx))
+                
+                selected_times = times[idx]
+                selected_values = values[..., idx]
+
+            # print(selected_values)
+
+            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
+                selected_values = selected_values[0]
+
+            out[key] = {"time": selected_times, "values": selected_values}
+
+        return out
+
+    # ------------------------------------------------------------------
+    # MARKOVIAN ACTUATOR
+    # ------------------------------------------------------------------
+    def _build_non_markovian_actuator(self, sample, t_cut):
+
+        out = {}
+
+        for key in self.actuator_keys:
+            md = self.dict_task_metadata["actuator"][key]
+            freq = md["dt"]
+            dt = md["dt"]
+            shape_values = tuple(md["values_shape"])
+
+            ts_in = int(round(self.input_length / freq))
+            ts_out = int(round(self.output_length / freq))
+            ts_delta = int(round(self.delta / freq))
+            # print('ts_delta', ts_delta)
+
+            times = sample[key]["time"]
+            values = sample[key]["values"]
+
+            if times.size==0 or values.size==0:
+                selected_times = np.full(ts_in + ts_delta + ts_out, np.nan)
+                selected_values = np.full(shape_values + (ts_in + ts_delta + ts_out,), np.nan)
+
+            else: 
+                times, values = pad_timeseries_to_interval(
+                    times,
+                    values,
+                    dt,
+                    t_cut - self.input_length, # t_start is the warmup period
+                    t_cut + self.delta + self.output_length, # t_end
+                    shape_values,
+                )
+
+                # idx_in = np.where(times < t_cut)[0][-ts_in:]
+                # idx_out = np.where(times >= t_cut)[0][: ts_delta + ts_out]
+                cut_idx = np.searchsorted(times, t_cut, side="left")
+                idx_in = np.arange(0, cut_idx)
+                idx_in = np.clip(idx_in, 0, len(times) - 1)
+                
+                idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
+                idx_out = np.clip(idx_out, 0, len(times) - 1)
+
+                print('markovian act in', len(idx_in))
+                print('markovian act out', len(idx_out))
+
+                selected_times = np.concatenate([times[idx_in], times[idx_out]])
+                selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
+            
+            # print(selected_values)
+
+            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
+                selected_values = selected_values[0]
+
+            out[key] = {"time": selected_times, "values": selected_values}
+
+        return out
+
+
