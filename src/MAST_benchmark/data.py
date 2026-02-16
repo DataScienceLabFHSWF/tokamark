@@ -139,7 +139,7 @@ def initialize_model_dataset_iterable(
     model_specific_transform: Optional[Any] = None,
     test_mode: bool = False,
     shuffle_windows = True,
-    shuffle_buffer_size = 2048,
+    shuffle_buffer_size = 512,
     *,
     verbose: bool = False,
 # ) -> Optional[TaskModelTransformWrapper]:
