@@ -1,145 +1,11 @@
 import numpy as np
-import torch
 from torch.utils.data import IterableDataset, get_worker_info
 from typing import Optional, Mapping, Any
 
 
-# --------------------------------------------------------------------------------------
-# helpers 
-# --------------------------------------------------------------------------------------
-
 # ----------------------------------------------------------------------------------------------------------------------
-def all_vars_have_nans(
-        dict_obj: Mapping
-) -> bool:
-    """
-    Check if bool(x) is True for all values x in `dict_obj`.
-
-    Parameters
-    ----------
-    dict_obj : Mapping
-        Input mapping.
-
-    Returns
-    -------
-    bool
-        If the iterable is empty, return True.
-
-    """
-    return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def any_vars_have_nans(
-        dict_obj: Mapping
-):
-    """
-    Check if bool(x) is True for any values x in `dict_obj`.
-
-    Parameters
-    ----------
-    dict_obj
-        Input mapping.
-
-    Returns
-    -------
-    bool
-        If the iterable is empty, return True.
-
-    """
-    return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
-
-
-# --------------------------------------------------------------------------------------
-# optional streaming shuffle buffer
-# --------------------------------------------------------------------------------------
-
-def shuffle_buffer(iterator, buffer_size=512):
-    """
-    Streaming shuffle for IterableDataset.
-    """
-    import random
-    buffer = []
-
-    for item in iterator:
-        buffer.append(item)
-        if len(buffer) >= buffer_size:
-            idx = random.randrange(len(buffer))
-            yield buffer.pop(idx)
-
-    while buffer:
-        idx = random.randrange(len(buffer))
-        yield buffer.pop(idx)
-
-
-
-import numpy as np
-
-def pad_timeseries_to_interval(
-    times,
-    values,
-    dt,
-    t_start,
-    t_end,
-    shape_values,
-):
-    """
-    Pad a timeseries so that [t_start, t_end] lies inside `times`.
-
-    Parameters
-    ----------
-    times : np.ndarray
-        1D time array.
-    values : np.ndarray
-        Data array with time on the last axis.
-    dt : float
-        Sampling interval.
-    t_start : float
-        Left boundary that must exist in times.
-    t_end : float
-        Right boundary that must exist in times.
-    shape_values : tuple
-        Shape of value dimensions excluding time axis.
-
-    Returns
-    -------
-    times, values : padded arrays
-    """
-
-    # ensure float dtype once (needed for NaNs)
-    if not np.issubdtype(values.dtype, np.floating):
-        values = values.astype(float)
-    
-    # ---------- LEFT PAD ----------
-    if times[0] > t_start:
-        n_pad = int(np.ceil((times[0] - t_start) / dt)) + 1
-
-        left_times = times[0] - dt * np.arange(n_pad, 0, -1)
-        times = np.concatenate([left_times, times])
-
-        pad_shape = shape_values + (n_pad,)
-        left_pad = np.full(pad_shape, np.nan)
-
-        values = np.concatenate([left_pad, values], axis=-1)
-
-    # ---------- RIGHT PAD ----------
-    if times[-1] < t_end:
-        n_pad = int(np.ceil((t_end - times[-1]) / dt)) + 1
-
-        right_times = times[-1] + dt * np.arange(1, n_pad + 1)
-        times = np.concatenate([times, right_times])
-
-        pad_shape = shape_values + (n_pad,)
-        right_pad = np.full(pad_shape, np.nan)
-
-        values = np.concatenate([values, right_pad], axis=-1)
-
-    return times, values
-
-
-# --------------------------------------------------------------------------------------
 # MAIN DATASET
-# --------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
 class TaskModelTransformWrapperIterable(IterableDataset):
 
@@ -159,6 +25,12 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         self.base = base_dataset
         self.shots_list = self.base.shots_list
         self.dict_task_metadata = dict_task_metadata
+
+        self.dict_meta = {
+            key: {'dt': meta['dt'], 'shape_values': tuple(meta['values_shape'])}
+            for d in [dict_task_metadata['input'], dict_task_metadata['actuator'], dict_task_metadata['output']]
+            for key, meta in d.items()
+        }
 
         self.task_type = config_task["task_type"]
 
@@ -180,9 +52,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         self.shuffle_buffer_size = shuffle_buffer_size
         self.verbose = verbose
 
-    # ------------------------------------------------------------------
-    # worker-safe iterator
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Worker-safe iterator
+    # ------------------------------------------------------------------------------------------------------------------
     def __iter__(self):
 
         worker_info = get_worker_info()
@@ -198,17 +70,21 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         iterator = self._iterate_shots(start, end)
 
         if self.shuffle_windows:
-            iterator = shuffle_buffer(iterator, self.shuffle_buffer_size)
+            iterator = self._shuffle_buffer(iterator, self.shuffle_buffer_size)
 
         yield from iterator
 
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Iterate function
+    # ------------------------------------------------------------------------------------------------------------------
     def _iterate_shots(self, start, end):
 
         for idx_shot in range(start, end):
             yield from self._process_shot(idx_shot)
 
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Shot processing
+    # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(self, idx_shot):
 
         # print('\n')
@@ -236,7 +112,19 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         start_time = np.min(t_start)
         end_time = np.max(t_end)
 
-        t_cuts = np.arange(start_time, end_time, self.stride)
+        # print('start_time ', start_time)
+        # print('end_time ', end_time)
+
+        # pad sample here !!!
+        sample = self._pad_sample_to_interval(
+            sample,
+            start_time,
+            end_time,
+        )
+
+        t_cuts = np.arange(start_time + self.input_length, 
+                           end_time - self.delta - self.output_length, 
+                           self.stride)
 
         # --------------------------------------------------------------
         # build windows
@@ -272,10 +160,10 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 # print("test_mode on")
                 window_valid = (
                     not (
-                        all_vars_have_nans(obj["input"])
-                        and all_vars_have_nans(obj["actuator"])
+                        self._all_vars_have_nans(obj["input"])
+                        and self._all_vars_have_nans(obj["actuator"])
                     )
-                    and not any_vars_have_nans(obj["output"])
+                    and not self._any_vars_have_nans(obj["output"])
                 )
             else:
                 window_valid = True
@@ -296,9 +184,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 **obj2,
             }
 
-    # ------------------------------------------------------------------
-    # INPUT
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Markovian input builder
+    # ------------------------------------------------------------------------------------------------------------------
     def _build_input(self, sample, t_cut):
 
         out = {}
@@ -317,21 +205,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 selected_values = np.full(shape_values + (ts_len,), np.nan)
 
             else:
-                times, values = pad_timeseries_to_interval(
-                    times,
-                    values,
-                    dt,
-                    t_cut - self.input_length, # t_start
-                    t_cut, # t_end
-                    shape_values,
-                )
+                cut_idx = int(round((t_cut - times[0]) / dt))
+                idx = np.arange(cut_idx - ts_len, cut_idx)    
 
-                # idx = np.where(times < t_cut)[0][-ts_len:]
-                cut_idx = np.searchsorted(times, t_cut, side="left")
-                idx = np.arange(cut_idx - ts_len, cut_idx)
-                # chosen = idx[-ts_len:]
-                # print('in', len(idx), idx)
-                
                 selected_times = times[idx]
                 selected_values = values[..., idx]
 
@@ -344,9 +220,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
 
         return out
 
-    # ------------------------------------------------------------------
-    # OUTPUT
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Output builder
+    # ------------------------------------------------------------------------------------------------------------------
     def _build_output(self, sample, t_cut):
 
         out = {}
@@ -365,23 +241,10 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 selected_values = np.full(shape_values + (ts_len,), np.nan)
 
             else: 
-                times, values = pad_timeseries_to_interval(
-                    times,
-                    values,
-                    dt,
-                    t_cut + self.delta, # t_start
-                    t_cut + self.delta + self.output_length, # t_end
-                    shape_values,
-                )
-
-                # idx = np.where(times >= t_cut + self.delta)[0][:ts_len]
                 cut_time = t_cut + self.delta
-                start_idx = np.searchsorted(times, cut_time, side="left")
+                start_idx = int(round((cut_time - times[0]) / dt))
                 idx = np.arange(start_idx, start_idx + ts_len)
                 idx = np.clip(idx, 0, len(times) - 1)
-
-                # chosen = idx[:ts_len]
-                # print('out', len(idx))
 
                 selected_times = times[idx]
                 selected_values = values[..., idx]
@@ -395,9 +258,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
 
         return out
 
-    # ------------------------------------------------------------------
-    # ACTUATOR
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Markovian actuator builder
+    # ------------------------------------------------------------------------------------------------------------------
     def _build_actuator(self, sample, t_cut):
 
         out = {}
@@ -421,26 +284,13 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 selected_values = np.full(shape_values + (ts_in + ts_delta + ts_out,), np.nan)
 
             else: 
-                times, values = pad_timeseries_to_interval(
-                    times,
-                    values,
-                    dt,
-                    t_cut - self.input_length, # t_start
-                    t_cut + self.delta + self.output_length, # t_end
-                    shape_values,
-                )
+                cut_idx = int(round((t_cut - times[0]) / dt))
 
-                # idx_in = np.where(times < t_cut)[0][-ts_in:]
-                # idx_out = np.where(times >= t_cut)[0][: ts_delta + ts_out]
-                cut_idx = np.searchsorted(times, t_cut, side="left")
                 idx_in = np.arange(cut_idx - ts_in, cut_idx)
                 idx_in = np.clip(idx_in, 0, len(times) - 1)
                 
                 idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
                 idx_out = np.clip(idx_out, 0, len(times) - 1)
-
-                # print('act in', len(idx_in), idx_in)
-                # print('act out', len(idx_out), idx_out)
 
                 selected_times = np.concatenate([times[idx_in], times[idx_out]])
                 selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
@@ -454,14 +304,10 @@ class TaskModelTransformWrapperIterable(IterableDataset):
 
         return out
 
-    # ------------------------------------------------------------------
-    def get_shot_id(self, idx):
-        return self.base.shots_list[idx]
 
-
-    # ------------------------------------------------------------------
-    # MARKOVIAN INPUT
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Non-Markovian input builder
+    # ------------------------------------------------------------------------------------------------------------------
     def _build_non_markovian_input(self, sample, t_cut):
 
         out = {}
@@ -480,19 +326,8 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 selected_values = np.full(shape_values + (ts_len,), np.nan)
 
             else:
-                times, values = pad_timeseries_to_interval(
-                    times,
-                    values,
-                    dt,
-                    t_cut - self.input_length, # t_start is the warmup period
-                    t_cut, # t_end
-                    shape_values,
-                )
-
-                # idx = np.where(times < t_cut)[0][-ts_len:]
-                cut_idx = np.searchsorted(times, t_cut, side="left")
+                cut_idx = int(round((t_cut - times[0]) / dt))
                 idx = np.arange(0, cut_idx)
-                # print('markovian in', len(idx))
                 
                 selected_times = times[idx]
                 selected_values = values[..., idx]
@@ -506,9 +341,9 @@ class TaskModelTransformWrapperIterable(IterableDataset):
 
         return out
 
-    # ------------------------------------------------------------------
-    # MARKOVIAN ACTUATOR
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # Non-Markovian actuator builder
+    # ------------------------------------------------------------------------------------------------------------------
     def _build_non_markovian_actuator(self, sample, t_cut):
 
         out = {}
@@ -532,26 +367,12 @@ class TaskModelTransformWrapperIterable(IterableDataset):
                 selected_values = np.full(shape_values + (ts_in + ts_delta + ts_out,), np.nan)
 
             else: 
-                times, values = pad_timeseries_to_interval(
-                    times,
-                    values,
-                    dt,
-                    t_cut - self.input_length, # t_start is the warmup period
-                    t_cut + self.delta + self.output_length, # t_end
-                    shape_values,
-                )
-
-                # idx_in = np.where(times < t_cut)[0][-ts_in:]
-                # idx_out = np.where(times >= t_cut)[0][: ts_delta + ts_out]
-                cut_idx = np.searchsorted(times, t_cut, side="left")
+                cut_idx = int(round((t_cut - times[0]) / dt))
                 idx_in = np.arange(0, cut_idx)
                 idx_in = np.clip(idx_in, 0, len(times) - 1)
                 
                 idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
                 idx_out = np.clip(idx_out, 0, len(times) - 1)
-
-                # print('markovian act in', len(idx_in))
-                # print('markovian act out', len(idx_out))
 
                 selected_times = np.concatenate([times[idx_in], times[idx_out]])
                 selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
@@ -566,3 +387,96 @@ class TaskModelTransformWrapperIterable(IterableDataset):
         return out
 
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # Padding
+    # ------------------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def _pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values):
+        
+        # ensure float dtype once (needed for NaNs)
+        if not np.issubdtype(values.dtype, np.floating):
+            values = values.astype(float)
+        
+        # ---------- LEFT PAD ----------
+        if times[0] > t_start:
+            n_pad = int(np.ceil((times[0] - t_start) / dt)) + 1
+
+            left_times = times[0] - dt * np.arange(n_pad, 0, -1)
+            times = np.concatenate([left_times, times])
+
+            pad_shape = shape_values + (n_pad,)
+            left_pad = np.full(pad_shape, np.nan)
+
+            values = np.concatenate([left_pad, values], axis=-1)
+
+        # ---------- RIGHT PAD ----------
+        if times[-1] < t_end:
+            n_pad = int(np.ceil((t_end - times[-1]) / dt)) + 1
+
+            right_times = times[-1] + dt * np.arange(1, n_pad + 1)
+            times = np.concatenate([times, right_times])
+
+            pad_shape = shape_values + (n_pad,)
+            right_pad = np.full(pad_shape, np.nan)
+
+            values = np.concatenate([values, right_pad], axis=-1)
+
+        return times, values
+
+    def _pad_sample_to_interval(self, sample, t_start, t_end):
+
+        for key in sample.keys():
+            times = sample[key]["time"]
+            values = sample[key]["values"]
+
+            if times.size == 0 or values.size == 0:
+                continue
+            
+            # print('\nFROM ', key, times[0], times[-1])
+
+            dt = self.dict_meta[key]['dt']
+            shape_values = self.dict_meta[key]['shape_values']
+
+            times, values = self._pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values)
+
+            # print('TO ', key, times[0], times[-1])
+
+            sample[key]["time"] = times
+            sample[key]["values"] = values
+
+        return sample
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Get shot ID
+    # ------------------------------------------------------------------------------------------------------------------
+    def get_shot_id(self, idx):
+        return self.base.shots_list[idx]
+    
+    # ------------------------------------------------------------------------------------------------------------------
+    # Filtering
+    # ------------------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def _all_vars_have_nans(dict_obj):
+        return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+
+    @staticmethod
+    def _any_vars_have_nans(dict_obj):
+        return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+    
+    
+    # ------------------------------------------------------------------------------------------------------------------
+    # Optional streaming shuffle buffer
+    # ------------------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def _shuffle_buffer(iterator, buffer_size=512):
+        import random
+        buffer = []
+        for item in iterator:
+            buffer.append(item)
+            if len(buffer) >= buffer_size:
+                idx = random.randrange(len(buffer))
+                yield buffer.pop(idx)
+        while buffer:
+            idx = random.randrange(len(buffer))
+            yield buffer.pop(idx)
+    
