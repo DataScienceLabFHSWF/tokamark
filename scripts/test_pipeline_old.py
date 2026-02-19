@@ -21,9 +21,8 @@ from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_benchmark.tasks import get_task_metadata
 from MAST_benchmark.data import (
     initialize_MAST_dataset, 
-    initialize_model_dataset_iterable
+    initialize_model_dataset
 )
-
 
 # Set device
 device = get_device()
@@ -121,7 +120,8 @@ def model_collate_fn(
 
     flattened_batch = [
         (item["shot_id"], item["window_index"], item["x"], item["y"])
-        for item in batch
+        for sublist in batch
+        for item in sublist 
     ]
 
     if verbose:
@@ -155,7 +155,6 @@ if __name__ == "__main__":
         type=str,
         # default="fairmast-data-preprocessing/scripts/config_model_test.yaml",
         default="config_model_test.yaml",
-
         help="Path to the model YAML config file",
     )
     args, _ = parser.parse_known_args()
@@ -224,13 +223,12 @@ if __name__ == "__main__":
 
     model_specific_transform = ModelSpecificTransform()  # likely depends on dict_task_metadata
 
-    train_model_dataset = initialize_model_dataset_iterable(
+    train_model_dataset = initialize_model_dataset(
         dataset=train_MAST_dataset,
         dict_task_metadata=dict_task_metadata,
         config_task=config_task,
         model_specific_transform=model_specific_transform,
         test_mode=True,
-        shuffle_windows = False,
         verbose=False
     )
 

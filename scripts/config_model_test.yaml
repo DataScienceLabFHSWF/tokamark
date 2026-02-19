@@ -3,4 +3,4 @@ local: true
 
 dataloader_setting:
   batch_size: 8
-  num_workers: 2
+  num_workers: 0
