@@ -129,15 +129,6 @@ def compute_all_metrics(output_dir='.', save_locally=True):
             df_tasks_shots = pd.concat(all_tasks)
             all_tasks = []
 
-            df_group_shots = (
-                df_tasks_shots
-                .drop(columns='task')
-                .groupby(by=['shot_id'])
-                .mean()
-            )
-            df_group = df_group_shots.mean().to_frame().T
-            df_group['task'] = f'group_{group_id}'
-
             df_tasks = (
                 df_tasks_shots
                 .drop(columns='shot_id')
@@ -145,6 +136,14 @@ def compute_all_metrics(output_dir='.', save_locally=True):
                 .mean()
                 .reset_index()
             )
+
+            df_group = (
+                df_tasks
+                .drop(columns='task')
+                .mean()
+            )
+            df_group = df_group.to_frame().T
+            df_group['task'] = f'group_{group_id}'
 
             all_groups.append(df_group)
             all_groups.append(df_tasks)
