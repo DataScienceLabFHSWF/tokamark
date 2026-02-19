@@ -115,14 +115,14 @@ magnetics-b_field_pol_probe_obv_field:
     no_outliers_z6: 0.03321186356517636
 magnetics-b_field_pol_probe_omv_voltage:
   mean:
-    no_outliers_z6: 0.0034782653863861803
+    no_outliers_z6: 32.22836556478141
   std:
-    no_outliers_z6: 0.1701782179706301
+    no_outliers_z6: 10790.944721875469
 magnetics-b_field_tor_probe_cc_field:
   mean:
-    no_outliers_z6: -3.0715533042047245e-07
+    no_outliers_z6: 1.801159134697749e-07
   std:
-    no_outliers_z6: 2.0014198523339808e-05
+    no_outliers_z6: 4.695158432006124e-05
 magnetics-b_field_tor_probe_saddle_voltage:
   mean:
     no_outliers_z6: 0.10374492184738746
