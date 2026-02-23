@@ -8,7 +8,7 @@ from MAST_benchmark.tools.utils import AutoAppendingDataFrame
 
 ID_COLUMNS = ['shot_id', 'window_id', 'feature_name']
 METRIC_COLUMNS = ['RMSE', 'MAE']
-COLUMNS = ID_COLUMNS+METRIC_COLUMNS
+COLUMNS = ID_COLUMNS + METRIC_COLUMNS
 
 WINDOW_METRICS_FILE = 'windows_metrics.csv'
 SIGNAL_METRICS_FILE = 'signals_metrics.csv'
@@ -29,7 +29,7 @@ class WindowMetricsWriter():
 
     def compute_and_append(self, y_target, y_pred, shot_id, window_id, feature_name):
         rmse_per_sample = np.sqrt(np.mean((y_target - y_pred) ** 2, axis=1))
-        mae_per_sample  = np.mean(np.abs(y_target - y_pred), axis=1)
+        mae_per_sample = np.mean(np.abs(y_target - y_pred), axis=1)
 
         data = np.column_stack((shot_id, 
                                 window_id, 
@@ -84,19 +84,23 @@ def compute_task_metrics(task='task_1-1', output_dir='.', save=True):
         print(f'Warning: task {task} is not known. Available tasks are: ', str(tasks_configs_map.keys()))
 
     output_dir = Path(output_dir)
-    df = pd.read_csv(output_dir/task/WINDOW_METRICS_FILE)
+    df = pd.read_csv(output_dir / task / WINDOW_METRICS_FILE)
 
     # Compute signal and task level score within each shot
     df_signals, df_task_shots = aggregate_windows_metrics(df)
 
     # Average task scores across shots
-    df_task = df_task_shots.mean()
+    df_task_mean = df_task_shots.mean()
+    df_task_std = df_task_shots.std(ddof=0).fillna(0)
 
-    # Append task-level scores to signal scores 
-    df_signals.loc[task] = df_task
+    # Append task-level mean scores to signal scores
+    df_signals.loc[task] = df_task_mean
+    # Append task-level std scores across shots (same row, *_std columns)
+    for metric, value in df_task_std.items():
+        df_signals.loc[task, f'{metric}_std'] = value
 
     if save:
-        df_signals.to_csv(output_dir/task/TASK_METRICS_FILE)
+        df_signals.to_csv(output_dir / task / TASK_METRICS_FILE)
 
     return df_signals
 
@@ -109,7 +113,7 @@ def compute_all_metrics(output_dir='.', save_locally=True):
 
     for group_id in group_tasks:
         for task in group_tasks[group_id]:
-            file_path = output_dir/task/WINDOW_METRICS_FILE
+            file_path = output_dir / task / WINDOW_METRICS_FILE
             if not file_path.exists():
                 print(f'Warning: task {task} was yet evaluated, the corresponding files were not found.')
                 continue
@@ -129,21 +133,47 @@ def compute_all_metrics(output_dir='.', save_locally=True):
             df_tasks_shots = pd.concat(all_tasks)
             all_tasks = []
 
-            df_tasks = (
+            # introduced metric_cols and used it consistently for both mean and std.
+            metric_cols = [
+                c for c in df_tasks_shots.columns if c not in ['shot_id', 'task']
+            ]
+
+            # Task-level means (mean across shots)
+            df_tasks_mean = (
                 df_tasks_shots
-                .drop(columns='shot_id')
-                .groupby(by=['task'])
+                .groupby(by=['task'])[metric_cols]
                 .mean()
                 .reset_index()
             )
 
-            df_group = (
-                df_tasks
-                .drop(columns='task')
-                .mean()
+            # Task-level stds (std across shots)
+            df_tasks_std = (
+                df_tasks_shots
+                .groupby(by=['task'])[metric_cols]
+                .std(ddof=0)
+                .fillna(0)
+                .rename(columns={c: f'{c}_std' for c in metric_cols})
+                .reset_index()
             )
-            df_group = df_group.to_frame().T
-            df_group['task'] = f'group_{group_id}'
+
+            # Builds one df per-task table containing both means across shots and std across shots
+            df_tasks = df_tasks_mean.merge(df_tasks_std, on='task', how='left')
+
+            # Group-level mean of task means
+            df_group = df_tasks_mean[metric_cols].mean()
+
+            # Group-level std across task means:
+            # Computes group std as std of task means across tasks in that group.
+            df_group_std = (
+                df_tasks_mean[metric_cols]
+                .std(ddof=0)
+                .fillna(0)
+                .rename(index={c: f'{c}_std' for c in metric_cols})
+            )
+
+            # add mean and std to group dataframe
+            df_group = pd.concat([df_group, df_group_std]).to_frame().T
+            df_group["task"] = f"group_{group_id}"
 
             all_groups.append(df_group)
             all_groups.append(df_tasks)
@@ -158,15 +188,15 @@ def compute_all_metrics(output_dir='.', save_locally=True):
         df_groups = df_groups[ordered_cols]
 
         if save_locally:
-            df_signals.to_csv(output_dir/SIGNAL_METRICS_FILE, index=False)
-            df_groups.to_csv(output_dir/GROUP_METRICS_FILE, index=False)
+            df_signals.to_csv(output_dir / SIGNAL_METRICS_FILE, index=False)
+            df_groups.to_csv(output_dir / GROUP_METRICS_FILE, index=False)
 
         return df_signals, df_groups
 
 
 if __name__ == "__main__":
     # NOTE: change the path to the outputs dir here:
-    output_dir='/home/ir-zaya1/fusion/fairmast-data-preprocessing/output/'
+    output_dir = '/home/ir-zaya1/fusion/fairmast-data-preprocessing/output/'
 
     compute_task_metrics('task_4-4', output_dir)
     compute_all_metrics(output_dir)
