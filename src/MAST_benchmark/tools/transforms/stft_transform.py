@@ -30,7 +30,7 @@ def stft(data, times, support_n=512):
 
     # Simple frame time: mean time within each window
     # frame_times = times.mean(axis=1)  # (n_frames,)
-    frame_times = [t[-1] for t in times ]  # (n_frames,)
+    frame_times = np.array([t[-1] for t in times])  # (n_frames,)
 
     spectrum = np.fft.fft(data)
     spectrum = spectrum[:, :support_n // 2]
