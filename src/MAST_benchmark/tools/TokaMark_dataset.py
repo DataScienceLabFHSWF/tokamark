@@ -153,11 +153,8 @@ class TokaMarkDataset(IterableDataset):
                     )
                     and not self._any_vars_have_nans(obj["output"])
                 )
-            else:
-                window_valid = True
-
-            if not window_valid:
-                continue
+                if not window_valid:
+                    continue
 
             obj2 = self.custom_transform(obj) if self.custom_transform else obj
             if obj2 is None:
