@@ -101,9 +101,9 @@ COmment to add
 
     return TokaMarkDataset(
         base_dataset=dataset,
-        dict_task_metadata=task_metadata,
-        config_task=config_metadata,
-        model_transform=custom_transform,
+        task_metadata=task_metadata,
+        config_metadata=config_metadata,
+        custom_transform=custom_transform,
         test_mode=test_mode,
         verbose=verbose,
         shuffle_windows=shuffle_windows,
