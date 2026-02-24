@@ -7,7 +7,7 @@ from typing import Optional, Mapping, Any
 # MAIN DATASET
 # ----------------------------------------------------------------------------------------------------------------------
 
-class TaskModelTransformWrapperIterable(IterableDataset):
+class TokaMarkDataset(IterableDataset):
 
     def __init__(
         self,

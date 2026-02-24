@@ -21,7 +21,7 @@ from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_benchmark.tasks import get_task_metadata
 from MAST_benchmark.data import (
     initialize_MAST_dataset, 
-    initialize_model_dataset_iterable
+    initialize_TokaMark_dataset
 )
 
 
@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
     model_specific_transform = ModelSpecificTransform()  # likely depends on dict_task_metadata
 
-    train_model_dataset = initialize_model_dataset_iterable(
+    train_model_dataset = initialize_TokaMark_dataset(
         dataset=train_MAST_dataset,
         dict_task_metadata=dict_task_metadata,
         config_task=config_task,

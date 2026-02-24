@@ -9,8 +9,7 @@ from typing import Optional, Mapping, Any
 # import numpy as np
 
 from MAST_tools.MAST_dataset import MastDataset
-from MAST_benchmark.tools.Task_Model_Wrapper import TaskModelTransformWrapper
-from MAST_benchmark.tools.Task_Model_Wrapper_Iterable import TaskModelTransformWrapperIterable
+from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
 from MAST_benchmark.tools.path import METADATA_DIR
 from MAST_benchmark.tools.MAST_composite_transform import (
     build_common_signal_transform_map,
@@ -81,58 +80,7 @@ def initialize_MAST_dataset(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_model_dataset(
-    dataset: Optional[MastDataset],
-    dict_task_metadata: Mapping[str, Any],
-    config_task: Mapping[str, Any],
-    model_specific_transform: Optional[Any] = None,
-    test_mode: bool = False,
-    *,
-    verbose: bool = False,
-) -> Optional[TaskModelTransformWrapper]:
-    """
-    Wrap a single baseline shot-level dataset with TaskModelTransformWrapper.
-
-    This is a single-split version of initialize_model_datasets(), intended to
-    be called explicitly for each split (train/val/test) from entrypoint scripts.
-
-    Parameters
-    ----------
-    dataset : Optional[MastDataset]
-        Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
-    dict_task_metadata : Mapping[str, Any],
-        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
-    config_task : Mapping[str, Any],
-        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
-    model_specific_transform : Optional[Any]
-        Optional model-specific transform chain applied per window.
-    test_mode : bool
-        If True, activates test mode.
-    verbose : bool
-        If True, enables verbose prints in the wrapper.
-
-    Returns
-    -------
-    Optional[TaskModelTransformWrapper]
-        Wrapped dataset, or None if input dataset is None.
-
-    """
-
-    if dataset is None:
-        return None
-
-    return TaskModelTransformWrapper(
-        base_dataset=dataset,
-        dict_task_metadata=dict_task_metadata,
-        config_task=config_task,
-        model_transform=model_specific_transform,
-        test_mode=test_mode,
-        verbose=verbose,
-    )
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def initialize_model_dataset_iterable(
+def initialize_TokaMark_dataset(
     dataset: Optional[MastDataset],
     dict_task_metadata: Mapping[str, Any],
     config_task: Mapping[str, Any],
@@ -142,8 +90,7 @@ def initialize_model_dataset_iterable(
     shuffle_buffer_size = 512,
     *,
     verbose: bool = False,
-# ) -> Optional[TaskModelTransformWrapper]:
-) -> Optional[TaskModelTransformWrapperIterable]:
+) -> Optional[TokaMarkDataset]:
     """
 COmment to add
 
@@ -152,7 +99,7 @@ COmment to add
     if dataset is None:
         return None
 
-    return TaskModelTransformWrapperIterable(
+    return TokaMarkDataset(
         base_dataset=dataset,
         dict_task_metadata=dict_task_metadata,
         config_task=config_task,
