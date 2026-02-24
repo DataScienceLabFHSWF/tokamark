@@ -93,45 +93,73 @@ class TokaMarkDataset(IterableDataset):
         # --------------------------------------------------------------
         t_start, t_end, delta_ts = [], [], []
 
+        # for var in self.output_keys:
+        #     t = sample[var]["time"]
+        #     v = sample[var]["values"]
+        #     if t.size:
+        #         t_start.append(t[0])
+        #         t_end.append(t[-1])
+        #         dts = np.diff(t)
+        #         if len(dts):
+        #             delta_ts.append(np.min(dts))
+
+        # if not delta_ts:
+        #     return
+
+        # start_time = np.min(t_start)
+        # end_time = np.max(t_end)
+
         for var in self.output_keys:
             t = sample[var]["time"]
-            if t.size:
-                t_start.append(t[0])
-                t_end.append(t[-1])
-                dts = np.diff(t)
-                if len(dts):
-                    delta_ts.append(np.min(dts))
+            v = sample[var]["values"]
 
+            if t.size == 0 or v.size == 0:
+                continue
+
+            # True where timestep has at least one real value
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
+            if not np.any(valid_mask):
+                continue
+            t_valid = t[valid_mask]
+            t_start.append(t_valid[0])
+            t_end.append(t_valid[-1])
+            dts = np.diff(t_valid)
+            if dts.size:
+                delta_ts.append(np.min(dts))
         if not delta_ts:
             return
 
-        start_time = np.min(t_start)
-        end_time = np.max(t_end)
+        global_start_time = np.min(t_start)
+        global_end_time = np.max(t_end)
 
         # Pad sample here 
         sample = self._pad_sample_to_interval(
             sample,
-            start_time,
-            end_time,
+            global_start_time,
+            global_end_time,
         )
 
-        t_cuts = np.arange(start_time + self.input_length, 
-                           end_time - self.delta - self.output_length, 
+        t_cuts = np.arange(global_start_time + self.input_length, 
+                           global_end_time - self.delta - self.output_length, 
                            self.stride)
 
         # --------------------------------------------------------------
         # build windows
         # --------------------------------------------------------------
         for idx_t, t_cut in enumerate(t_cuts):
-
-            if self.task_type == "non_markovian":
-                input_slice = self._build_non_markovian_input(sample, t_cut)
-                actuator_slice = self._build_non_markovian_actuator(sample, t_cut)
-            else:
-                input_slice = self._build_input(sample, t_cut)
-                actuator_slice = self._build_actuator(sample, t_cut)
-
-            output_slice = self._build_output(sample, t_cut)
+            
+            input_slice = self._build_window(sample, 
+                                             global_start_time,
+                                             t_cut, 
+                                             "input")
+            actuator_slice = self._build_window(sample, 
+                                                global_start_time, 
+                                                t_cut, 
+                                                "actuator")
+            output_slice = self._build_window(sample, 
+                                              global_start_time,
+                                              t_cut, 
+                                              "output")
 
             obj = {
                 "input": input_slice,
@@ -167,144 +195,81 @@ class TokaMarkDataset(IterableDataset):
             }
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Markovian input builder
+    # Window builder
     # ------------------------------------------------------------------------------------------------------------------
-    def _build_input(self, sample, t_cut):
+    def _build_window(self, 
+                      sample, 
+                      global_start_time,
+                      t_cut,
+                      type_window # "input", "actuator", "output"
+                      ):
 
         out = {}
 
-        for key in self.input_keys:
-            md = self.task_metadata["input"][key]
-            ts_len = md["ts_length"]
+        keys = {
+            "input": self.input_keys,
+            "actuator": self.actuator_keys,
+            "output": self.output_keys,
+        }
+
+        for key in keys[type_window]:
+
+            md = self.task_metadata[type_window][key]
+
             dt = md["dt"]
             shape_values = tuple(md["values_shape"])
+
+            ts_in = int(round(self.input_length / dt))
+            ts_out = int(round(self.output_length / dt))
+            ts_delta = int(round(self.delta / dt))
+
+            ts_len = {
+                "input": ts_in,
+                "actuator": ts_in + ts_delta + ts_out, 
+                "output": ts_out
+            }
 
             times = sample[key]["time"]
             values = sample[key]["values"]
 
             if times.size==0 or values.size==0:
-                selected_times = np.full(ts_len, np.nan)
-                selected_values = np.full(shape_values + (ts_len,), np.nan)
+                selected_times = np.full(ts_len[type_window], np.nan)
+                selected_values = np.full(shape_values + (ts_len[type_window],), np.nan)
 
             else:
-                cut_idx = int(round((t_cut - times[0]) / dt))
-                idx = np.arange(cut_idx - ts_len, cut_idx)    
 
-                selected_times = times[idx]
-                selected_values = values[..., idx]
+                # --------------------------------------------------
+                # Index Logic
+                # --------------------------------------------------
+                if type_window == "input":
+                    end_idx = int(round((t_cut - times[0]) / dt))
+                    if self.task_type == "markovian":
+                        idx = np.arange(end_idx - ts_in, end_idx)
+                    else:
+                        global_start_idx = int(round((global_start_time - times[0]) / dt))
+                        idx = np.arange(global_start_idx, end_idx)
 
-            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
-                selected_values = selected_values[0]
+                elif type_window == "output":
+                    cut_time = t_cut + self.delta
+                    start_idx = int(round((cut_time - times[0]) / dt))
+                    idx = np.arange(start_idx, start_idx + ts_out)
 
-            out[key] = {"time": selected_times, "values": selected_values}
+                elif type_window == "actuator":
+                    cut_idx = int(round((t_cut - times[0]) / dt))
+                    if self.task_type == "markovian":
+                        idx_in = np.arange(cut_idx - ts_in, cut_idx)
+                    else:
+                        global_start_idx = int(round((global_start_time - times[0]) / dt))
+                        idx_in = np.arange(global_start_idx, cut_idx)
+                    idx_out = np.arange(
+                        cut_idx,
+                        cut_idx + ts_delta + ts_out
+                    )
 
-        return out
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Output builder
-    # ------------------------------------------------------------------------------------------------------------------
-    def _build_output(self, sample, t_cut):
-
-        out = {}
-
-        for key in self.output_keys:
-            md = self.task_metadata["output"][key]
-            ts_len = md["ts_length"]
-            dt = md["dt"]
-            shape_values = tuple(md["values_shape"])
-
-            times = sample[key]["time"]
-            values = sample[key]["values"]
-
-            if times.size==0 or values.size==0:
-                selected_times = np.full(ts_len, np.nan)
-                selected_values = np.full(shape_values + (ts_len,), np.nan)
-
-            else: 
-                cut_time = t_cut + self.delta
-                start_idx = int(round((cut_time - times[0]) / dt))
-                idx = np.arange(start_idx, start_idx + ts_len)
+                    idx = np.concatenate([idx_in, idx_out])
+                # --------------------------------------------------
+                
                 idx = np.clip(idx, 0, len(times) - 1)
-
-                selected_times = times[idx]
-                selected_values = values[..., idx]
-            
-            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
-                selected_values = selected_values[0]
-
-            out[key] = {"time": selected_times, "values": selected_values}
-
-        return out
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Markovian actuator builder
-    # ------------------------------------------------------------------------------------------------------------------
-    def _build_actuator(self, sample, t_cut):
-
-        out = {}
-
-        for key in self.actuator_keys:
-            md = self.task_metadata["actuator"][key]
-            freq = md["dt"]
-            dt = md["dt"]
-            shape_values = tuple(md["values_shape"])
-
-            ts_in = int(round(self.input_length / freq))
-            ts_out = int(round(self.output_length / freq))
-            ts_delta = int(round(self.delta / freq))
-            # print('ts_delta', ts_delta)
-
-            times = sample[key]["time"]
-            values = sample[key]["values"]
-
-            if times.size==0 or values.size==0:
-                selected_times = np.full(ts_in + ts_delta + ts_out, np.nan)
-                selected_values = np.full(shape_values + (ts_in + ts_delta + ts_out,), np.nan)
-
-            else: 
-                cut_idx = int(round((t_cut - times[0]) / dt))
-
-                idx_in = np.arange(cut_idx - ts_in, cut_idx)
-                idx_in = np.clip(idx_in, 0, len(times) - 1)
-                
-                idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
-                idx_out = np.clip(idx_out, 0, len(times) - 1)
-
-                selected_times = np.concatenate([times[idx_in], times[idx_out]])
-                selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
-
-            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
-                selected_values = selected_values[0]
-
-            out[key] = {"time": selected_times, "values": selected_values}
-
-        return out
-
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Non-Markovian input builder
-    # ------------------------------------------------------------------------------------------------------------------
-    def _build_non_markovian_input(self, sample, t_cut):
-
-        out = {}
-
-        for key in self.input_keys:
-            md = self.task_metadata["input"][key]
-            ts_len = md["ts_length"]
-            dt = md["dt"]
-            shape_values = tuple(md["values_shape"])
-
-            times = sample[key]["time"]
-            values = sample[key]["values"]
-
-            if times.size==0 or values.size==0:
-                selected_times = np.full(ts_len, np.nan)
-                selected_values = np.full(shape_values + (ts_len,), np.nan)
-
-            else:
-                cut_idx = int(round((t_cut - times[0]) / dt))
-                idx = np.arange(0, cut_idx)
-                
                 selected_times = times[idx]
                 selected_values = values[..., idx]
 
@@ -314,49 +279,6 @@ class TokaMarkDataset(IterableDataset):
             out[key] = {"time": selected_times, "values": selected_values}
 
         return out
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Non-Markovian actuator builder
-    # ------------------------------------------------------------------------------------------------------------------
-    def _build_non_markovian_actuator(self, sample, t_cut):
-
-        out = {}
-
-        for key in self.actuator_keys:
-            md = self.task_metadata["actuator"][key]
-            freq = md["dt"]
-            dt = md["dt"]
-            shape_values = tuple(md["values_shape"])
-
-            ts_in = int(round(self.input_length / freq))
-            ts_out = int(round(self.output_length / freq))
-            ts_delta = int(round(self.delta / freq))
-
-            times = sample[key]["time"]
-            values = sample[key]["values"]
-
-            if times.size==0 or values.size==0:
-                selected_times = np.full(ts_in + ts_delta + ts_out, np.nan)
-                selected_values = np.full(shape_values + (ts_in + ts_delta + ts_out,), np.nan)
-
-            else: 
-                cut_idx = int(round((t_cut - times[0]) / dt))
-                idx_in = np.arange(0, cut_idx)
-                idx_in = np.clip(idx_in, 0, len(times) - 1)
-                
-                idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
-                idx_out = np.clip(idx_out, 0, len(times) - 1)
-
-                selected_times = np.concatenate([times[idx_in], times[idx_out]])
-                selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
-
-            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
-                selected_values = selected_values[0]
-
-            out[key] = {"time": selected_times, "values": selected_values}
-
-        return out
-
 
     # ------------------------------------------------------------------------------------------------------------------
     # Padding
