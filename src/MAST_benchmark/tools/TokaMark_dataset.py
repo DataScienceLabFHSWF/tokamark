@@ -14,7 +14,7 @@ class TokaMarkDataset(IterableDataset):
         base_dataset,
         task_metadata: Mapping[str, Any],
         config_task: Mapping[str, Any],
-        model_transform: Optional[Any] = None,
+        custom_transform: Optional[Any] = None,
         test_mode: bool = False,
         shuffle_windows: bool = False,
         shuffle_buffer_size: int = 512,
@@ -46,7 +46,7 @@ class TokaMarkDataset(IterableDataset):
 
         self.stride = float(self.task_metadata["sec_stride"])
 
-        self.model_transform = model_transform
+        self.custom_transform = custom_transform
         self.test_mode = test_mode
         self.shuffle_windows = shuffle_windows
         self.shuffle_buffer_size = shuffle_buffer_size
@@ -174,7 +174,7 @@ class TokaMarkDataset(IterableDataset):
             # else:
             #     print("window valid")
 
-            obj2 = self.model_transform(obj) if self.model_transform else obj
+            obj2 = self.custom_transform(obj) if self.custom_transform else obj
             if obj2 is None:
                 continue
 
