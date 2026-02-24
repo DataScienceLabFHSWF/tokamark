@@ -268,7 +268,6 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     # Padding
     # ------------------------------------------------------------------------------------------------------------------
-    @staticmethod
     def _pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values):
         
         if not np.issubdtype(values.dtype, np.floating):
