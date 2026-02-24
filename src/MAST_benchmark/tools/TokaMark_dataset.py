@@ -86,9 +86,6 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(self, idx_shot):
 
-        # print('\n')
-        # print(self.get_shot_id(idx_shot))
-
         sample = self.base[idx_shot]
 
         # --------------------------------------------------------------
@@ -111,10 +108,7 @@ class TokaMarkDataset(IterableDataset):
         start_time = np.min(t_start)
         end_time = np.max(t_end)
 
-        # print('start_time ', start_time)
-        # print('end_time ', end_time)
-
-        # pad sample here !!!
+        # Pad sample here 
         sample = self._pad_sample_to_interval(
             sample,
             start_time,
@@ -129,15 +123,11 @@ class TokaMarkDataset(IterableDataset):
         # build windows
         # --------------------------------------------------------------
         for idx_t, t_cut in enumerate(t_cuts):
-            
-            # print(idx_t)
 
             if self.task_type == "non_markovian":
-                # print("Non Markovian")
                 input_slice = self._build_non_markovian_input(sample, t_cut)
                 actuator_slice = self._build_non_markovian_actuator(sample, t_cut)
             else:
-                # print("Markovian")
                 input_slice = self._build_input(sample, t_cut)
                 actuator_slice = self._build_actuator(sample, t_cut)
 
@@ -156,7 +146,6 @@ class TokaMarkDataset(IterableDataset):
             # filtering
             # ----------------------------------------------------------
             if self.test_mode:
-                # print("test_mode on")
                 window_valid = (
                     not (
                         self._all_vars_have_nans(obj["input"])
@@ -168,10 +157,7 @@ class TokaMarkDataset(IterableDataset):
                 window_valid = True
 
             if not window_valid:
-                # print("window not valid")
                 continue
-            # else:
-            #     print("window valid")
 
             obj2 = self.custom_transform(obj) if self.custom_transform else obj
             if obj2 is None:
@@ -210,8 +196,6 @@ class TokaMarkDataset(IterableDataset):
                 selected_times = times[idx]
                 selected_values = values[..., idx]
 
-            # print(selected_values)
-
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
 
@@ -247,8 +231,6 @@ class TokaMarkDataset(IterableDataset):
 
                 selected_times = times[idx]
                 selected_values = values[..., idx]
-            
-            # print(selected_values)
             
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
@@ -293,8 +275,6 @@ class TokaMarkDataset(IterableDataset):
 
                 selected_times = np.concatenate([times[idx_in], times[idx_out]])
                 selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
-            
-            # print(selected_values)
 
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
@@ -331,8 +311,6 @@ class TokaMarkDataset(IterableDataset):
                 selected_times = times[idx]
                 selected_values = values[..., idx]
 
-            # print(selected_values)
-
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
 
@@ -356,7 +334,6 @@ class TokaMarkDataset(IterableDataset):
             ts_in = int(round(self.input_length / freq))
             ts_out = int(round(self.output_length / freq))
             ts_delta = int(round(self.delta / freq))
-            # print('ts_delta', ts_delta)
 
             times = sample[key]["time"]
             values = sample[key]["values"]
@@ -375,8 +352,6 @@ class TokaMarkDataset(IterableDataset):
 
                 selected_times = np.concatenate([times[idx_in], times[idx_out]])
                 selected_values = np.concatenate([values[..., idx_in], values[..., idx_out]], axis=-1)
-            
-            # print(selected_values)
 
             if selected_values.ndim == 2 and selected_values.shape[0] == 1:
                 selected_values = selected_values[0]
@@ -392,7 +367,6 @@ class TokaMarkDataset(IterableDataset):
     @staticmethod
     def _pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values):
         
-        # ensure float dtype once (needed for NaNs)
         if not np.issubdtype(values.dtype, np.floating):
             values = values.astype(float)
         
@@ -430,15 +404,11 @@ class TokaMarkDataset(IterableDataset):
 
             if times.size == 0 or values.size == 0:
                 continue
-            
-            # print('\nFROM ', key, times[0], times[-1])
 
             dt = self.data_metadata[key]['dt']
             shape_values = self.data_metadata[key]['shape_values']
 
             times, values = self._pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values)
-
-            # print('TO ', key, times[0], times[-1])
 
             sample[key]["time"] = times
             sample[key]["values"] = values
