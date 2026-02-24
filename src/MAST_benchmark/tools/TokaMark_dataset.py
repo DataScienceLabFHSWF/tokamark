@@ -12,7 +12,7 @@ class TokaMarkDataset(IterableDataset):
     def __init__(
         self,
         base_dataset,
-        dict_task_metadata: Mapping[str, Any],
+        task_metadata: Mapping[str, Any],
         config_task: Mapping[str, Any],
         model_transform: Optional[Any] = None,
         test_mode: bool = False,
@@ -24,11 +24,11 @@ class TokaMarkDataset(IterableDataset):
 
         self.base = base_dataset
         self.shots_list = self.base.shots_list
-        self.dict_task_metadata = dict_task_metadata
+        self.task_metadata = task_metadata
 
-        self.dict_meta = {
+        self.data_metadata = {
             key: {'dt': meta['dt'], 'shape_values': tuple(meta['values_shape'])}
-            for d in [dict_task_metadata['input'], dict_task_metadata['actuator'], dict_task_metadata['output']]
+            for d in [task_metadata['input'], task_metadata['actuator'], task_metadata['output']]
             for key, meta in d.items()
         }
 
@@ -44,7 +44,7 @@ class TokaMarkDataset(IterableDataset):
         self.output_length = seg["output_length"]
         self.delta = seg["delta"]
 
-        self.stride = float(self.dict_task_metadata["sec_stride"])
+        self.stride = float(self.task_metadata["sec_stride"])
 
         self.model_transform = model_transform
         self.test_mode = test_mode
@@ -192,7 +192,7 @@ class TokaMarkDataset(IterableDataset):
         out = {}
 
         for key in self.input_keys:
-            md = self.dict_task_metadata["input"][key]
+            md = self.task_metadata["input"][key]
             ts_len = md["ts_length"]
             dt = md["dt"]
             shape_values = tuple(md["values_shape"])
@@ -228,7 +228,7 @@ class TokaMarkDataset(IterableDataset):
         out = {}
 
         for key in self.output_keys:
-            md = self.dict_task_metadata["output"][key]
+            md = self.task_metadata["output"][key]
             ts_len = md["ts_length"]
             dt = md["dt"]
             shape_values = tuple(md["values_shape"])
@@ -266,7 +266,7 @@ class TokaMarkDataset(IterableDataset):
         out = {}
 
         for key in self.actuator_keys:
-            md = self.dict_task_metadata["actuator"][key]
+            md = self.task_metadata["actuator"][key]
             freq = md["dt"]
             dt = md["dt"]
             shape_values = tuple(md["values_shape"])
@@ -313,7 +313,7 @@ class TokaMarkDataset(IterableDataset):
         out = {}
 
         for key in self.input_keys:
-            md = self.dict_task_metadata["input"][key]
+            md = self.task_metadata["input"][key]
             ts_len = md["ts_length"]
             dt = md["dt"]
             shape_values = tuple(md["values_shape"])
@@ -349,7 +349,7 @@ class TokaMarkDataset(IterableDataset):
         out = {}
 
         for key in self.actuator_keys:
-            md = self.dict_task_metadata["actuator"][key]
+            md = self.task_metadata["actuator"][key]
             freq = md["dt"]
             dt = md["dt"]
             shape_values = tuple(md["values_shape"])
@@ -434,8 +434,8 @@ class TokaMarkDataset(IterableDataset):
             
             # print('\nFROM ', key, times[0], times[-1])
 
-            dt = self.dict_meta[key]['dt']
-            shape_values = self.dict_meta[key]['shape_values']
+            dt = self.data_metadata[key]['dt']
+            shape_values = self.data_metadata[key]['shape_values']
 
             times, values = self._pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values)
 
