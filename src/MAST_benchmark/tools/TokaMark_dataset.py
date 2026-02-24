@@ -94,22 +94,6 @@ class TokaMarkDataset(IterableDataset):
         # --------------------------------------------------------------
         t_start, t_end, delta_ts = [], [], []
 
-        # for var in self.output_keys:
-        #     t = sample[var]["time"]
-        #     v = sample[var]["values"]
-        #     if t.size:
-        #         t_start.append(t[0])
-        #         t_end.append(t[-1])
-        #         dts = np.diff(t)
-        #         if len(dts):
-        #             delta_ts.append(np.min(dts))
-
-        # if not delta_ts:
-        #     return
-
-        # start_time = np.min(t_start)
-        # end_time = np.max(t_end)
-
         for var in self.output_keys:
             t = sample[var]["time"]
             v = sample[var]["values"]
