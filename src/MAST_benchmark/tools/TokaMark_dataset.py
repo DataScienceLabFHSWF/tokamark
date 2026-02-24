@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
 from typing import Optional, Mapping, Any
@@ -343,21 +344,16 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     # Filtering
     # ------------------------------------------------------------------------------------------------------------------
-    @staticmethod
     def _all_vars_have_nans(dict_obj):
         return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
 
-    @staticmethod
     def _any_vars_have_nans(dict_obj):
         return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
-    
     
     # ------------------------------------------------------------------------------------------------------------------
     # Optional streaming shuffle buffer
     # ------------------------------------------------------------------------------------------------------------------
-    @staticmethod
     def _shuffle_buffer(iterator, buffer_size=512):
-        import random
         buffer = []
         for item in iterator:
             buffer.append(item)
