@@ -226,9 +226,9 @@ if __name__ == "__main__":
 
     train_model_dataset = initialize_TokaMark_dataset(
         dataset=train_MAST_dataset,
-        dict_task_metadata=dict_task_metadata,
-        config_task=config_task,
-        model_specific_transform=model_specific_transform,
+        task_metadata=dict_task_metadata,
+        config_metadata=config_task,
+        custom_transform=model_specific_transform,
         test_mode=True,
         shuffle_windows = False,
         verbose=False
