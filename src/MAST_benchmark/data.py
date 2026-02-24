@@ -82,8 +82,8 @@ def initialize_MAST_dataset(
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_TokaMark_dataset(
     dataset: Optional[MastDataset],
-    dict_task_metadata: Mapping[str, Any],
-    config_task: Mapping[str, Any],
+    task_metadata: Mapping[str, Any],
+    config_metadata: Mapping[str, Any],
     custom_transform: Optional[Any] = None,
     test_mode: bool = False,
     shuffle_windows = True,
@@ -101,8 +101,8 @@ COmment to add
 
     return TokaMarkDataset(
         base_dataset=dataset,
-        dict_task_metadata=dict_task_metadata,
-        config_task=config_task,
+        dict_task_metadata=task_metadata,
+        config_task=config_metadata,
         model_transform=custom_transform,
         test_mode=test_mode,
         verbose=verbose,

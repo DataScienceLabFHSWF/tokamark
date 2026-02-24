@@ -13,7 +13,7 @@ class TokaMarkDataset(IterableDataset):
         self,
         base_dataset,
         task_metadata: Mapping[str, Any],
-        config_task: Mapping[str, Any],
+        config_metadata: Mapping[str, Any],
         custom_transform: Optional[Any] = None,
         test_mode: bool = False,
         shuffle_windows: bool = False,
@@ -32,9 +32,8 @@ class TokaMarkDataset(IterableDataset):
             for key, meta in d.items()
         }
 
-        self.task_type = config_task["task_type"]
-
-        seg = config_task["task_window_segmenter"]
+        self.task_type = config_metadata["task_type"]
+        seg = config_metadata["task_window_segmenter"]
 
         self.input_keys = [f"{s}-{k}" for s, k in (seg["input_keys"] or [])]
         self.actuator_keys = [f"{s}-{k}" for s, k in (seg["actuator_keys"] or [])]
