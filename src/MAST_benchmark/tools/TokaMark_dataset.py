@@ -127,6 +127,13 @@ class TokaMarkDataset(IterableDataset):
             v = sample[var]["values"]
 
             if t.size == 0 or v.size == 0:
+                if self.test_mode:
+                    if self.verbose:
+                        print(
+                            f"Skipping shot {self.get_shot_id(idx_shot)} "
+                            f"(empty output '{var}')"
+                        )
+                    return   # ← skip whole shot
                 continue
 
             # True where timestep has at least one real value
@@ -195,7 +202,8 @@ class TokaMarkDataset(IterableDataset):
                     and not _any_vars_have_nans(obj["output"])
                 )
                 if not window_valid:
-                    print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid")
+                    if self.verbose:
+                        print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid")
                     continue
 
             obj2 = self.custom_transform(obj) if self.custom_transform else obj
