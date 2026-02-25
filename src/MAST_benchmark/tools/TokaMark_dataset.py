@@ -5,6 +5,34 @@ from typing import Optional, Mapping, Any
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+# HELPERS
+# ----------------------------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------
+# Filtering
+# --------------------------------------------------------------
+def _all_vars_have_nans(dict_obj):
+    return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+
+def _any_vars_have_nans(dict_obj):
+    return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+
+# --------------------------------------------------------------
+# Optional streaming shuffle buffer
+# --------------------------------------------------------------
+def _shuffle_buffer(iterator, buffer_size=512):
+    buffer = []
+    for item in iterator:
+        buffer.append(item)
+        if len(buffer) >= buffer_size:
+            idx = random.randrange(len(buffer))
+            yield buffer.pop(idx)
+    while buffer:
+        idx = random.randrange(len(buffer))
+        yield buffer.pop(idx)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
 # MAIN DATASET
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -70,7 +98,7 @@ class TokaMarkDataset(IterableDataset):
         iterator = self._iterate_shots(start, end)
 
         if self.shuffle_windows:
-            iterator = self._shuffle_buffer(iterator, self.shuffle_buffer_size)
+            iterator = _shuffle_buffer(iterator, self.shuffle_buffer_size)
 
         yield from iterator
 
@@ -161,12 +189,13 @@ class TokaMarkDataset(IterableDataset):
             if self.test_mode:
                 window_valid = (
                     not (
-                        self._all_vars_have_nans(obj["input"])
-                        and self._all_vars_have_nans(obj["actuator"])
+                        _all_vars_have_nans(obj["input"])
+                        and _all_vars_have_nans(obj["actuator"])
                     )
-                    and not self._any_vars_have_nans(obj["output"])
+                    and not _any_vars_have_nans(obj["output"])
                 )
                 if not window_valid:
+                    print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid")
                     continue
 
             obj2 = self.custom_transform(obj) if self.custom_transform else obj
@@ -268,7 +297,7 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     # Padding
     # ------------------------------------------------------------------------------------------------------------------
-    def _pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values):
+    def _pad_timeseries_to_interval(self, times, values, dt, t_start, t_end, shape_values):
         
         if not np.issubdtype(values.dtype, np.floating):
             values = values.astype(float)
@@ -323,27 +352,4 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     def get_shot_id(self, idx):
         return self.base.shots_list[idx]
-    
-    # ------------------------------------------------------------------------------------------------------------------
-    # Filtering
-    # ------------------------------------------------------------------------------------------------------------------
-    def _all_vars_have_nans(dict_obj):
-        return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
-
-    def _any_vars_have_nans(dict_obj):
-        return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
-    
-    # ------------------------------------------------------------------------------------------------------------------
-    # Optional streaming shuffle buffer
-    # ------------------------------------------------------------------------------------------------------------------
-    def _shuffle_buffer(iterator, buffer_size=512):
-        buffer = []
-        for item in iterator:
-            buffer.append(item)
-            if len(buffer) >= buffer_size:
-                idx = random.randrange(len(buffer))
-                yield buffer.pop(idx)
-        while buffer:
-            idx = random.randrange(len(buffer))
-            yield buffer.pop(idx)
     
