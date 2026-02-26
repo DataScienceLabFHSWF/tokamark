@@ -17,7 +17,10 @@ import psutil
 from MAST_benchmark.tasks import get_task_config, get_task_metadata, get_signals_metadata
 from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_benchmark.data import initialize_MAST_dataset, initialize_model_dataset
-from MAST_benchmark.evaluator import WindowMetricsWriter, compute_task_metrics, compute_all_metrics
+from MAST_benchmark.evaluator import (
+    WindowMetricsAccumulator,
+    compute_metrics,
+)
 
 
 class PersistanceTransform:
@@ -87,11 +90,11 @@ def MAST_collate_fn(batch, verbose=True):
 def persistance_evaluation_loop(
     test_dataloader,
     feature_names,
-    window_metrics,
+    accumulator,
     model = 'persistence'
 ):
     """
-    Evaluate persistence model per shot/window and save incremental RMSEs to CSV.
+    Evaluate persistence model per shot/window and populate an accumulator.
     """
     
     # === Evaluation loop ===
@@ -134,9 +137,15 @@ def persistance_evaluation_loop(
                 .numpy()
             )
 
-            window_metrics.compute_and_append(y_t, y_p, shot_id, window_id, feature_name)
+            accumulator.add_batch(
+                y_target=y_t,
+                y_pred=y_p,
+                shot_id=shot_id,
+                window_index=window_id,
+                feature_name=feature_name,
+            )
 
-    print(f"✅ Evaluation done. RMSEs and MSEs saved (incrementally).")
+    print("Evaluation done. Window metrics accumulator is ready.")
 
 
 def run_persistence_pipeline(task, pipeline_config):
@@ -210,9 +219,24 @@ def run_persistence_pipeline(task, pipeline_config):
         # -------------------------------------------------------------------
         # Evaluation
         # -------------------------------------------------------------------
-        window_metrics = WindowMetricsWriter(task, pipeline_config["output_dir"])
-        persistance_evaluation_loop(test_dataloader, signals, window_metrics, model=pipeline_config["model"])
-        compute_task_metrics(task, pipeline_config["output_dir"])
+        accumulator = WindowMetricsAccumulator(task)
+        persistance_evaluation_loop(
+            test_dataloader,
+            signals,
+            accumulator,
+            model=pipeline_config["model"],
+        )
+        if accumulator.is_empty():
+            print(f"No windows metrics were computed for task {task}.")
+            return
+
+        compute_metrics(
+            task=task,
+            output_dir=pipeline_config["output_dir"],
+            window_metrics_accumulator=accumulator,
+            save_windows_metrics=pipeline_config.get("save_windows_metrics", False),
+            save_task_metrics=pipeline_config.get("save_task_metrics", True),
+        )
     else:
         print('No common signals between input and output - not possible to run persistance.')
 
@@ -250,5 +274,5 @@ if __name__ == "__main__":
         print('---------------------------------------------\n\n')
 
     
-    # compute_all_metrics(pipeline_config["output_dir"])
+    # compute_summary_metrics(pipeline_config["output_dir"])
     print('DONE')

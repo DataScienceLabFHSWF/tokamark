@@ -1,14 +1,31 @@
+"""Benchmark evaluation utilities for MAST tasks.
+
+Typical usage:
+1. During inference, create ``WindowMetricsAccumulator(task)`` and call
+   ``add_batch(...)`` for each model batch.
+2. After one task is complete, call
+   ``compute_metrics(task, output_dir, window_metrics_accumulator, ...)``
+   to compute task metrics and optionally save:
+   ``<output_dir>/<task>/windows_metrics.csv`` and/or
+   ``<output_dir>/<task>/tasks_metrics.csv``.
+3. After all tasks are complete, call ``compute_summary_metrics(output_dir)`` to
+   produce ``signals_metrics.csv`` and ``groups_metrics.csv`` in ``output_dir``.
+"""
+
 from pathlib import Path
 import pandas as pd
 import numpy as np
 
 from MAST_benchmark.tasks import group_tasks, tasks_configs_map, get_signals_metadata
-from MAST_benchmark.tools.utils import AutoAppendingDataFrame
 
 
 ID_COLUMNS = ["shot_id", "window_index", "feature_name"]
 METRIC_COLUMNS = ["RMSE", "MAE"]
 COLUMNS = ID_COLUMNS + METRIC_COLUMNS
+TASK_METRICS = ("NRMSE", "NMAE", "RMSE", "MAE")
+TASK_SUMMARY_COLUMNS = ("n_shots",) + tuple(
+    f"{metric}_{suffix}" for metric in TASK_METRICS for suffix in ("mean", "var_pop")
+)
 
 WINDOW_METRICS_FILE = "windows_metrics.csv"
 SIGNAL_METRICS_FILE = "signals_metrics.csv"
@@ -16,34 +33,166 @@ TASK_METRICS_FILE = "tasks_metrics.csv"
 GROUP_METRICS_FILE = "groups_metrics.csv"
 
 
-class WindowMetricsWriter:
-    def __init__(self, task, output_dir):
+def compute_windows_metrics(y_target, y_pred, shot_id, window_index, feature_name):
+    """Compute RMSE/MAE per window for one feature and return a dataframe chunk."""
+    rmse_per_sample = np.sqrt(np.mean((y_target - y_pred) ** 2, axis=1))
+    mae_per_sample = np.mean(np.abs(y_target - y_pred), axis=1)
 
-        metrics_path = Path(output_dir) / task / WINDOW_METRICS_FILE
-        metrics_path.parent.mkdir(parents=True, exist_ok=True)
-        if metrics_path.exists():
-            metrics_path.unlink()
+    data = np.column_stack(
+        (
+            shot_id,
+            window_index,
+            [feature_name] * len(shot_id),
+            rmse_per_sample,
+            mae_per_sample,
+        )
+    )
+    return pd.DataFrame(data, columns=COLUMNS)
 
-        self.writer = AutoAppendingDataFrame(metrics_path)
 
-    def compute_and_append(self, y_target, y_pred, shot_id, window_index, feature_name):
-        rmse_per_sample = np.sqrt(np.mean((y_target - y_pred) ** 2, axis=1))
-        mae_per_sample = np.mean(np.abs(y_target - y_pred), axis=1)
+class WindowMetricsAccumulator:
+    """In-memory collector of per-window metrics for one task."""
 
-        data = np.column_stack(
-            (
-                shot_id,
-                window_index,
-                [feature_name] * len(shot_id),
-                rmse_per_sample,
-                mae_per_sample,
+    def __init__(self, task):
+        self.task = str(task)
+        self._chunks: list[pd.DataFrame] = []
+
+    def add_batch(self, y_target, y_pred, shot_id, window_index, feature_name):
+        """Compute one metrics chunk and append it to the accumulator."""
+        self._chunks.append(
+            compute_windows_metrics(
+                y_target=y_target,
+                y_pred=y_pred,
+                shot_id=shot_id,
+                window_index=window_index,
+                feature_name=feature_name,
             )
         )
-        df_eval = pd.DataFrame(data, columns=COLUMNS)
-        self.writer.append(df_eval)
+
+    def is_empty(self):
+        """Return True when no window chunks were collected."""
+        return len(self._chunks) == 0
+
+    def to_dataframe(self):
+        """Concatenate all collected chunks into one windows dataframe."""
+        if self.is_empty():
+            return pd.DataFrame(columns=COLUMNS)
+        return pd.concat(self._chunks, ignore_index=True)
+
+
+def _build_task_metrics_df(task, df_signals, df_task_shots):
+    """Build the task dataframe (signal rows + one task summary row)."""
+    df_task_metrics = df_signals.reset_index().rename(columns={"index": "feature_name"})
+    df_task_metrics["feature_name"] = df_task_metrics["feature_name"].astype(str)
+
+    summary = _build_task_summary_row_from_shots(df_task_shots)
+    task_row_df = pd.DataFrame([{"feature_name": task, **summary}])
+
+    for col in TASK_SUMMARY_COLUMNS:
+        if col not in df_task_metrics.columns:
+            df_task_metrics[col] = np.nan
+
+    df_task_metrics = pd.concat([df_task_metrics, task_row_df], ignore_index=True)
+
+    ordered_cols = ["feature_name"] + list(TASK_SUMMARY_COLUMNS)
+    remaining_cols = [c for c in df_task_metrics.columns if c not in ordered_cols]
+    return df_task_metrics[ordered_cols + remaining_cols]
+
+
+def _build_task_summary_row_from_shots(df_task_shots):
+    """Build one task-level summary row from shot-level metrics."""
+    summary = {"n_shots": float(len(df_task_shots))}
+    for metric in TASK_METRICS:
+        if metric in df_task_shots.columns:
+            vals = pd.to_numeric(df_task_shots[metric], errors="coerce").dropna()
+        else:
+            vals = pd.Series(dtype=float)
+
+        if len(vals) == 0:
+            mean_val = np.nan
+            var_val = np.nan
+        else:
+            mean_val = float(vals.mean())
+            var_val = float(vals.var(ddof=0))
+
+        summary[f"{metric}_mean"] = mean_val
+        summary[f"{metric}_var_pop"] = var_val
+    return summary
+
+
+def _pool_group_from_task_summaries(df_tasks):
+    """Pool task summaries into one group summary using shot-count weights."""
+    group = {
+        "n_shots": float(pd.to_numeric(df_tasks["n_shots"], errors="coerce").sum())
+    }
+
+    for metric in TASK_METRICS:
+        mean_col = f"{metric}_mean"
+        var_col = f"{metric}_var_pop"
+        if mean_col not in df_tasks.columns or var_col not in df_tasks.columns:
+            group[mean_col] = np.nan
+            group[var_col] = np.nan
+            continue
+
+        tmp = df_tasks[["n_shots", mean_col, var_col]].copy()
+        tmp["n_shots"] = pd.to_numeric(tmp["n_shots"], errors="coerce")
+        tmp[mean_col] = pd.to_numeric(tmp[mean_col], errors="coerce")
+        tmp[var_col] = pd.to_numeric(tmp[var_col], errors="coerce")
+        tmp = tmp.dropna()
+        tmp = tmp[tmp["n_shots"] > 0]
+
+        if len(tmp) == 0:
+            group[mean_col] = np.nan
+            group[var_col] = np.nan
+            continue
+
+        weights = tmp["n_shots"].to_numpy(dtype=float)
+        means = tmp[mean_col].to_numpy(dtype=float)
+        vars_pop = tmp[var_col].to_numpy(dtype=float)
+
+        n_total = float(weights.sum())
+        mu = float(np.sum(weights * means) / n_total)
+        var_pop = float(np.sum(weights * (vars_pop + (means - mu) ** 2)) / n_total)
+
+        group[mean_col] = mu
+        group[var_col] = var_pop
+
+    return group
+
+
+def _extract_task_summary_from_task_metrics(task, output_dir):
+    """Load one task summary row (and signal rows) from ``tasks_metrics.csv``."""
+    file_path = Path(output_dir) / task / TASK_METRICS_FILE
+    if not file_path.exists():
+        print(
+            f"Warning: task {task} was yet evaluated, the corresponding files were not found."
+        )
+        return None, None
+
+    df = pd.read_csv(file_path)
+    if "feature_name" not in df.columns:
+        print(f"Warning: {file_path} has no feature_name column. Skipping task {task}.")
+        return None, None
+
+    df["feature_name"] = df["feature_name"].astype(str)
+    task_rows = df[df["feature_name"] == task]
+    if len(task_rows) == 0:
+        print(f"Warning: {file_path} has no task row '{task}'. Skipping task.")
+        return None, None
+
+    row = task_rows.iloc[0]
+    summary = {"task": task}
+    for col in TASK_SUMMARY_COLUMNS:
+        summary[col] = row[col] if col in row.index else np.nan
+
+    signal_rows = df[df["feature_name"] != task].copy()
+    signal_rows["task"] = task
+    return summary, signal_rows
 
 
 def aggregate_windows_metrics(df):
+    """Aggregate window rows into signal-level and shot-level dataframes."""
+    df = df.copy()
     # Compute signal level score within each shot
     if "RMSE" in df.columns:
         df["RMSE"] = df["RMSE"] ** 2
@@ -69,15 +218,20 @@ def aggregate_windows_metrics(df):
 
     # Compute task level score within each shot
     df_task_shots = (
-        df_signals_shots.drop(columns=["feature_name", "RMSE", "MAE"])
-        .groupby(by=["shot_id"])
-        .mean()
+        df_signals_shots.drop(columns=["feature_name"]).groupby(by=["shot_id"]).mean()
     )
 
     return df_signals, df_task_shots
 
 
-def compute_task_metrics(task="task_1-1", output_dir=".", save=True):
+def compute_metrics(
+    task,
+    output_dir,
+    window_metrics_accumulator,
+    save_windows_metrics=False,
+    save_task_metrics=True,
+):
+    """Compute one task metrics from an in-memory window metrics accumulator."""
     if task not in tasks_configs_map:
         print(
             f"Warning: task {task} is not known. Available tasks are: ",
@@ -85,120 +239,125 @@ def compute_task_metrics(task="task_1-1", output_dir=".", save=True):
         )
 
     output_dir = Path(output_dir)
-    df = pd.read_csv(output_dir / task / WINDOW_METRICS_FILE)
+    task_output_dir = output_dir / task
+    task_output_dir.mkdir(parents=True, exist_ok=True)
+    if window_metrics_accumulator is None:
+        raise ValueError(
+            "window_metrics_accumulator cannot be None in compute_metrics(...)"
+        )
+
+    if not isinstance(window_metrics_accumulator, WindowMetricsAccumulator):
+        raise TypeError(
+            "window_metrics_accumulator must be a WindowMetricsAccumulator instance"
+        )
+
+    if window_metrics_accumulator.task != str(task):
+        raise ValueError(
+            "Accumulator task does not match compute_metrics task: "
+            f"{window_metrics_accumulator.task} vs {task}"
+        )
+
+    windows_df = window_metrics_accumulator.to_dataframe()
+    if len(windows_df) == 0:
+        raise ValueError(f"No window metrics were collected for task {task}.")
+
+    missing = [c for c in COLUMNS if c not in windows_df.columns]
+    if len(missing) > 0:
+        raise ValueError(
+            "windows_df is missing required columns: " + ", ".join(missing)
+        )
+    df = windows_df[COLUMNS].copy()
 
     # Compute signal and task level score within each shot
     df_signals, df_task_shots = aggregate_windows_metrics(df)
+    df_task_metrics = _build_task_metrics_df(task, df_signals, df_task_shots)
 
-    # Average task scores across shots
-    df_task_mean = df_task_shots.mean()
-    df_task_std = df_task_shots.std(ddof=0).fillna(0)
+    if save_windows_metrics:
+        df.to_csv(task_output_dir / WINDOW_METRICS_FILE, index=False)
+    if save_task_metrics:
+        df_task_metrics.to_csv(task_output_dir / TASK_METRICS_FILE, index=False)
 
-    # Append task-level mean scores to signal scores
-    df_signals.loc[task] = df_task_mean
-    # Append task-level std scores across shots (same row, *_std columns)
-    for metric, value in df_task_std.items():
-        df_signals.loc[task, f"{metric}_std"] = value
-
-    if save:
-        df_signals.to_csv(output_dir / task / TASK_METRICS_FILE)
-
-    return df_signals
+    return df_task_metrics.set_index("feature_name")
 
 
-def compute_all_metrics(output_dir=".", save_locally=True):
+def compute_summary_metrics(output_dir=".", source="tasks_metrics", save_locally=True):
+    """Aggregate all tasks into signal/group metrics from task or window files."""
     output_dir = Path(output_dir)
 
     all_signals = []
-    all_tasks = []
     all_groups = []
 
+    if source not in {"tasks_metrics", "windows_metrics"}:
+        raise ValueError("source must be either 'tasks_metrics' or 'windows_metrics'")
+
     for group_id in group_tasks:
+        group_task_summaries = []
+
         for task in group_tasks[group_id]:
-            file_path = output_dir / task / WINDOW_METRICS_FILE
-            if not file_path.exists():
-                print(
-                    f"Warning: task {task} was yet evaluated, the corresponding files were not found."
+            if source == "windows_metrics":
+                file_path = output_dir / task / WINDOW_METRICS_FILE
+                if not file_path.exists():
+                    print(
+                        f"Warning: task {task} was yet evaluated, the corresponding files were not found."
+                    )
+                    continue
+
+                df = pd.read_csv(file_path)
+                df_signals, df_task_shots = aggregate_windows_metrics(df)
+                all_signals.append(df_signals.reset_index().assign(task=task))
+                group_task_summaries.append(
+                    {"task": task, **_build_task_summary_row_from_shots(df_task_shots)}
                 )
-                continue
+            else:
+                task_summary, signal_rows = _extract_task_summary_from_task_metrics(
+                    task, output_dir
+                )
+                if task_summary is None:
+                    continue
+                group_task_summaries.append(task_summary)
+                if signal_rows is not None and len(signal_rows) > 0:
+                    all_signals.append(signal_rows)
 
-            df = pd.read_csv(file_path)
+        if len(group_task_summaries) > 0:
+            df_tasks = pd.DataFrame(group_task_summaries)
+            df_group_values = _pool_group_from_task_summaries(df_tasks)
+            df_group_row: dict[str, object] = {"task": f"group_{group_id}"}
+            df_group_row.update(df_group_values)
 
-            # Compute signal and task level score within each shot
-            df_signals, df_task_shots = aggregate_windows_metrics(df)
-
-            df_signals["task"] = task
-            all_signals.append(df_signals.reset_index())
-
-            df_task_shots["task"] = task
-            all_tasks.append(df_task_shots.reset_index())
-
-        if len(all_tasks) > 0:
-            df_tasks_shots = pd.concat(all_tasks)
-            all_tasks = []
-
-            # introduced metric_cols and used it consistently for both mean and std.
-            metric_cols = [
-                c for c in df_tasks_shots.columns if c not in ["shot_id", "task"]
-            ]
-
-            # Task-level means (mean across shots)
-            df_tasks_mean = (
-                df_tasks_shots.groupby(by=["task"])[metric_cols].mean().reset_index()
-            )
-
-            # Task-level stds (std across shots)
-            df_tasks_std = (
-                df_tasks_shots.groupby(by=["task"])[metric_cols]
-                .std(ddof=0)
-                .fillna(0)
-                .rename(columns={c: f"{c}_std" for c in metric_cols})
-                .reset_index()
-            )
-
-            # Builds one df per-task table containing both means across shots and std across shots
-            df_tasks = df_tasks_mean.merge(df_tasks_std, on="task", how="left")
-
-            # Group-level mean of task means
-            df_group = df_tasks_mean[metric_cols].mean()
-
-            # Group-level std across task means:
-            # Computes group std as std of task means across tasks in that group.
-            df_group_std = (
-                df_tasks_mean[metric_cols]
-                .std(ddof=0)
-                .fillna(0)
-                .rename(index={c: f"{c}_std" for c in metric_cols})
-            )
-
-            # add mean and std to group dataframe
-            df_group = pd.concat([df_group, df_group_std]).to_frame().T
-            df_group["task"] = f"group_{group_id}"
-
-            all_groups.append(df_group)
+            all_groups.append(pd.DataFrame([df_group_row]))
             all_groups.append(df_tasks)
 
-    if len(all_signals) > 0:
-        df_signals = pd.concat(all_signals)
-        ordered_cols = [df_signals.columns[-1]] + df_signals.columns[:-1].to_list()
+    df_signals = (
+        pd.concat(all_signals, ignore_index=True)
+        if len(all_signals) > 0
+        else pd.DataFrame()
+    )
+    if len(df_signals) > 0 and "task" in df_signals.columns:
+        ordered_cols = ["task"] + [c for c in df_signals.columns if c != "task"]
         df_signals = df_signals[ordered_cols]
 
-        df_groups = pd.concat(all_groups)
-        ordered_cols = [df_groups.columns[-1]] + df_groups.columns[:-1].to_list()
+    df_groups = (
+        pd.concat(all_groups, ignore_index=True)
+        if len(all_groups) > 0
+        else pd.DataFrame()
+    )
+    if len(df_groups) > 0 and "task" in df_groups.columns:
+        ordered_cols = ["task"] + [c for c in df_groups.columns if c != "task"]
         df_groups = df_groups[ordered_cols]
 
-        if save_locally:
+    if save_locally:
+        if len(df_signals) > 0:
             df_signals.to_csv(output_dir / SIGNAL_METRICS_FILE, index=False)
+        if len(df_groups) > 0:
             df_groups.to_csv(output_dir / GROUP_METRICS_FILE, index=False)
 
-        return df_signals, df_groups
+    return df_signals, df_groups
 
 
 if __name__ == "__main__":
     # NOTE: change the path to the outputs dir here:
     output_dir = "/home/ir-zaya1/fusion/fairmast-data-preprocessing/output/"
 
-    compute_task_metrics("task_4-4", output_dir)
-    compute_all_metrics(output_dir)
+    compute_summary_metrics(output_dir)
 
     print("DONE")
