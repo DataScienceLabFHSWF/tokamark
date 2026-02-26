@@ -38,16 +38,16 @@ def compute_windows_metrics(y_target, y_pred, shot_id, window_index, feature_nam
     rmse_per_sample = np.sqrt(np.mean((y_target - y_pred) ** 2, axis=1))
     mae_per_sample = np.mean(np.abs(y_target - y_pred), axis=1)
 
-    data = np.column_stack(
-        (
-            shot_id,
-            window_index,
-            [feature_name] * len(shot_id),
-            rmse_per_sample,
-            mae_per_sample,
-        )
+    # Build columns explicitly to preserve numeric dtypes (avoid mixed-type upcast).
+    return pd.DataFrame(
+        {
+            "shot_id": np.asarray(shot_id),
+            "window_index": np.asarray(window_index),
+            "feature_name": np.asarray([feature_name] * len(rmse_per_sample), dtype=object),
+            "RMSE": np.asarray(rmse_per_sample, dtype=float),
+            "MAE": np.asarray(mae_per_sample, dtype=float),
+        }
     )
-    return pd.DataFrame(data, columns=COLUMNS)
 
 
 class WindowMetricsAccumulator:
@@ -193,6 +193,11 @@ def _extract_task_summary_from_task_metrics(task, output_dir):
 def aggregate_windows_metrics(df):
     """Aggregate window rows into signal-level and shot-level dataframes."""
     df = df.copy()
+    # Be robust to string/object inputs from in-memory paths and CSV readers.
+    df["RMSE"] = pd.to_numeric(df["RMSE"], errors="coerce")
+    df["MAE"] = pd.to_numeric(df["MAE"], errors="coerce")
+    df = df.dropna(subset=["RMSE", "MAE"])
+
     # Compute signal level score within each shot
     if "RMSE" in df.columns:
         df["RMSE"] = df["RMSE"] ** 2
