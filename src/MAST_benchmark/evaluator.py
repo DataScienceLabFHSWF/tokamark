@@ -7,7 +7,7 @@ Typical usage:
    ``compute_metrics(task, output_dir, window_metrics_accumulator, ...)``
    to compute task metrics and optionally save:
    ``<output_dir>/<task>/windows_metrics.csv`` and/or
-   ``<output_dir>/<task>/tasks_metrics.csv``.
+   ``<output_dir>/<task>/task_metrics.csv``.
 3. After all tasks are complete, call ``compute_summary_metrics(output_dir)`` to
    produce ``signals_metrics.csv`` and ``groups_metrics.csv`` in ``output_dir``.
 """
@@ -29,7 +29,7 @@ TASK_SUMMARY_COLUMNS = ("n_shots",) + tuple(
 
 WINDOW_METRICS_FILE = "windows_metrics.csv"
 SIGNAL_METRICS_FILE = "signals_metrics.csv"
-TASK_METRICS_FILE = "tasks_metrics.csv"
+TASK_METRICS_FILE = "task_metrics.csv"
 GROUP_METRICS_FILE = "groups_metrics.csv"
 
 
@@ -161,7 +161,7 @@ def _pool_group_from_task_summaries(df_tasks):
 
 
 def _extract_task_summary_from_task_metrics(task, output_dir):
-    """Load one task summary row (and signal rows) from ``tasks_metrics.csv``."""
+    """Load one task summary row (and signal rows) from ``task_metrics.csv``."""
     file_path = Path(output_dir) / task / TASK_METRICS_FILE
     if not file_path.exists():
         print(
@@ -285,15 +285,15 @@ def compute_metrics(
     return df_task_metrics.set_index("feature_name")
 
 
-def compute_summary_metrics(output_dir=".", source="tasks_metrics", save_locally=True):
+def compute_summary_metrics(output_dir=".", source="task_metrics", save_locally=True):
     """Aggregate all tasks into signal/group metrics from task or window files."""
     output_dir = Path(output_dir)
 
     all_signals = []
     all_groups = []
 
-    if source not in {"tasks_metrics", "windows_metrics"}:
-        raise ValueError("source must be either 'tasks_metrics' or 'windows_metrics'")
+    if source not in {"task_metrics", "windows_metrics"}:
+        raise ValueError("source must be either 'task_metrics' or 'windows_metrics'")
 
     for group_id in group_tasks:
         group_task_summaries = []
