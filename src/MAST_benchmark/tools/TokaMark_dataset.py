@@ -118,13 +118,9 @@ class TokaMarkDataset(IterableDataset):
         sample = self.base[idx_shot]
 
         # --------------------------------------------------------------
-        # determine valid global time range (from outputs)
-        # --------------------------------------------------------------
-        t_start, t_end = [], []
-
-        # --------------------------------------------------------------
         # determine global_start_time based on input and actuator
         # --------------------------------------------------------------
+        t_start = []
         for var in self.input_keys + self.actuator_keys :
             t = sample[var]["time"]
             v = sample[var]["values"]
@@ -140,6 +136,7 @@ class TokaMarkDataset(IterableDataset):
         # --------------------------------------------------------------
         # determine global_end_time based on output
         # --------------------------------------------------------------
+        t_end = []
         for var in self.output_keys :
             t = sample[var]["time"]
             v = sample[var]["values"]
@@ -168,7 +165,6 @@ class TokaMarkDataset(IterableDataset):
         # --------------------------------------------------------------
         # pad sample for consistency
         # --------------------------------------------------------------
-
         sample = self._pad_sample_to_interval(
             sample,
             global_start_time,
@@ -178,7 +174,6 @@ class TokaMarkDataset(IterableDataset):
         # --------------------------------------------------------------
         # build windows
         # --------------------------------------------------------------
-
         t_cuts = np.arange(global_start_time + self.input_length, 
                            global_end_time - self.delta - self.output_length, 
                            self.stride)
