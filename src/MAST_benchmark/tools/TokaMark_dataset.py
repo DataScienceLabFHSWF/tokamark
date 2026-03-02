@@ -131,6 +131,10 @@ class TokaMarkDataset(IterableDataset):
             t_valid = t[valid_mask]
             t_start.append(t_valid[0])
 
+        if not t_start:
+            return
+        global_start_time = np.min(t_start)
+
         # --------------------------------------------------------------
         # determine global_end_time based on output
         # --------------------------------------------------------------
@@ -155,10 +159,8 @@ class TokaMarkDataset(IterableDataset):
             t_valid = t[valid_mask]
             t_end.append(t_valid[-1])
 
-        if not t_start or not t_end:
+        if not t_end:
             return
-
-        global_start_time = np.min(t_start)
         global_end_time = np.max(t_end)
         
         # --------------------------------------------------------------
