@@ -26,6 +26,7 @@ TASK_METRICS = ("NRMSE", "NMAE", "RMSE", "MAE")
 TASK_SUMMARY_COLUMNS = ("n_shots",) + tuple(
     f"{metric}_{suffix}" for metric in TASK_METRICS for suffix in ("mean", "var_pop")
 )
+SIGNAL_STD_COLUMNS = tuple(f"{metric}_std_pop" for metric in TASK_METRICS)
 
 WINDOW_METRICS_FILE = "windows_metrics.csv"
 SIGNAL_METRICS_FILE = "signals_metrics.csv"
@@ -186,6 +187,13 @@ def _extract_task_summary_from_task_metrics(task, output_dir):
         summary[col] = row[col] if col in row.index else np.nan
 
     signal_rows = df[df["feature_name"] != task].copy()
+    for col in SIGNAL_STD_COLUMNS:
+        if col not in signal_rows.columns:
+            signal_rows[col] = np.nan
+
+    ordered_signal_cols = ["feature_name"] + [c for c in SIGNAL_STD_COLUMNS if c in signal_rows.columns]
+    remaining_signal_cols = [c for c in signal_rows.columns if c not in ordered_signal_cols]
+    signal_rows = signal_rows[ordered_signal_cols + remaining_signal_cols]
     signal_rows["task"] = task
     return summary, signal_rows
 
@@ -217,9 +225,17 @@ def aggregate_windows_metrics(df):
     df_signals_shots["NMAE"] = df_signals_shots["MAE"] / std
 
     # Average signals scores across shots
-    df_signals = (
+    df_signals_mean = (
         df_signals_shots.drop(columns="shot_id").groupby(by=["feature_name"]).mean()
     )
+    df_signals_std = (
+        df_signals_shots.drop(columns="shot_id")
+        .groupby(by=["feature_name"])
+        .std(ddof=0)
+        .fillna(0.0)
+        .rename(columns=lambda c: f"{c}_std_pop")
+    )
+    df_signals = df_signals_mean.join(df_signals_std)
 
     # Compute task level score within each shot
     df_task_shots = (
