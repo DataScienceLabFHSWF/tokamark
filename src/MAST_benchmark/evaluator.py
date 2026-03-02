@@ -10,6 +10,11 @@ Typical usage:
    ``<output_dir>/<task>/task_metrics.csv``.
 3. After all tasks are complete, call ``compute_summary_metrics(output_dir)`` to
    produce ``signals_metrics.csv`` and ``groups_metrics.csv`` in ``output_dir``.
+
+Aggregation follows the benchmark hierarchy:
+- signal rows: equal-weight mean/std across shots
+- task rows: equal-weight mean/std across shots
+- group rows: equal-weight mean/std across task means
 """
 
 from pathlib import Path
@@ -24,7 +29,7 @@ METRIC_COLUMNS = ["RMSE", "MAE"]
 COLUMNS = ID_COLUMNS + METRIC_COLUMNS
 TASK_METRICS = ("NRMSE", "NMAE", "RMSE", "MAE")
 TASK_SUMMARY_COLUMNS = ("n_shots",) + tuple(
-    f"{metric}_{suffix}" for metric in TASK_METRICS for suffix in ("mean", "var_pop")
+    f"{metric}_{suffix}" for metric in TASK_METRICS for suffix in ("mean", "std_pop")
 )
 SIGNAL_STD_COLUMNS = tuple(f"{metric}_std_pop" for metric in TASK_METRICS)
 
@@ -111,52 +116,43 @@ def _build_task_summary_row_from_shots(df_task_shots):
 
         if len(vals) == 0:
             mean_val = np.nan
-            var_val = np.nan
+            std_val = np.nan
         else:
             mean_val = float(vals.mean())
-            var_val = float(vals.var(ddof=0))
+            std_val = float(vals.std(ddof=0))
 
         summary[f"{metric}_mean"] = mean_val
-        summary[f"{metric}_var_pop"] = var_val
+        summary[f"{metric}_std_pop"] = std_val
     return summary
 
 
-def _pool_group_from_task_summaries(df_tasks):
-    """Pool task summaries into one group summary using shot-count weights."""
+def _build_group_summary_from_task_summaries(df_tasks):
+    """Build one group summary row from equal-weight task means."""
     group = {
         "n_shots": float(pd.to_numeric(df_tasks["n_shots"], errors="coerce").sum())
     }
 
     for metric in TASK_METRICS:
         mean_col = f"{metric}_mean"
-        var_col = f"{metric}_var_pop"
-        if mean_col not in df_tasks.columns or var_col not in df_tasks.columns:
+        std_col = f"{metric}_std_pop"
+        if mean_col not in df_tasks.columns:
             group[mean_col] = np.nan
-            group[var_col] = np.nan
+            group[std_col] = np.nan
             continue
 
-        tmp = df_tasks[["n_shots", mean_col, var_col]].copy()
-        tmp["n_shots"] = pd.to_numeric(tmp["n_shots"], errors="coerce")
+        tmp = df_tasks[[mean_col]].copy()
         tmp[mean_col] = pd.to_numeric(tmp[mean_col], errors="coerce")
-        tmp[var_col] = pd.to_numeric(tmp[var_col], errors="coerce")
         tmp = tmp.dropna()
-        tmp = tmp[tmp["n_shots"] > 0]
 
         if len(tmp) == 0:
             group[mean_col] = np.nan
-            group[var_col] = np.nan
+            group[std_col] = np.nan
             continue
 
-        weights = tmp["n_shots"].to_numpy(dtype=float)
         means = tmp[mean_col].to_numpy(dtype=float)
-        vars_pop = tmp[var_col].to_numpy(dtype=float)
 
-        n_total = float(weights.sum())
-        mu = float(np.sum(weights * means) / n_total)
-        var_pop = float(np.sum(weights * (vars_pop + (means - mu) ** 2)) / n_total)
-
-        group[mean_col] = mu
-        group[var_col] = var_pop
+        group[mean_col] = float(np.mean(means))
+        group[std_col] = float(np.std(means, ddof=0))
 
     return group
 
@@ -341,7 +337,7 @@ def compute_summary_metrics(output_dir=".", source="task_metrics", save_locally=
 
         if len(group_task_summaries) > 0:
             df_tasks = pd.DataFrame(group_task_summaries)
-            df_group_values = _pool_group_from_task_summaries(df_tasks)
+            df_group_values = _build_group_summary_from_task_summaries(df_tasks)
             df_group_row: dict[str, object] = {"task": f"group_{group_id}"}
             df_group_row.update(df_group_values)
 
