@@ -32,6 +32,7 @@ TASK_SUMMARY_COLUMNS = ("n_shots",) + tuple(
     f"{metric}_{suffix}" for metric in TASK_METRICS for suffix in ("mean", "std_pop")
 )
 SIGNAL_STD_COLUMNS = tuple(f"{metric}_std_pop" for metric in TASK_METRICS)
+SIGNAL_VALUE_COLUMNS = TASK_METRICS
 
 WINDOW_METRICS_FILE = "windows_metrics.csv"
 SIGNAL_METRICS_FILE = "signals_metrics.csv"
@@ -187,9 +188,12 @@ def _extract_task_summary_from_task_metrics(task, output_dir):
         if col not in signal_rows.columns:
             signal_rows[col] = np.nan
 
-    ordered_signal_cols = ["feature_name"] + [c for c in SIGNAL_STD_COLUMNS if c in signal_rows.columns]
-    remaining_signal_cols = [c for c in signal_rows.columns if c not in ordered_signal_cols]
-    signal_rows = signal_rows[ordered_signal_cols + remaining_signal_cols]
+    ordered_signal_cols = (
+        ["feature_name"]
+        + [c for c in SIGNAL_VALUE_COLUMNS if c in signal_rows.columns]
+        + [c for c in SIGNAL_STD_COLUMNS if c in signal_rows.columns]
+    )
+    signal_rows = signal_rows[ordered_signal_cols]
     signal_rows["task"] = task
     return summary, signal_rows
 
