@@ -32,6 +32,6 @@ task_window_segmenter:
   output_keys: *output_keys
   input_length: 0.150
   output_length: 0.100
-  delta: 0 # this is forecasting
+  delta: 0  # This is forecasting
 
 stride_window: 0.001

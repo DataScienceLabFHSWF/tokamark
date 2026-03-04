@@ -1,93 +1,219 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+import os.path
 from pathlib import Path
 import pandas as pd
 import numpy as np
+from torch import Tensor as TorchTensor
 
-from MAST_benchmark.tasks import group_tasks, tasks_configs_map, get_signals_metadata
+from MAST_benchmark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
 from MAST_benchmark.tools.utils import AutoAppendingDataFrame
+from MAST_tools.constants import PROJECT_ROOT_DIR
 
 
-ID_COLUMNS = ['shot_id', 'window_id', 'feature_name']
-METRIC_COLUMNS = ['RMSE', 'MAE']
-COLUMNS = ID_COLUMNS+METRIC_COLUMNS
+ID_COLUMNS = ["shot_id", "window_index", "feature_name"]
+METRIC_COLUMNS = ["RMSE", "MAE"]
+COLUMNS = ID_COLUMNS + METRIC_COLUMNS
 
-WINDOW_METRICS_FILE = 'windows_metrics.csv'
-SIGNAL_METRICS_FILE = 'signals_metrics.csv'
-TASK_METRICS_FILE   = 'tasks_metrics.csv'
-GROUP_METRICS_FILE  = 'groups_metrics.csv'
+WINDOW_METRICS_FILE = "windows_metrics.csv"  # TODO: Move to constants (also others below)
+SIGNAL_METRICS_FILE = "signals_metrics.csv"
+TASK_METRICS_FILE   = "tasks_metrics.csv"   # noqa (ignore multiple spaces)
+GROUP_METRICS_FILE  = "groups_metrics.csv"  # noqa (ignore multiple spaces)
 
 
-class WindowMetricsWriter():
-    
-    def __init__(self, task, output_dir):
+# ======================================================================================================================
+class WindowMetricsWriter:
+    """
+    TODO
+    """
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __init__(
+            self,
+            task: str,
+            output_dir: str
+    ) -> None:
+        """
+        Initialize class attributes.
+
+        Parameters
+        ----------
+        task : str
+            Input task.
+
+        output_dir : str
+            Output directory.
+
+        Returns
+        -------
+        None
+
+        """
 
         metrics_path = Path(output_dir) / task / WINDOW_METRICS_FILE
         metrics_path.parent.mkdir(parents=True, exist_ok=True)
         if metrics_path.exists():
             metrics_path.unlink()
 
-        self.writer = AutoAppendingDataFrame(metrics_path)
+        self.writer = AutoAppendingDataFrame(path=metrics_path)
 
-    def compute_and_append(self, y_target, y_pred, shot_id, window_id, feature_name):
+    # ------------------------------------------------------------------------------------------------------------------
+    def compute_and_append(
+            self,
+            y_target: np.ndarray,
+            y_pred: np.ndarray,
+            shot_ids: TorchTensor,
+            window_indices: TorchTensor,
+            feature_name: str,
+            verbose: bool = False
+    ) -> None:
+        """
+        Computation and column-stacking of RMSE and MAE metrics for a given input (y_target, y_pred) pair.
+
+        Parameters
+        ----------
+        y_target : np.ndarray
+            Input target data in np.ndarray format.
+        y_pred : np.ndarray
+            Input predicted data in np.ndarray format.
+        shot_ids : TorchTensor
+            Torch tensor with shot IDs.
+        window_indices : TorchTensor
+            Torch tensor with window indices.
+        feature_name : str
+            Name of target feature.
+        verbose : bool
+            If True, verbose mode is activated.
+            Default: False.
+
+        Returns
+        -------
+        None
+
+        """
+
         rmse_per_sample = np.sqrt(np.mean((y_target - y_pred) ** 2, axis=1))
-        mae_per_sample  = np.mean(np.abs(y_target - y_pred), axis=1)
+        mae_per_sample = np.mean(np.abs(y_target - y_pred), axis=1)
 
-        data = np.column_stack((shot_id, 
-                                window_id, 
-                                [feature_name] * len(shot_id), 
-                                rmse_per_sample,
-                                mae_per_sample))
-        df_eval = pd.DataFrame(data, columns=COLUMNS)
-        self.writer.append(df_eval)
+        data = np.column_stack(
+            tup=(
+                shot_ids,
+                window_indices,
+                [feature_name] * len(shot_ids),
+                rmse_per_sample,
+                mae_per_sample
+            )
+        )
+
+        if verbose:
+            if not data.any():
+                print(f"WARNING: Empty data.")
+
+        df_eval = pd.DataFrame(data=data, columns=COLUMNS)
+        self.writer.append(df_rows=df_eval)
 
 
-def aggregate_windows_metrics(df):
-    # Compute signal level score within each shot
-    if 'RMSE' in df.columns:
-        df['RMSE'] = df['RMSE']**2
+# ----------------------------------------------------------------------------------------------------------------------
+def aggregate_windows_metrics(
+        df: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Method for the aggregation of windows metrics (RMSE, NRMSE, NMAE, MAE).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe with windows metrics.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        Tuple of aggregated metrics in pd.DataFrame format.
+
+    """
+
+    # Compute signal-level score within each shot
+    if "RMSE" in df.columns:
+        df["RMSE"] = df["RMSE"]**2
     df_signals_shots = (
         df
-        .drop(columns='window_id')
-        .groupby(by=['shot_id', 'feature_name'])
+        .drop(columns="window_index")
+        .groupby(by=["shot_id", "feature_name"])
         .mean()
         .reset_index()
     )
-    if 'RMSE' in df_signals_shots.columns:
-        df_signals_shots['RMSE'] = df_signals_shots['RMSE']**0.5
 
-    # Normalise signals per shot
+    if "RMSE" in df_signals_shots.columns:
+        df_signals_shots["RMSE"] = df_signals_shots["RMSE"]**0.5
+
+    # Normalize signals per shot
     signal_std = get_signals_metadata()
-    std = df_signals_shots['feature_name'].apply(lambda x: signal_std[x]['std'])
-    df_signals_shots['NRMSE'] = df_signals_shots['RMSE'] / std
-    df_signals_shots['NMAE'] = df_signals_shots['MAE'] / std
+    std = df_signals_shots["feature_name"].apply(lambda x: signal_std[x]["std"])
+    df_signals_shots["NRMSE"] = df_signals_shots["RMSE"] / std
+    df_signals_shots["NMAE"] = df_signals_shots["MAE"] / std
 
     # Average signals scores across shots
     df_signals = (
         df_signals_shots
-        .drop(columns='shot_id')
-        .groupby(by=['feature_name'])
+        .drop(columns="shot_id")
+        .groupby(by=["feature_name"])
         .mean()
     )
 
-    # Compute task level score within each shot
+    # Compute task-level score within each shot
     df_task_shots = (
         df_signals_shots
-        .drop(columns=['feature_name', 'RMSE', 'MAE'])
-        .groupby(by=['shot_id'])
+        .drop(columns=["feature_name", "RMSE", "MAE"])
+        .groupby(by=["shot_id"])
         .mean()
     )
 
     return df_signals, df_task_shots
 
 
-def compute_task_metrics(task='task_1-1', output_dir='.', save=True):
-    if task not in tasks_configs_map:
-        print(f'Warning: task {task} is not known. Available tasks are: ', str(tasks_configs_map.keys()))
+# ----------------------------------------------------------------------------------------------------------------------
+def compute_task_metrics(
+        task: str = "task_1-1",
+        output_dir: str = ".",
+        save: bool = True
+) -> pd.DataFrame:
+    """
+    Compute task-level metrics for target task.
+
+    Parameters
+    ----------
+    task : str
+        Target task.
+        Optional. Default: "task_1-1".
+    output_dir : str
+        Taget output directory.
+        Optional. Default: ".".
+    save : bool
+        If True, save metrics as pandas dataframe in the provided `output_dir` directory.
+        Optional. Default: True.
+
+    Returns
+    -------
+    pd.DataFrame
+        Tasks metrics in pandas dataframe format.
+
+    """
+
+    if task not in TASKS_CONFIGS_MAP:
+        print(f"WARNING: Task {task} is not known. Available tasks are: {str(TASKS_CONFIGS_MAP.keys())}")
 
     output_dir = Path(output_dir)
-    df = pd.read_csv(output_dir/task/WINDOW_METRICS_FILE)
+    target_file_path = output_dir/task/WINDOW_METRICS_FILE
+    if not os.path.isfile(target_file_path):
+        print(f"WARNING: Windows metric file {target_file_path} for {task} not found.")
+        return pd.DataFrame([])  # TODO: Test if this works
 
-    # Compute signal and task level score within each shot
-    df_signals, df_task_shots = aggregate_windows_metrics(df)
+    df = pd.read_csv(target_file_path)
+
+    # Compute signal- and task-level score within each shot
+    df_signals, df_task_shots = aggregate_windows_metrics(df=df)
 
     # Average task scores across shots
     df_task = df_task_shots.mean()
@@ -100,29 +226,53 @@ def compute_task_metrics(task='task_1-1', output_dir='.', save=True):
 
     return df_signals
 
-def compute_all_metrics(output_dir='.', save_locally=True):
+
+# ----------------------------------------------------------------------------------------------------------------------
+def compute_all_metrics(
+        output_dir: str = ".",
+        save_locally: bool = True
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Compute task-level and group-level metrics for all tasks.
+
+    Parameters
+    ----------
+    output_dir : str
+        Target output directory.
+        Optional. Default: ".".
+    save_locally: bool
+        If True, save metrics as pandas dataframes in the provided `output_dir` directory.
+        Optional. Default: True.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        Signals and groups metrics in pandas dataframe format, respectively.
+
+    """
+
     output_dir = Path(output_dir)
 
     all_signals = []
     all_tasks = []
     all_groups = []
 
-    for group_id in group_tasks:
-        for task in group_tasks[group_id]:
+    for group_id in GROUP_TASKS:
+        for task in GROUP_TASKS[group_id]:
             file_path = output_dir/task/WINDOW_METRICS_FILE
             if not file_path.exists():
-                print(f'Warning: task {task} was yet evaluated, the corresponding files were not found.')
+                print(f"WARNING: Task {task} was not evaluated, the corresponding files were not found.")
                 continue
 
             df = pd.read_csv(file_path)
 
-            # Compute signal and task level score within each shot
+            # Compute signal- and task-level score within each shot
             df_signals, df_task_shots = aggregate_windows_metrics(df)
 
-            df_signals['task'] = task
+            df_signals["task"] = task
             all_signals.append(df_signals.reset_index())
 
-            df_task_shots['task'] = task
+            df_task_shots["task"] = task
             all_tasks.append(df_task_shots.reset_index())
 
         if len(all_tasks) > 0:
@@ -131,23 +281,25 @@ def compute_all_metrics(output_dir='.', save_locally=True):
 
             df_tasks = (
                 df_tasks_shots
-                .drop(columns='shot_id')
-                .groupby(by=['task'])
+                .drop(columns="shot_id")
+                .groupby(by=["task"])
                 .mean()
                 .reset_index()
             )
 
             df_group = (
                 df_tasks
-                .drop(columns='task')
+                .drop(columns="task")
                 .mean()
             )
             df_group = df_group.to_frame().T
-            df_group['task'] = f'group_{group_id}'
+            df_group["task"] = f"group_{group_id}"
 
             all_groups.append(df_group)
             all_groups.append(df_tasks)
 
+    df_signals = pd.DataFrame()
+    df_groups = pd.DataFrame()
     if len(all_signals) > 0:
         df_signals = pd.concat(all_signals)
         ordered_cols = [df_signals.columns[-1]] + df_signals.columns[:-1].to_list()
@@ -157,18 +309,24 @@ def compute_all_metrics(output_dir='.', save_locally=True):
         ordered_cols = [df_groups.columns[-1]] + df_groups.columns[:-1].to_list()
         df_groups = df_groups[ordered_cols]
 
-        if save_locally:
-            df_signals.to_csv(output_dir/SIGNAL_METRICS_FILE, index=False)
-            df_groups.to_csv(output_dir/GROUP_METRICS_FILE, index=False)
+    if save_locally:
+        df_signals.to_csv(output_dir/SIGNAL_METRICS_FILE, index=False)
+        df_groups.to_csv(output_dir/GROUP_METRICS_FILE, index=False)
 
-        return df_signals, df_groups
+    return df_signals, df_groups
 
 
+# ======================================================================================================================
 if __name__ == "__main__":
-    # NOTE: change the path to the outputs dir here:
-    output_dir='/home/ir-zaya1/fusion/fairmast-data-preprocessing/output/'
 
-    compute_task_metrics('task_4-4', output_dir)
-    compute_all_metrics(output_dir)
+    # NOTE: Change the path to the outputs dir here:
+    output_dir_ = f"{PROJECT_ROOT_DIR}/output/mean"
 
-    print('DONE')
+    compute_task_metrics(
+        task="task_2-1",  # "task_2-1", "task_4-4"
+        output_dir=output_dir_
+    )
+
+    compute_all_metrics(output_dir=output_dir_)
+
+    print("DONE")

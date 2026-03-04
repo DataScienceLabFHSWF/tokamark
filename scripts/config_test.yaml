@@ -1,4 +1,6 @@
-subset_of_shots: 128
+max_shot_index: 128
+shuffle: false
+seed: 42
 local: true
 
 cnn_settings:
@@ -18,4 +20,4 @@ training_args:
   patience: 5
 
 paths:
-  data_output_directory: /output_test/
+  data_output_directory: /output_cnn_test/

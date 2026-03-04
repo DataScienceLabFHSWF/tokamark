@@ -19,8 +19,8 @@ def get_train_test_val_shots(
         max_index_for_val: Optional[int] = None,
         max_index_for_test: Optional[int] = None,
         shuffle: bool = False,
-        seed: Optional[int] = None
-):
+        seed: int = 42
+) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation.
     These lists can be subsets of the corresponding complete lists.
@@ -40,14 +40,15 @@ def get_train_test_val_shots(
         Number of shot IDs for the testing set. Overrides max_index.
         Optional. Default: None.
     shuffle : bool
-        True if we need shuffled samples.
-    seed : Optional[int]
+        True if we need shuffled samples, which shuffling done before selecting subset of shot IDs to use.
+        Optional. Default: False.
+    seed : int
         For reproducibility of the rnd sequence.
-        Optional. Default: None.
+        Optional. Default: 42.
 
     Returns
     -------
-    tuple of lists
+    tuple[list, list, list]
         Three lists of shot IDs for training, testing, and validation, respectively.
 
     """
@@ -58,7 +59,7 @@ def get_train_test_val_shots(
 
     if shuffle:
         if not isinstance(seed, int):
-            raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")
+            raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")  # noqa
         random.seed(seed)
             
         random.shuffle(train_set_full)
@@ -70,19 +71,19 @@ def get_train_test_val_shots(
     val_set = val_set_full
     
     # If max_index is provided, override all other limits
-    if max_index is not None and max_index > 0:
+    if (max_index is not None) and (max_index > 0):
         train_set = train_set_full[:max_index]
         val_set = val_set_full[:max_index]
         test_set = test_set_full[:max_index]
 
     # Apply individual limits if provided and positive
-    if max_index_for_train is not None and max_index_for_train > 0:
+    if (max_index_for_train is not None) and (max_index_for_train > 0):
         train_set = train_set_full[:max_index_for_train]
 
-    if max_index_for_val is not None and max_index_for_val > 0:
+    if (max_index_for_val is not None) and (max_index_for_val > 0):
         val_set = val_set_full[:max_index_for_val]
 
-    if max_index_for_test is not None and max_index_for_test > 0:
+    if (max_index_for_test is not None) and (max_index_for_test > 0):
         test_set = test_set_full[:max_index_for_test]
         
     return train_set, test_set, val_set
@@ -91,7 +92,7 @@ def get_train_test_val_shots(
 # ----------------------------------------------------------------------------------------------------------------------
 def read_data_split_csv(
         csv_path: str
-) -> tuple:
+) -> tuple[list, list, list]:
     """
     Read the csv file containing the lists of shot IDs for training, testing, and validation.
 
@@ -102,7 +103,7 @@ def read_data_split_csv(
 
     Returns
     -------
-    list
+    tuple[list, list, list]
         List of shot IDs for training, testing, and validation.
 
     """
@@ -112,8 +113,8 @@ def read_data_split_csv(
 
     df = pd.read_csv(csv_path)
 
-    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa
-    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa
-    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa
+    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
+    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
+    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val

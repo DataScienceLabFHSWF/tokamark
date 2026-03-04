@@ -4,8 +4,8 @@ sources_and_signals:
   input_name: &input_keys
     - [thomson_scattering, t_e]
     - [thomson_scattering, n_e]
-    - [spectrometer_visible, filter_spectrometer_dalpha_voltage] #possible
-    - [soft_x_rays, horizontal_cam_lower] #possible
+    - [spectrometer_visible, filter_spectrometer_dalpha_voltage]  # Possible
+    - [soft_x_rays, horizontal_cam_lower]  # Possible
     - [soft_x_rays, horizontal_cam_upper]
 
   actuator_name: &actuator_keys
@@ -25,6 +25,6 @@ task_window_segmenter:
   output_keys: *output_keys
   input_length: 0.005
   output_length: 0.050
-  delta: 0 # this is forecasting
+  delta: 0  # This is forecasting
 
 stride_window: 0.001

@@ -6,22 +6,24 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import os
 import yaml
 import numpy as np
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
-from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR
-from MAST_benchmark.tools.path import METADATA_DIR
+from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR  # , METADATA_DIR  FIXME: Perhaps have a unified path file
 from MAST_benchmark.tools.utils import get_config_from_yaml
+from MAST_tools.constants import DEFAULT_SIGNALS_STATS_FILE
 
 
-group_tasks = {
-    1 : ['task_1-1', 'task_1-2', 'task_1-3'],
-    2 : ['task_2-1', 'task_2-2', 'task_2-3'],
-    3 : ['task_3-1', 'task_3-2', 'task_3-3'],
-    4 : ['task_4-1', 'task_4-2', 'task_4-3', 'task_4-4', 'task_4-5']
+# ----------------------------------------------------------------------------------------------------------------------
+
+GROUP_TASKS = {  # FIXME: Unused here, but imported elsewhere. Try to put this in a common file?
+    1: ["task_1-1", "task_1-2", "task_1-3"],
+    2: ["task_2-1", "task_2-2", "task_2-3"],
+    3: ["task_3-1", "task_3-2", "task_3-3"],
+    4: ["task_4-1", "task_4-2", "task_4-3", "task_4-4", "task_4-5"]
 }
 
-
-tasks_configs_map = {
+TASKS_CONFIGS_MAP = {
     "task_1-1": "group_1_reconstruction/task_1-1.yaml",
     "task_1-2": "group_1_reconstruction/task_1-2.yaml",
     "task_1-3": "group_1_reconstruction/task_1-3.yaml",
@@ -42,7 +44,7 @@ tasks_configs_map = {
 # ----------------------------------------------------------------------------------------------------------------------
 def get_task_config(
         task_name: str
-) -> Any:
+) -> dict[str, Any]:
     """
     Get task configuration by task name.
 
@@ -53,20 +55,38 @@ def get_task_config(
 
     Returns
     -------
-    Any
-        Configuration from YAML file.
+    dict[str, Any]
+        Configuration dictionary from the corresponding task-specific YAML file.
 
     """
 
-    task_path = tasks_configs_map[task_name]
+    task_path = TASKS_CONFIGS_MAP[task_name]
     file_path = os.path.join(TASKS_CONFIGS_DIR, task_path)
 
-    return get_config_from_yaml(file_path)
+    return get_config_from_yaml(file_path=file_path)
 
 
-def get_signals_metadata():
-    metadata_path = os.path.join(METADATA_DIR, 'dict_stats_metadata.yaml')
-    with open(metadata_path, "r") as f:
+# ----------------------------------------------------------------------------------------------------------------------
+def get_signals_metadata(
+        file_path: str = DEFAULT_SIGNALS_STATS_FILE
+) -> dict[str, Any]:
+    """
+    Read signals metadata file and return content as a dictionary.
+
+    Parameters
+    ----------
+    file_path : str
+        Target file path for signals metadata.
+        Optional. Default: DEFAULT_SIGNALS_STATS_FILE.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with signals metadata from the target metadata file.
+
+    """
+
+    with open(file_path, "r") as f:
         dict_stats_metadata = yaml.safe_load(f)
 
     return dict_stats_metadata
@@ -74,58 +94,58 @@ def get_signals_metadata():
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_task_metadata(
-    config_task: Mapping,
+    config_task: Mapping[str, Any],
     verbose: bool = False
-) -> Mapping:
+) -> dict[str, Any]:
     """
     Get task metadata for target configuration task.
 
     Parameters
     ----------
-    config_task : Mapping
+    config_task : Mapping[str, Any]
         Dictionary with task configuration.
     verbose : bool
         If True, activate verbose mode.
+        Default: False.
 
     Returns
     -------
-    Mapping
-        Output mapping with task metadata.
+    dict[str, Any]
+        Output dictionary with task metadata.
 
     """
     
     # ..................................................................................................................
     # Import data metadata
+    # ..................................................................................................................
+
     dict_stats_metadata = get_signals_metadata()
 
     # ..................................................................................................................
-    # Import task specific roles
+    # Import task-specific roles
+    # ..................................................................................................................
 
-    # ---------------------------------------------------------------------
-    # input
+    # Input
     input_keys = [
         f"{source}-{signal}"
         for source, signal in (config_task["task_window_segmenter"]["input_keys"] or [])
     ]
-    # ---------------------------------------------------------------------
-    # actuator
+
+    # Actuator
     actuator_keys = [
         f"{source}-{signal}"
-        for source, signal in (
-            config_task["task_window_segmenter"]["actuator_keys"] or []
-        )
+        for source, signal in (config_task["task_window_segmenter"]["actuator_keys"] or [])
     ]
-    # ---------------------------------------------------------------------
-    # output
+
+    # Output
     output_keys = [
         f"{source}-{signal}"
-        for source, signal in (
-            config_task["task_window_segmenter"]["output_keys"] or []
-        )
+        for source, signal in (config_task["task_window_segmenter"]["output_keys"] or [])
     ]
 
     # ..................................................................................................................
-    # Import task specific values
+    # Import task-specific values
+    # ..................................................................................................................
 
     input_length = config_task["task_window_segmenter"]["input_length"]
     output_length = config_task["task_window_segmenter"]["output_length"]
@@ -134,62 +154,49 @@ def get_task_metadata(
     # Get stride from config file
     sec_stride = config_task["stride_window"]  # min([dict_metadata[key]["dt"] for key in output_keys])
 
-    # --- plit into role-scoped dicts (avoid overwriting) ---
+    # Split into role-scoped dicts (avoid overwriting)
     out = {"sec_stride": sec_stride, "input": {}, "actuator": {}, "output": {}}
 
     # ..................................................................................................................
-    # Get informations
+    # Get information
+    # ..................................................................................................................
 
-    # ---------------------------------------------------------------------
-    # input
+    # Input
+    sec_length = input_length
     for key in input_keys:
-        dt = dict_stats_metadata[key]["dt"]
-        sec_length = config_task["task_window_segmenter"]["input_length"]
-        out["input"][key] = dict(dict_stats_metadata[key])
-        out["input"][key]["dt"] = dt
-        out["input"][key]["values_shape"] = dict_stats_metadata[key]["values_shape"]
-        out["input"][key]["mean"] = dict_stats_metadata[key]["mean"]
-        out["input"][key]["std"] = dict_stats_metadata[key]["std"]
+        out["input"][key] = dict_stats_metadata[key]
         out["input"][key]["sec_length"] = sec_length
-        out["input"][key]["ts_length"] = int(np.round(sec_length / dt))
-        out["input"][key]["ts_stride"] = int(np.round(sec_stride / dt))
+        out["input"][key]["ts_length"] = int(np.round(sec_length / out["input"][key]["dt"]))
+        out["input"][key]["ts_stride"] = int(np.round(sec_stride / out["input"][key]["dt"]))
 
-    # ---------------------------------------------------------------------
-    # actuator
+    # Actuator
+    sec_length = input_length + delta + output_length
     for key in actuator_keys:
-        dt = dict_stats_metadata[key]["dt"]
-        sec_length = input_length + delta + output_length
-        out["actuator"][key] = dict(dict_stats_metadata[key])
-        out["actuator"][key]["dt"] = dt
-        out["actuator"][key]["values_shape"] = dict_stats_metadata[key]["values_shape"]
-        out["actuator"][key]["mean"] = dict_stats_metadata[key]["mean"]
-        out["actuator"][key]["std"] = dict_stats_metadata[key]["std"]
+        out["actuator"][key] = dict_stats_metadata[key]
         out["actuator"][key]["sec_length"] = sec_length
-        out["actuator"][key]["ts_length"] = int(np.round(sec_length / dt))
-        out["actuator"][key]["ts_stride"] = int(np.round(sec_stride / dt))
+        out["actuator"][key]["ts_length"] = int(np.round(sec_length / out["actuator"][key]["dt"]))
+        out["actuator"][key]["ts_stride"] = int(np.round(sec_stride / out["actuator"][key]["dt"]))
 
-    # ---------------------------------------------------------------------
-    # output
+    # Output
+    sec_length = output_length
     for key in output_keys:
-        dt = dict_stats_metadata[key]["dt"]
-        sec_length = output_length
-        out["output"][key] = dict(dict_stats_metadata[key])
-        out["output"][key]["dt"] = dt
-        out["output"][key]["values_shape"] = dict_stats_metadata[key]["values_shape"]
-        out["output"][key]["mean"] = dict_stats_metadata[key]["mean"]
-        out["output"][key]["std"] = dict_stats_metadata[key]["std"]
+        out["output"][key] = dict_stats_metadata[key]
         out["output"][key]["sec_length"] = sec_length
-        out["output"][key]["ts_length"] = int(np.round(sec_length / dt))
-        out["output"][key]["ts_stride"] = int(np.round(sec_stride / dt))
-    
+        out["output"][key]["ts_length"] = int(np.round(sec_length / out["output"][key]["dt"]))
+        out["output"][key]["ts_stride"] = int(np.round(sec_stride / out["output"][key]["dt"]))
+
+    # ..................................................................................................................
+    # Relevant prints, if verbose mode is activated
+    # ..................................................................................................................
+
     if verbose:
         for role in ("input", "actuator", "output"):
             for key, val in out[role].items():
                 print(f"\nSignal: {key}")
                 if val["dt"] is not None:
-                    print(f"  dt: {val['dt']:.5f} s")
+                    print(f'  dt: {val["dt"]:.5f} s')
                 else:
                     print("  dt: None")
-                print(f"  Values shape: {val['values_shape']}")
+                print(f'  Values shape: {val["values_shape"]}')
 
     return out

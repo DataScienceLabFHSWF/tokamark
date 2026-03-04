@@ -1,5 +1,7 @@
-subset_of_shots:
-local: true
+max_shot_index:  # If empty, all the available shot IDs are used.
+shuffle: false   # If true, shuffling is done before selection of subset of shot IDs.
+seed: 42
+local: false
 
 task_name: get_metadata
 

@@ -4,55 +4,56 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import numpy as np
-from typing import Optional, Mapping, Any
+from typing import Optional, Any
+from collections.abc import Mapping, Generator
 
 from MAST_tools.MAST_dataset import MastDataset
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def all_vars_have_nans(
-        dict_obj: Mapping
+        dict_obj: Mapping[str, Any]
 ) -> bool:
     """
     Check if bool(x) is True for all values x in `dict_obj`.
 
     Parameters
     ----------
-    dict_obj : Mapping
-        Input mapping.
+    dict_obj : Mapping[str, Any]
+        Input dictionary.
 
     Returns
     -------
     bool
-        If the iterable is empty, return True.
+        If the iterable (dictionary) is empty, return True.
 
     """
 
-    # print('ALL?', [np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()] )
-    return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+    # print("ALL?", [np.isnan(np.asarray(dict_obj[var]["values"])).any() for var in dict_obj.keys()] )
+    return all([np.isnan(np.asarray(dict_obj[var]["values"])).any() for var in dict_obj.keys()])
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def any_vars_have_nans(
-        dict_obj: Mapping
-):
+        dict_obj: Mapping[str, Any]
+) -> bool:
     """
     Check if bool(x) is True for any values x in `dict_obj`.
 
     Parameters
     ----------
-    dict_obj
-        Input mapping.
+    dict_obj : Mapping[str, Any]
+        Input dictionary.
 
     Returns
     -------
     bool
-        If the iterable is empty, return True.
+        If the iterable (dictionary) is empty, return True.
 
     """
 
-    # print('ANY?', [np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()] )
-    return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+    # print("ANY?", [np.isnan(np.asarray(dict_obj[var]["values"])).any() for var in dict_obj.keys()] )
+    return any([np.isnan(np.asarray(dict_obj[var]["values"])).any() for var in dict_obj.keys()])
 
 
 # ======================================================================================================================
@@ -62,7 +63,7 @@ class TaskModelTransformWrapper(MastDataset):
 
     Attributes
     ----------
-    base : Optional[MastDataset]
+    base : MastDataset
         Target base MAST dataset.
     shots_list : tuple
         List of shots from the target base MAST dataset.
@@ -93,7 +94,7 @@ class TaskModelTransformWrapper(MastDataset):
     -------
     __getitem__(idx)
         Return dataset item by shot index.
-    __len__
+    __len__()
         Get length of base dataset.
     get_shot_id(idx)
         Get shot ID from shot index.
@@ -103,32 +104,45 @@ class TaskModelTransformWrapper(MastDataset):
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(
         self,
-        base_dataset: Optional[MastDataset],
+        base_dataset: MastDataset,
         dict_task_metadata: Mapping[str, Any],
         config_task: Mapping[str, Any],
         model_transform: Optional[Any] = None,
         test_mode: bool = False,
         verbose: bool = False,
-    ):
+    ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
         base_dataset : Optional[MastDataset]
-            Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
+            Baseline shot-level dataset (e.g., MastDataset) for one split, or None.  # FIXME: How base_dataset is None?
         dict_task_metadata : Mapping[str, Any]
             Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
         config_task : Mapping[str, Any]
             Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
         model_transform : Optional[Any]
             Optional model-specific transform chain applied per window.
+            Optional. Default: None.
         test_mode : bool
             If True, keeping window with any no nans input or actuator, and all full outputs.
+            Optional. Default: False.
         verbose : bool
             If True, activate verbose mode.
+            Optional. Default: False.
+
+        Returns
+        -------
+        None
 
         """
+
+        super().__init__(  # TODO: Check with Cecile if this is the intended behavior.
+            local=base_dataset.local,
+            shots_list=base_dataset.shots_list,
+            source_signal_list=base_dataset.source_signal_list
+        )
 
         self.base = base_dataset
         self.shots_list = self.base.shots_list
@@ -203,23 +217,35 @@ class TaskModelTransformWrapper(MastDataset):
     # ------------------------------------------------------------------------------------------------------------------
     def __getitem__(
             self,
-            idx_shot: int
-    ):
-        """Return dataset item by shot index."""
+            shot_idx: int
+    ) -> Generator[dict[str, Any], Any, None]:
+        """
+        Return dataset item by shot index.
+
+        Parameters
+        ----------
+        shot_idx : int
+            Shot index.
+
+        Returns
+        -------
+        Generator[dict[str, Any], Any, None]
+            Either yield dict[str, Any] with shot ID and window data for all valid windows, or return None if sample
+            cannot be run on.
+
+        """
 
         # process = psutil.Process(os.getpid())
         # mem = process.memory_info().rss / (1024 ** 2)
         # print(f"[Worker {os.getpid()}] __getitem__ mem: {mem:.2f} MB, idx={self.shots_list[idx]}")
 
-        sample = self.base[idx_shot]
+        sample = self.base[shot_idx]
 
         t_start = []
         t_end = []
         delta_ts = []
-        # for var in self.input_keys + self.actuator_keys + self.output_keys:
-        for var in (
-            self.output_keys
-        ):  # only check output variables to determine if sample able to be run on!
+        # for var in self.input_keys + self.actuator_keys + self.output_keys:  # TODO: Should we keep this line?
+        for var in self.output_keys:  # Only check output variables to determine if sample can be run on!
             t = sample[var]["time"]
             if t.size != 0:
                 t_start.append(t[0])
@@ -230,9 +256,9 @@ class TaskModelTransformWrapper(MastDataset):
         if not delta_ts:
             if self.verbose:
                 print(
-                    f"[Warning] No valid Δt found in any output signals for shot {self.get_shot_id(idx_shot)}"
+                    f"[Warning] No valid Δt found in any output signals for shot {self.get_shot_id(idx=shot_idx)}"
                 )
-            return  # stop processing this sample
+            return  # Stop processing this sample
 
         start_time = np.min(t_start)
         end_time = np.max(t_end)
@@ -248,17 +274,17 @@ class TaskModelTransformWrapper(MastDataset):
 
             for key in self.input_keys:
                 md = self.dict_task_metadata["input"][key]
-                freq_key = md["dt"]
+                freq_key = md["dt"]                                                             # FIXME: Unused variable
                 shape_values = tuple(md["values_shape"])
                 ts_input = md["ts_length"]
 
                 times = sample[key]["time"]
                 values = sample[key]["values"]
 
-                # 1. mask for times before t_end
+                # 1. Mask for times before t_end
                 idx_in = np.where(times <= t_cut)[0]
 
-                # 2. choose exactly ts_input indices (or fewer if not available)
+                # 2. Choose exactly ts_input indices (or fewer if not available)
                 if len(idx_in) >= ts_input:
                     chosen_idx_in = idx_in[-ts_input:]
                 else:
@@ -301,15 +327,15 @@ class TaskModelTransformWrapper(MastDataset):
                 shape_values = tuple(md["values_shape"])
                 ts_output = md["ts_length"]
 
-                ts_delta = np.trunc(self.delta / freq_key).astype(int)
+                ts_delta = np.trunc(self.delta / freq_key).astype(int)                          # FIXME: Unused variable
 
                 times = sample[key]["time"]
                 values = sample[key]["values"]
 
-                # 1. mask for times before t_end
+                # 1. Mask for times before t_end
                 idx_out = np.where(times > t_cut + self.delta)[0]
 
-                # 2. choose exactly ts_input indices (or fewer if not available)
+                # 2. Choose exactly ts_input indices (or fewer if not available)
                 if len(idx_out) >= ts_output:
                     chosen_idx_out = idx_out[:ts_output]
                 else:
@@ -319,9 +345,9 @@ class TaskModelTransformWrapper(MastDataset):
                 pad_len_output = ts_output - len(chosen_idx_out)
 
                 if chosen_idx_out.size > 0:
-                    sel_values_out = values[..., chosen_idx_out]
+                    sel_values_out = values[..., chosen_idx_out]                                # FIXME: Unused variable
                 else:
-                    sel_values_out = np.empty(shape_values + (0,), dtype=values.dtype)
+                    sel_values_out = np.empty(shape_values + (0,), dtype=values.dtype)          # FIXME: Unused variable
 
                 selected_times = np.concatenate(
                     [
@@ -368,11 +394,11 @@ class TaskModelTransformWrapper(MastDataset):
                 times = sample[key]["time"]
                 values = sample[key]["values"]
 
-                # 1. mask for times before t_end
+                # 1. Mask for times before t_end
                 idx_in = np.where(times <= t_cut)[0]
                 idx_out = np.where(times > t_cut + self.delta)[0]
 
-                # 2. choose exactly ts_input indices (or fewer if not available)
+                # 2. Choose exactly ts_input indices (or fewer if not available)
                 if len(idx_in) >= ts_input:
                     chosen_idx_in = idx_in[-ts_input:]
                 else:
@@ -431,10 +457,8 @@ class TaskModelTransformWrapper(MastDataset):
                 "actuator": actuator_slice,
                 "output": output_slice,
                 "t_cut": t_cut,
-                "shot_id": self.get_shot_id(
-                    idx_shot
-                ),  # we need this to cache shots for external models
-                "window_index": idx_t,  # we need this to cache shots for external models
+                "shot_id": self.get_shot_id(idx=shot_idx),  # We need this to cache shots for external models
+                "window_index": idx_t,  # We need this to cache shots for external models
             }
 
             if self.test_mode:
@@ -450,8 +474,7 @@ class TaskModelTransformWrapper(MastDataset):
                 if obj2 is None:
                     continue
                 yield {
-                    "shot_id": self.get_shot_id(idx_shot),
-                    "window_index": idx_t,
+                    "shot_id": self.get_shot_id(idx=shot_idx),
                     **obj2,
                 }
             else:
@@ -459,7 +482,7 @@ class TaskModelTransformWrapper(MastDataset):
                 continue
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __len__(self):
+    def __len__(self) -> int:
         """Get length of base dataset."""
 
         return len(self.base)
@@ -468,7 +491,7 @@ class TaskModelTransformWrapper(MastDataset):
     def get_shot_id(
             self,
             idx: int
-    ):
+    ) -> int:
         """Get shot ID from shot index."""
 
         return self.base.shots_list[idx]

@@ -9,7 +9,7 @@ from typing import Optional, Mapping, Any
 # import numpy as np
 
 from MAST_tools.MAST_dataset import MastDataset
-from MAST_benchmark.tools.Task_Model_Wrapper import TaskModelTransformWrapper
+from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
 from MAST_benchmark.tools.path import METADATA_DIR
 from MAST_benchmark.tools.MAST_composite_transform import (
     build_common_signal_transform_map,
@@ -57,10 +57,10 @@ def initialize_MAST_dataset(
     )
     source_signal_list = [
         s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]
-    ]  # Unicity  
+    ]  # Unicity
 
     # ..................................................................................................................
-    # Create common transform map      
+    # Create common transform map
     signal_transform_map = build_common_signal_transform_map(
         source_signal_list, use_std_scaling
     )
@@ -80,51 +80,32 @@ def initialize_MAST_dataset(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_model_dataset(
+def initialize_TokaMark_dataset(
     dataset: Optional[MastDataset],
-    dict_task_metadata: Mapping[str, Any],
-    config_task: Mapping[str, Any],
-    model_specific_transform: Optional[Any] = None,
+    task_metadata: Mapping[str, Any],
+    config_metadata: Mapping[str, Any],
+    custom_transform: Optional[Any] = None,
     test_mode: bool = False,
+    shuffle_windows = True,
+    shuffle_buffer_size = 512,
     *,
     verbose: bool = False,
-) -> Optional[TaskModelTransformWrapper]:
+) -> Optional[TokaMarkDataset]:
     """
-    Wrap a single baseline shot-level dataset with TaskModelTransformWrapper.
-
-    This is a single-split version of initialize_model_datasets(), intended to
-    be called explicitly for each split (train/val/test) from entrypoint scripts.
-
-    Parameters
-    ----------
-    dataset : Optional[MastDataset]
-        Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
-    dict_task_metadata : Mapping[str, Any],
-        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
-    config_task : Mapping[str, Any],
-        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
-    model_specific_transform : Optional[Any]
-        Optional model-specific transform chain applied per window.
-    test_mode : bool
-        If True, activates test mode.
-    verbose : bool
-        If True, enables verbose prints in the wrapper.
-
-    Returns
-    -------
-    Optional[TaskModelTransformWrapper]
-        Wrapped dataset, or None if input dataset is None.
+COmment to add
 
     """
 
     if dataset is None:
         return None
 
-    return TaskModelTransformWrapper(
+    return TokaMarkDataset(
         base_dataset=dataset,
-        dict_task_metadata=dict_task_metadata,
-        config_task=config_task,
-        model_transform=model_specific_transform,
+        task_metadata=task_metadata,
+        config_metadata=config_metadata,
+        custom_transform=custom_transform,
         test_mode=test_mode,
         verbose=verbose,
+        shuffle_windows=shuffle_windows,
+        shuffle_buffer_size = shuffle_buffer_size
     )

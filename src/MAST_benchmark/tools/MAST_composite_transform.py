@@ -4,43 +4,34 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import os
-from typing import List, Any, Mapping
 import yaml
 
 from MAST_benchmark.tools.path import METADATA_DIR
-from MAST_benchmark.tools.transforms.compose_transform import (
-    ComposeTransforms
-)
-from MAST_benchmark.tools.transforms.stdscale_transform import (
-    StdScalingTransform,
-)
-from MAST_benchmark.tools.transforms.reshape_lcfs_transform import (
-    ReshapeLcfsTransform,
-)
-from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import (
-    FillProfileWithZerosTransform,
-)
+from MAST_benchmark.tools.transforms.compose_transform import ComposeTransforms
+from MAST_benchmark.tools.transforms.stdscale_transform import StdScalingTransform
+from MAST_benchmark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
+from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def build_common_signal_transform_map(
-    source_signal_list: List[tuple],
+    source_signal_list: list[tuple],
     use_std_scaling: bool = True
-) -> Any:
+) -> dict[str, ComposeTransforms]:
     """
     Build the signal transform map for each variable.
 
     Parameters
     ----------
-    source_signal_list : List[tuple]
+    source_signal_list : list[tuple]
         List of source-signal tuples.
     use_std_scaling: bool
         If True, use STD scaling.
-        Default: True
+        Optional. Default: True.
 
     Returns
     -------
-    Mapping
+    dict[str, ComposeTransforms]
         Signal transform map for each variable.
 
     """
@@ -48,27 +39,29 @@ def build_common_signal_transform_map(
     # ..................................................................................................................
     def maybe_std(
             var: str
-    ) -> Any:
+    ) -> list:
         """
-        Return StdScalingTransform if enabled, else empty list.
+        Return [StdScalingTransform, Any] if enabled, else empty list.
 
         Parameters
         ----------
         var : str
-            Target variable.
+            Input variable.
 
         Returns
         -------
-        Any
-            StdScalingTransform if enabled, else empty list.
+        List
+            [StdScalingTransform, Any] if enabled, else empty list.
 
         """
 
         if use_std_scaling:
             with open(os.path.join(METADATA_DIR, "dict_stats_metadata.yaml"), "r") as f:
                 dict_stats_metadata = yaml.safe_load(f)
-            return [StdScalingTransform(dict_stats_metadata[var]['mean'], dict_stats_metadata[var]['std'])]
+            return [StdScalingTransform(dict_stats_metadata[var]["mean"], dict_stats_metadata[var]["std"])]
         return []
+
+    # ..................................................................................................................
 
     # Define base signal_transform_map
     signal_transform_map = {
@@ -89,7 +82,7 @@ def build_common_signal_transform_map(
         "thomson_scattering-n_e",
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            maybe_std(var) + [
+            transforms=maybe_std(var) + [
                 FillProfileWithZerosTransform(),
             ]
         )
@@ -97,9 +90,9 @@ def build_common_signal_transform_map(
     # Specific case of reformating LCFS
     for var in ["equilibrium-lcfs_r", "equilibrium-lcfs_z"]:
         signal_transform_map[var] = ComposeTransforms(
-            [
+            transforms=maybe_std(var) + [
                 ReshapeLcfsTransform(),
-            ] + maybe_std(var)
+            ]
         )
 
     return signal_transform_map

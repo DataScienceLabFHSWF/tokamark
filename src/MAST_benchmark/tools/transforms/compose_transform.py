@@ -3,7 +3,8 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Any
+from typing import Any, Optional
+from collections.abc import Callable
 
 
 # ======================================================================================================================
@@ -18,7 +19,7 @@ class ComposeTransforms(object):
 
     Methods
     -------
-    __call__
+    __call__(sample)
         Call method for the class to behave like a function.
 
     """
@@ -26,15 +27,19 @@ class ComposeTransforms(object):
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(
             self,
-            transforms: Any
+            transforms: list[Callable]
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
-        transforms : list[callable[tuple]]
-            List containing the names of the transforms
+        transforms : list[Callable]
+            List containing the names of the transforms.
+
+        Returns
+        -------
+        None
 
         """
 
@@ -43,19 +48,19 @@ class ComposeTransforms(object):
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(
             self,
-            sample: Any
-    ) -> Any:
+            sample: Optional[Any]
+    ) -> Optional[Any]:
         """
         Call method for the class to behave like a function.
 
         Parameters
         ----------
-        sample : Any
-            Target sample.
+        sample : Optional[Any]
+            Input sample.
 
         Returns
         -------
-        Any
+        Optional[Any]
             Transformed sample.
 
         """

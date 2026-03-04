@@ -8,13 +8,12 @@ from pathlib import Path
 from filelock import FileLock
 import torch
 import pandas as pd
-from typing import Any
+from typing import Any, Union, LiteralString
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_device(
-        prefer_mps:
-        bool = True
+        prefer_mps: bool = True
 ) -> torch.device:
     """
     Return the best available torch device.
@@ -23,6 +22,7 @@ def get_device(
     ----------
     prefer_mps : bool
         Whether to prefer Apple Metal Performance Shaders (MPS) over CPU.
+        Optional. Default: True.
 
     Returns
     -------
@@ -40,14 +40,14 @@ def get_device(
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_config_from_yaml(
-        file_path
-) -> Any:
+        file_path: Union[LiteralString, str, bytes]
+) -> dict[str, Any]:
     """
     Get configuration from YAML file.
 
     Parameters
     ----------
-    file_path : str
+    file_path : Union[LiteralString, str, bytes]
         Target file path.
 
     Returns
@@ -64,22 +64,85 @@ def get_config_from_yaml(
     return config
 
 
+# ======================================================================================================================
 class AutoAppendingDataFrame:
-    def __init__(self, path: str, buffer_size: int = 1):
+    """
+    Auto-saving DataFrame that buffers rows and writes atomically after N batches.
+
+    Attributes
+    ----------
+    path : str
+        Path to the Parquet file.  # FIXME: Is this really a Parquet file? [Mike]
+    buffer_size : int
+        Number of rows to buffer before saving.
+    lock : BaseFileLock
+        Lock for concurrent appending.
+    buffer : list
+        Buffer for DataFrame rows.
+    columns : Optional[list]
+        List of DataFrame columns.
+
+    Methods
+    -------
+    append(df_rows)
+        Append rows to buffer and commit if threshold reached.
+    _commit()
+        Commit buffered rows to disk atomically.
+    flush()
+        Force commit of any buffered rows.
+    view()
+        Return a copy of the current DataFrame.
+
+    """
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def __init__(
+            self,
+            path: Union[Path, str],
+            buffer_size: int = 1
+    ) -> None:
         """
-        Auto-saving DataFrame that buffers rows and writes atomically after N batches.
+        Initialize class attributes.
         
-        :param path: Path to the Parquet file.
-        :param batch_size: Number of rows to buffer before saving.
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the Parquet file.  # FIXME: Is this really a Parquet file? [Mike]
+        buffer_size : int
+            Number of rows to buffer before saving.
+            Optional. Default: 1.
+
+        Returns
+        -------
+        None
+
         """
+
         self.path = Path(path)
         self.buffer_size = buffer_size
         self.lock = FileLock(str(self.path) + ".lock")
         self.buffer = []
         self.columns = None
 
-    def append(self, df_rows: pd.DataFrame):
-        """Append rows to buffer and commit if threshold reached."""
+    # ------------------------------------------------------------------------------------------------------------------
+    def append(
+            self,
+            df_rows: pd.DataFrame
+    ) -> None:
+        """
+        Append rows to buffer and commit if threshold reached.
+
+        Parameters
+        ----------
+        df_rows : pd.DataFrame
+            Input dataframe.
+
+        Returns
+        -------
+        None
+
+        """
+
         if self.columns is None:
             self.columns = list(df_rows.columns)
 
@@ -92,10 +155,13 @@ class AutoAppendingDataFrame:
         if len(self.buffer) >= self.buffer_size:
             self._commit()
 
-    def _commit(self):
+    # ------------------------------------------------------------------------------------------------------------------
+    def _commit(self) -> None:
         """Commit buffered rows to disk atomically."""
+
         if not self.buffer:
             return
+
         # Merge buffer into main DataFrame
         df_new_data = pd.concat(self.buffer, ignore_index=True)
         self.buffer.clear()
@@ -103,18 +169,21 @@ class AutoAppendingDataFrame:
         # Concurrent appending
         with self.lock:
             file_exists = self.path.exists() and self.path.stat().st_size > 0
-            # If file doesn't exist or is empty, write header once
+            # If file does not exist or is empty, write header once
             df_new_data.to_csv(
-                self.path,
-                mode="a",                # append
-                header=not file_exists,  # write header only on first write
+                path_or_buf=self.path,
+                mode="a",                # Append
+                header=not file_exists,  # Write header only on first write
                 index=False
             )
 
-    def flush(self):
+    # ------------------------------------------------------------------------------------------------------------------
+    def flush(self) -> None:
         """Force commit of any buffered rows."""
+
         self._commit()
 
+    # ------------------------------------------------------------------------------------------------------------------
     def view(self) -> pd.DataFrame:
         """Return a copy of the current DataFrame."""
-        return self.df.copy()
+        return self.df.copy()  # FIXME: Ask Mike the intended behavior.

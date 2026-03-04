@@ -3,17 +3,20 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-import os
 import time
 import yaml
 import numpy as np
-from pathlib import Path
 from pprint import pprint
-from typing import Union, Callable, Optional, Sequence, Any
+from typing import Union, Optional, Sequence, Any
+from collections.abc import Callable, Mapping
 from torch.utils.data import Dataset
 
-from MAST_tools import signal_utils
-from MAST_benchmark.tools.path import METADATA_DIR
+from MAST_tools.utils import signal_utils
+from MAST_tools.constants import (
+    StoreManagerParametersType,
+    DEFAULT_METADATA_OUTLIER_FILE
+)
+from MAST_tools.data_models import ShotInfo
 
 
 # ======================================================================================================================
@@ -27,12 +30,12 @@ class CachedDataset(Dataset):
         Base dataset to be cached.
     cache : list[Any]
         List of cached dataset items.
-    _is_cached = list[Bool]
+    _is_cached = list[bool]
         List of boolean flags to define if a given dataset item is cached or not.
 
     Methods
     -------
-    __len__
+    __len__()
         Return the size of the dataset.
     __getitem__(idx)
         Return samples by shot index.
@@ -45,11 +48,11 @@ class CachedDataset(Dataset):
             base_dataset: Sequence
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
-        base_dataset: Sequence
+        base_dataset : Sequence
             Base dataset to be cached.
 
         Returns
@@ -116,16 +119,11 @@ class MastDataset(Dataset):
     ----------
     local : bool
         Boolean flag to activate local mode. If True, use local MAST database, otherwise use remote S3 bucket.
-    level : int
-        Target level for the MAST data/metadata to be pulled.
-    test_data : bool
-        If True, the target shot is pulled from test data, otherwise it is pulled from curated data. Not available
-        for locally stored data (i.e, if `local` is True).
     shots_list : list[int]
         List of shot IDs.
     source_signal_list : list[list[str]]
         List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
-    signal_level_transform_map : Optional[dict[str, Callable]]
+    signal_level_transform_map : Optional[Mapping[str, Callable]]
         Map of transforms to apply at signal level.
     shot_level_transform : Optional[Callable]
         Transform to apply at shot level.
@@ -138,7 +136,7 @@ class MastDataset(Dataset):
 
     Methods
     -------
-    __len__
+    __len__()
         Return the size of the dataset.
     __getitem__(idx)
         Return samples by shot index.
@@ -155,16 +153,16 @@ class MastDataset(Dataset):
         local: bool,
         shots_list: list[int],
         source_signal_list: list[list[str]],
-        signal_level_transform_map: Optional[dict[str, Callable]] = None,
+        signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
         shot_level_transform: Optional[Callable] = None,
         return_incomplete_shots: bool = False,
         remove_outliers: bool = False,
-        store_manager_settings: Optional[dict] = None,
-        other_mast_settings: Optional[dict] = None,
+        outlier_metadata_file: str = DEFAULT_METADATA_OUTLIER_FILE,
+        store_manager_settings: Optional[StoreManagerParametersType] = None,
         verbose: bool = False
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
@@ -174,7 +172,7 @@ class MastDataset(Dataset):
             List of shot IDs to load data for.
         source_signal_list : list[list[str]]
             List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
-        signal_level_transform_map : Optional[dict[str, Callable]]
+        signal_level_transform_map : Optional[Mapping[str, Callable]]
             Map of transforms to apply at signal level.
             Optional. Default: None.
         shot_level_transform : Optional[Callable]
@@ -184,18 +182,18 @@ class MastDataset(Dataset):
             If True, DO NOT drop shots with missing variables, and pass them through so that the windowing transform can
             insert None for missing inputs per window.
             Optional. Default: False.
-        store_manager_settings : Optional[dict]
-            Settings for the store manager instance. If None, a generic store manage instance is created with default
-            values as defined in the docstrings of `store_utils.MASTStorageManager`.
-            Optional. Default: None.
-        other_mast_settings : Optional[dict]
-            Other MAST-related settings, provided via a dictionary with suitable (key, value) pairs. Valid settings are:
-            level : int
-                Target level for the MAST data/metadata to be pulled.
-            test_data : bool
-                If True, the target shot is pulled from test data, otherwise it is pulled from curated data. Not
-                available for locally stored data (i.e, if `local` is True).
-            Optional. Default: None, which results in level = 2 and test_data = False.
+        remove_outliers : bool
+            If True, outliers are removed using information from the `outlier_metadata_file`.
+            Optional. Default: False.
+        outlier_metadata_file : str
+            Source file for outlier metadata, only used when `remove_outliers` is True.
+            Optional: Default: DEFAULT_METADATA_OUTLIER_FILE, as defined in `src.MAST_tools.constants.py`
+        store_manager_settings : Optional[StoreManagerParametersType]
+            Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
+            types as defined in `src.MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)
+            pairs are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
+            Optional. Default: None, which results in the default values for all the keywords as defined in
+            `src.MAST_tools.store_utils.MASTStorageManager.__init__`.
         verbose : bool
             If True, verbose mode is activated.
             Optional. Default: False.
@@ -204,47 +202,10 @@ class MastDataset(Dataset):
         -------
         None
 
-        Raises
-        ------
-        ValueError
-            If value of field 'level' in 'other_mast_settings' is not in [1, 2].
-        TypeError
-            If value of field 'level' in 'other_mast_settings' is not of type 'int'.
-        TypeError
-            If value of field 'test_data' in 'other_mast_settings' is not of type boolean.
-
         """
 
         # General MAST settings
         self.local = local
-        if other_mast_settings:
-            if "level" in other_mast_settings:
-                if isinstance(other_mast_settings["level"], int):
-                    if other_mast_settings["level"] in [1, 2]:
-                        self.level = other_mast_settings["level"]
-                    else:
-                        raise TypeError(
-                            "Value of field 'level' in 'other_mast_settings' must be of type 'int'."
-                        )
-                else:
-                    raise ValueError(
-                        "Value of field 'level' in 'other_mast_settings' must be in [1, 2]."
-                    )
-            else:
-                self.level = 2
-
-            if "test_data" in other_mast_settings:
-                if isinstance(other_mast_settings["test_data"], bool):
-                    self.test_data = other_mast_settings["test_data"]
-                else:
-                    raise TypeError(
-                        "Value of field 'test_data' in 'other_mast_settings' must be of type boolean."
-                    )
-            else:
-                self.test_data = False
-        else:
-            self.level = 2
-            self.test_data = False
 
         # Shot-specific settings
         self.shots_list = shots_list
@@ -254,8 +215,7 @@ class MastDataset(Dataset):
         self.return_incomplete_shots = return_incomplete_shots
         self.remove_outliers = remove_outliers
         if self.remove_outliers:
-            metadata_path = os.path.join(METADATA_DIR, 'dict_outlier_metadata.yaml')
-            with open(metadata_path, 'r') as f:
+            with open(outlier_metadata_file, "r") as f:
                 self.dict_outlier_metadata = yaml.safe_load(f)
 
         # Signal manager instance
@@ -302,12 +262,10 @@ class MastDataset(Dataset):
 
         store_manager = self.sig.store_manager
         store = store_manager.make_shot_store(
-            shot_info={
-                "shot_id": self.shots_list[idx],
-                "level": self.level,
-                "test_data": self.test_data,
-                "local": self.local
-            },
+            shot_info=ShotInfo(
+                shot_id=self.shots_list[idx],
+                local=self.local
+            ),
             verbose=self.verbose
         )
 
@@ -339,8 +297,8 @@ class MastDataset(Dataset):
         # and then over each signal in source group
         for source in source_signals:
             source_store = self.sig.get_source_profiles(
-                store, 
-                source
+                data_origin=store,
+                source_name=source
             )
 
             for signal in source_signals[source]:
@@ -421,10 +379,6 @@ class MastDataset(Dataset):
         int
             Shot ID.
 
-        Raises
-        ------
-        None
-
         """
 
         return self.shots_list[idx]
@@ -466,8 +420,8 @@ def tests() -> None:
     """
     Quick tests for module functionality.
 
-    Return
-    ------
+    Returns
+    -------
     None
 
     """
@@ -486,7 +440,7 @@ def tests() -> None:
             ["magnetics", "b_field_tor_probe_omaha_channel"]
         ],
         signal_level_transform_map=None,
-        shot_level_transform=None,
+        shot_level_transform=None
     )
 
     print(f"\ndummy_dataset.__len__: {dummy_dataset.__len__()}")

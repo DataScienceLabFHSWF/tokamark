@@ -36,6 +36,6 @@ task_window_segmenter:
   output_keys: *output_keys
   input_length: 0.005
   output_length: 0.005
-  delta: -0.005 # this is reconstruction ie -delta = input_length = output_length
+  delta: -0.005  # This is reconstruction, i.e., -delta = input_length = output_length
 
 stride_window: 0.001

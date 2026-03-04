@@ -3,7 +3,8 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Mapping
+from typing import Any
+from collections.abc import Mapping
 
 
 # ======================================================================================================================
@@ -13,9 +14,10 @@ class StdScalingTransform:
 
     Methods
     -------
-    __call__
+    __call__(dict_)
         Call method for the class to behave like a function. It normalizes each sample individually: subtract mean,
-        divide by std.
+        divide by STD.
+
     """
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -25,7 +27,7 @@ class StdScalingTransform:
             std: float
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
@@ -33,6 +35,10 @@ class StdScalingTransform:
             Input mean.
         std : float
             Input STD.
+
+        Returns
+        -------
+        None
 
         """
 
@@ -42,31 +48,31 @@ class StdScalingTransform:
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(
             self,
-            d: Mapping
-    ):
+            dict_: Mapping[str, Any]
+    ) -> dict[str, Any]:
         """
         Call method for the class to behave like a function. It normalizes each sample individually: subtract mean,
-        divide by std.
+        divide by STD.
 
         Parameters
         ----------
-        d : Mapping
-            Dictionary with 'time' and 'values' [features, time].
+        dict_ : Mapping[str, Any]
+            Dictionary with "time" and "values" keys with corresponding values.
 
         Returns
         -------
-        Mapping
+        dict[str, Any]
             Augmented input dictionary with values normalized per feature.
+
         """
 
-        time = d['time']
-        values = d['values']
-
+        values = dict_["values"]
         if values is not None:
             values = (values - self.mean) / self.std
+
         return {
-            'time': time,
-            'values': values
+            "time": dict_["time"],
+            "values": values
         }
 
     # ------------------------------------------------------------------------------------------------------------------

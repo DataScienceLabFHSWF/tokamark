@@ -16,8 +16,10 @@ METADATA_DIR = os.path.join(PACKAGE_ROOT, "metadata")
 
 
 # ======================================================================================================================
-# You can print to verify when developing
 if __name__ == "__main__":
+
+    # One can print to verify when developing
+
     print("Repo root:", PACKAGE_ROOT)
     print("Tasks configs dir:", TASKS_CONFIGS_DIR)
     print("Metadata dir:", METADATA_DIR)

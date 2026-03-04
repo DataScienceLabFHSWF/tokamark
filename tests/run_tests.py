@@ -62,7 +62,7 @@ def run_test_scripts(
         
         try:
             result = subprocess.run(
-                [sys.executable, str(test_file)],
+                args=[sys.executable, str(test_file)],
                 capture_output=True,
                 text=True,
                 timeout=timeout
