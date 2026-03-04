@@ -11,6 +11,7 @@ from MAST_benchmark.tools.transforms.compose_transform import ComposeTransforms
 from MAST_benchmark.tools.transforms.stdscale_transform import StdScalingTransform
 from MAST_benchmark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
 from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
+from MAST_benchmark.tools.transforms.stft_transform import STFTTransform
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -39,9 +40,9 @@ def build_common_signal_transform_map(
     # ..................................................................................................................
     def maybe_std(
             var: str
-    ) -> list:
+    ) -> list:  # TODO: Find better typehint
         """
-        Return [StdScalingTransform, Any] if enabled, else empty list.
+        Return [StdScalingTransform] if enabled, else empty list.  # FIXME: StdScalingTransform returns None. So?
 
         Parameters
         ----------
@@ -50,20 +51,23 @@ def build_common_signal_transform_map(
 
         Returns
         -------
-        List
-            [StdScalingTransform, Any] if enabled, else empty list.
+        list  # TODO: Find better typehint
+            [StdScalingTransform] if enabled, else empty list.  # FIXME: StdScalingTransform returns None. So?
 
         """
 
         if use_std_scaling:
             with open(os.path.join(METADATA_DIR, "dict_stats_metadata.yaml"), "r") as f:
                 dict_stats_metadata = yaml.safe_load(f)
-            return [StdScalingTransform(dict_stats_metadata[var]["mean"], dict_stats_metadata[var]["std"])]
+            return [
+                StdScalingTransform(mean=dict_stats_metadata[var]["mean"], std=dict_stats_metadata[var]["std"])
+            ]  # TODO: Check this, as StdScalingTransform returns None.
         return []
 
     # ..................................................................................................................
 
     # Define base signal_transform_map
+
     signal_transform_map = {
         var: ComposeTransforms(
             maybe_std(var)
@@ -92,6 +96,17 @@ def build_common_signal_transform_map(
         signal_transform_map[var] = ComposeTransforms(
             transforms=maybe_std(var) + [
                 ReshapeLcfsTransform(),
+            ]
+        )
+
+    # Specific case of profiles with NaNs in full channel
+    for var in [
+        "magnetics-b_field_tor_probe_cc_field",
+        "magnetics-b_field_pol_probe_omv_voltage"
+    ]:
+        signal_transform_map[var] = ComposeTransforms(
+            transforms=maybe_std(var) + [
+                STFTTransform(support_n=512),
             ]
         )
 

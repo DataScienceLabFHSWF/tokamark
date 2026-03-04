@@ -4,13 +4,9 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 from typing import Optional, Mapping, Any
-# import os
-# import pickle
-# import numpy as np
 
 from MAST_tools.MAST_dataset import MastDataset
 from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
-from MAST_benchmark.tools.path import METADATA_DIR
 from MAST_benchmark.tools.MAST_composite_transform import (
     build_common_signal_transform_map,
 )
@@ -86,13 +82,43 @@ def initialize_TokaMark_dataset(
     config_metadata: Mapping[str, Any],
     custom_transform: Optional[Any] = None,
     test_mode: bool = False,
-    shuffle_windows = True,
-    shuffle_buffer_size = 512,
+    shuffle_windows: bool = True,
+    shuffle_buffer_size: int = 512,
     *,
     verbose: bool = False,
 ) -> Optional[TokaMarkDataset]:
-    """
-COmment to add
+    """  FIXME: Check and update docstrings accordingly (legacy from previous method)
+    Wrap a single baseline shot-level dataset with TaskModelTransformWrapper.
+
+    This is a single-split version of initialize_model_datasets(), intended to
+    be called explicitly for each split (train/val/test) from entrypoint scripts.
+
+    Parameters
+    ----------
+    dataset : Optional[MastDataset]
+        Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
+    task_metadata : Mapping[str, Any],
+        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
+    config_metadata : Mapping[str, Any],
+        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
+    custom_transform : Optional[Any]
+        Optional model-specific transform chain applied per window.
+    test_mode : bool
+        If True, activates test mode.
+        Optional. Default: False
+    shuffle_windows : bool
+        TODO
+        Optional. Default: True.
+    shuffle_buffer_size : int
+        TODO
+        Optional. Default: 512
+    verbose : bool
+        If True, enables verbose prints in the wrapper.
+
+    Returns
+    -------
+    Optional[TaskModelTransformWrapper]
+        Wrapped dataset, or None if input dataset is None.
 
     """
 
@@ -105,7 +131,7 @@ COmment to add
         config_metadata=config_metadata,
         custom_transform=custom_transform,
         test_mode=test_mode,
-        verbose=verbose,
         shuffle_windows=shuffle_windows,
-        shuffle_buffer_size = shuffle_buffer_size
+        shuffle_buffer_size=shuffle_buffer_size,
+        verbose=verbose
     )

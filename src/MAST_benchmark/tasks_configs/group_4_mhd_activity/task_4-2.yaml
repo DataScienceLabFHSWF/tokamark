@@ -1,4 +1,5 @@
 task_name: task_4-2
+task_type: non_markovian
 
 sources_and_signals:
   input_name: &input_keys
