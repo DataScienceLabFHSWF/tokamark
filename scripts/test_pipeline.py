@@ -2,6 +2,9 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
+
+# FIXME: Compare against test_pipeline_roh_on_old.py
+
 import time
 
 start = time.perf_counter()

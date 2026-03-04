@@ -3,6 +3,8 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
+# FIXME: Compare against data_roh_on_old.py
+
 from typing import Optional, Mapping, Any
 
 from MAST_tools.MAST_dataset import MastDataset
@@ -13,7 +15,7 @@ from MAST_benchmark.tools.MAST_composite_transform import (
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_MAST_dataset(
+def initialize_MAST_dataset(  # noqa (allow uppercase)
     config_task: Mapping[str, Any],
     shots_list: list,
     local_flag: bool = True,
@@ -61,7 +63,7 @@ def initialize_MAST_dataset(
         source_signal_list, use_std_scaling
     )
 
-    MAST_dataset = MastDataset(
+    mast_dataset = MastDataset(
         local=local_flag,
         shots_list=shots_list,
         source_signal_list=source_signal_list,
@@ -72,11 +74,11 @@ def initialize_MAST_dataset(
         verbose=verbose
     )
 
-    return MAST_dataset
+    return mast_dataset
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_TokaMark_dataset(
+def initialize_TokaMark_dataset(  # noqa (allow uppercase)
     dataset: Optional[MastDataset],
     task_metadata: Mapping[str, Any],
     config_metadata: Mapping[str, Any],
