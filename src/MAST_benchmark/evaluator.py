@@ -14,7 +14,7 @@ Typical usage:
 Aggregation follows the benchmark hierarchy:
 - signal rows: equal-weight mean/std across shots
 - task rows: equal-weight mean/std across shots
-- group rows: equal-weight mean/std across task means
+- group rows: equal-weight mean of task means and mean of task stds
 """
 
 from pathlib import Path
@@ -128,7 +128,7 @@ def _build_task_summary_row_from_shots(df_task_shots):
 
 
 def _build_group_summary_from_task_summaries(df_tasks):
-    """Build one group summary row from equal-weight task means."""
+    """Build one group summary row from equal-weight task means/stds."""
     group = {
         "n_shots": float(pd.to_numeric(df_tasks["n_shots"], errors="coerce").sum())
     }
@@ -141,8 +141,9 @@ def _build_group_summary_from_task_summaries(df_tasks):
             group[std_col] = np.nan
             continue
 
-        tmp = df_tasks[[mean_col]].copy()
+        tmp = df_tasks[[mean_col, std_col]].copy()
         tmp[mean_col] = pd.to_numeric(tmp[mean_col], errors="coerce")
+        tmp[std_col] = pd.to_numeric(tmp[std_col], errors="coerce")
         tmp = tmp.dropna()
 
         if len(tmp) == 0:
@@ -151,9 +152,10 @@ def _build_group_summary_from_task_summaries(df_tasks):
             continue
 
         means = tmp[mean_col].to_numpy(dtype=float)
+        stds = tmp[std_col].to_numpy(dtype=float)
 
         group[mean_col] = float(np.mean(means))
-        group[std_col] = float(np.std(means, ddof=0))
+        group[std_col] = float(np.mean(stds))
 
     return group
 
