@@ -118,11 +118,28 @@ class TokaMarkDataset(IterableDataset):
         sample = self.base[idx_shot]
 
         # --------------------------------------------------------------
-        # determine valid global time range (from outputs)
+        # determine global_start_time based on input and actuator
         # --------------------------------------------------------------
-        t_start, t_end, delta_ts = [], [], []
+        t_start = []
+        for var in self.input_keys + self.actuator_keys :
+            t = sample[var]["time"]
+            v = sample[var]["values"]
 
-        for var in self.output_keys:
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
+            if not np.any(valid_mask):
+                continue
+            t_valid = t[valid_mask]
+            t_start.append(t_valid[0])
+
+        if not t_start:
+            return
+        global_start_time = np.min(t_start)
+
+        # --------------------------------------------------------------
+        # determine global_end_time based on output
+        # --------------------------------------------------------------
+        t_end = []
+        for var in self.output_keys :
             t = sample[var]["time"]
             v = sample[var]["values"]
 
@@ -136,36 +153,32 @@ class TokaMarkDataset(IterableDataset):
                     return   # ← skip whole shot
                 continue
 
-            # True where timestep has at least one real value
             valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]
-            t_start.append(t_valid[0])
             t_end.append(t_valid[-1])
-            dts = np.diff(t_valid)
-            if dts.size:
-                delta_ts.append(np.min(dts))
-        if not delta_ts:
+
+        if not t_end:
             return
-
-        global_start_time = np.min(t_start)
         global_end_time = np.max(t_end)
-
-        # Pad sample here 
+        
+        # --------------------------------------------------------------
+        # pad sample for consistency
+        # --------------------------------------------------------------
         sample = self._pad_sample_to_interval(
             sample,
             global_start_time,
             global_end_time,
         )
 
-        t_cuts = np.arange(global_start_time + self.input_length, 
-                           global_end_time - self.delta - self.output_length, 
-                           self.stride)
-
         # --------------------------------------------------------------
         # build windows
         # --------------------------------------------------------------
+        t_cuts = np.arange(global_start_time + self.input_length, 
+                           global_end_time - self.delta - self.output_length, 
+                           self.stride)
+        
         for idx_t, t_cut in enumerate(t_cuts):
             
             input_slice = self._build_window(sample, 
