@@ -444,13 +444,13 @@ def tests() -> None:
     )
 
     print(f"\ndummy_dataset.__len__: {dummy_dataset.__len__()}")
-    print(f"\ndummy_dataset.get_shot_id(0): {dummy_dataset.get_shot_id(0)}")
+    print(f"\ndummy_dataset.get_shot_id(0): {dummy_dataset.get_shot_id(idx=0)}")
 
     print("\ndummy_dataset.__getitem__(0):")
     pprint(dummy_dataset.__getitem__(0))
 
     print("\ndummy_dataset.get_windows_for_shot(0):")
-    pprint(dummy_dataset.get_windows_for_shot(0))
+    pprint(dummy_dataset.get_windows_for_shot(idx=0))
 
     # ..................................................................................................................
 

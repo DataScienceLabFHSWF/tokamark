@@ -3,34 +3,45 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-# FIXME: Compare against test_pipeline_roh_on_old.py
-
 import time
-
-start = time.perf_counter()
-
-import torch
-import numpy as np
 import argparse
-from typing import Dict, Any, Sequence, Optional
+import json
+from typing import Any, Sequence, Optional
+from collections.abc import Mapping
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
-from torch.utils.data._utils.collate import default_collate
+from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
 
-from MAST_benchmark.tools.utils import get_device
-from MAST_benchmark.tools.utils import get_config_from_yaml
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.tasks import get_task_metadata
-from MAST_benchmark.data import (
-    initialize_MAST_dataset,
-    initialize_TokaMark_dataset
+from MAST_tools.constants import (
+    DEFAULT_CONFIG_MODEL_TEST_FILE,
+    DEFAULT_CONFIG_MODEL_TEST_DEMO_FILE,
+    DEFAULT_CONFIG_TASK_TEST_FILE,
+    DEFAULT_BASE_LOCAL_ZARR_PATH
 )
+from MAST_benchmark.tools.utils import get_device, get_config_from_yaml
+from MAST_benchmark.data_split import get_train_test_val_shots
+from MAST_benchmark.tasks import get_task_metadata, get_task_config
+from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
 
 
-# Set device
+# ------------------------------------------------------------------------------------------------------------------
+
+DEMO_MODE = True
+
+if DEMO_MODE:
+    default_config_model_test_file = DEFAULT_CONFIG_MODEL_TEST_DEMO_FILE
+else:
+    default_config_model_test_file = DEFAULT_CONFIG_MODEL_TEST_FILE
+
+# ------------------------------------------------------------------------------------------------------------------
+# Preliminaries
+
+start = time.perf_counter()
+
 device = get_device()
 # print(f"Using device: {device}\n")
+
 
 # ======================================================================================================================
 class ModelSpecificTransform:  # TEMPLATE
@@ -68,14 +79,14 @@ class ModelSpecificTransform:  # TEMPLATE
 
         """
 
-        # dictionary that persists across calls
+        # dictionary that persists across calls  # FIXME: Is this comment relevant? [Cecile]
         self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(
             self,
-            shot: Dict[str, Any]
-    ) -> Dict[str, Any]:
+            shot: Mapping[str, Any]
+    ) -> dict[str, Any]:
         """
         Call method.
 
@@ -86,8 +97,9 @@ class ModelSpecificTransform:  # TEMPLATE
 
         Returns
         -------
-        Dict[str, Any]
-            Mapping with x and y values.
+        dict[str, Any]
+            Dictionary with "x" and "y" keys and values from `shot["input"] + shot["actuator"]` and `shot["output"]`
+            items, respectively.
 
         """
 
@@ -114,6 +126,7 @@ def model_collate_fn(
         Input batch.
     verbose : bool
         If True, activate verbose mode.
+        Optional. Default: False.
 
     Returns
     -------
@@ -146,78 +159,116 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # Argument parsing
     # ------------------------------------------------------------------------------------------------------------------
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--task",
         type=str,
-        default="task_1-1",
-        help="The name of the task available in the benchmark",
+        default="task_test",
+        help="The name of the task available in the benchmark"
     )
     parser.add_argument(
         "--config_model",
         type=str,
-        # default="fairmast-data-preprocessing/scripts/config_model_test.yaml",
-        default="config_model_test.yaml",
-
-        help="Path to the model YAML config file",
+        default=default_config_model_test_file,
+        help="Path to the model YAML config file"
     )
+    parser.add_argument(
+        "--omit_std_scaling",
+        action="store_true",
+        help="Omit STD scaling. If not provided, it defaults to `omit_std_scaling = False`, which in turn results in "
+             "use_std_scaling = False."
+    )
+    parser.add_argument(
+        "--skip_incomplete_shots",
+        action="store_true",
+        help="Skip incomplete shots. If not provided, it defaults to `skip_incomplete_shots = False`, which in turn "
+             "results in `return_incomplete_shots = True`."
+    )
+    parser.add_argument(
+        "--keep_outliers",
+        action="store_true",
+        help="Keep outliers. If not provided, it defaults to `keep_outliers = False`, which in turn results in "
+             "`remove_outliers = True`."
+    )
+    parser.add_argument(
+        "--store_manager_settings",
+        type=json.loads,
+        help="User-defined store manager settings for the target MAST_dataset instance as defined in "
+             "`src.MAST_tools.MAST_dataset.StoreManagerParameters`, passed as (keyword, value) pairs in a JSON object. "
+             "It is useful to provide store manager settings different than the default ones defined in "
+             "`src.MAST_tools.store_utils.MASTStorageManager.__init__`.",
+        default='{\"base_local_zarr_path\":\"' + DEFAULT_BASE_LOCAL_ZARR_PATH + '\"}'
+    )
+
     args, _ = parser.parse_known_args()
 
-    # Note: instead of loading benchmark task, here we load a simple task from external file
-    # config_task = get_config_from_yaml("fairmast-data-preprocessing/scripts/config_task_test.yaml")
-    config_task = get_config_from_yaml("config_task_test.yaml")
+    # Trick to default boolean parameters to True
+    args.use_std_scaling = not args.omit_std_scaling
+    args.return_incomplete_shots = not args.skip_incomplete_shots
+    args.remove_outliers = not args.keep_outliers
 
-    # Note: Uncomment the next 2 lines to use benchmark tasks
-    # from MAST_benchmark.tasks import get_task_config
-    # config_task = get_task_config(args.task)
+    if args.task == "task_test":
+        # Instead of loading benchmark task, here we load a simple task from external file
+        config_task = get_config_from_yaml(file_path=DEFAULT_CONFIG_TASK_TEST_FILE)
+    else:
+        # Otherwise, use the provided benchmark task
+        config_task = get_task_config(task_name=args.task)
 
     # Load CNN YAML config
-    config_model = get_config_from_yaml(args.config_model)
+    config_model = get_config_from_yaml(file_path=args.config_model)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Initialize datasets and metadata
     # ------------------------------------------------------------------------------------------------------------------
 
     train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index=config_model["subset_of_shots"]
+        max_index=config_model["max_shot_index"],
+        shuffle=config_model["shuffle"],  # This defaults to False.
+        seed=config_model["seed"]
     )
 
     local_flag = config_model["local"]
 
     train_MAST_dataset = initialize_MAST_dataset(
         config_task=config_task,
-        shots_list=train_shots_[0:100],
+        shots_list=train_shots_[0:100],  # FIXME: Why this 100? This is directly managed by "max_index" above. [Cecile]
         local_flag=local_flag,
-        use_std_scaling=True,
-        return_incomplete_shots=True,
-        remove_outliers=True,
+        use_std_scaling=args.use_std_scaling,                   # It defaults to True
+        return_incomplete_shots=args.return_incomplete_shots,   # It defaults to True
+        remove_outliers=args.remove_outliers,                   # It defaults to True
+        store_manager_settings=args.store_manager_settings,
         verbose=True
     )
-    val_MAST_dataset = initialize_MAST_dataset(
-        config_task=config_task,
-        shots_list=val_shots_[0:100],
-        local_flag=local_flag,
-        use_std_scaling=True,
-        return_incomplete_shots=True,
-        remove_outliers=True,
-        verbose=True
-    )
-    test_MAST_dataset = initialize_MAST_dataset(
-        config_task=config_task,
-        shots_list=test_shots_[0:100],
-        local_flag=local_flag,
-        use_std_scaling=True,
-        return_incomplete_shots=True,
-        remove_outliers=True,
-        verbose=True
-    )
+
+    # val_MAST_dataset = initialize_MAST_dataset(  # FIXME: Unused instance [Cecile]
+    #     config_task=config_task,
+    #     shots_list=val_shots_[0:100],
+    #     local_flag=local_flag,
+    #     use_std_scaling=args.use_std_scaling,                   # It defaults to True
+    #     return_incomplete_shots=args.return_incomplete_shots,   # It defaults to True
+    #     remove_outliers=args.remove_outliers,                   # It defaults to True
+    #     store_manager_settings=args.store_manager_settings,
+    #     verbose=True
+    # )
+
+    # test_MAST_dataset = initialize_MAST_dataset(  # FIXME: Unused instance [Cecile]
+    #     config_task=config_task,
+    #     shots_list=test_shots_[0:100],
+    #     local_flag=local_flag,
+    #     use_std_scaling=args.use_std_scaling,                   # It defaults to True
+    #     return_incomplete_shots=args.return_incomplete_shots,   # It defaults to True
+    #     remove_outliers=args.remove_outliers,                   # It defaults to True
+    #     store_manager_settings=args.store_manager_settings,
+    #     verbose=True
+    # )
 
     # ------------------------------------------------------------------------------------------------------------------
     # Initialize task-specific metadata
     # ------------------------------------------------------------------------------------------------------------------
 
     dict_task_metadata = get_task_metadata(
-        config_task,
+        config_task=config_task,
         verbose=False
     )
 
@@ -225,7 +276,7 @@ if __name__ == "__main__":
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # ------------------------------------------------------------------------------------------------------------------
 
-    model_specific_transform = ModelSpecificTransform()  # likely depends on dict_task_metadata
+    model_specific_transform = ModelSpecificTransform()  # Likely depends on dict_task_metadata
 
     train_model_dataset = initialize_TokaMark_dataset(
         dataset=train_MAST_dataset,
@@ -233,7 +284,7 @@ if __name__ == "__main__":
         config_metadata=config_task,
         custom_transform=model_specific_transform,
         test_mode=True,
-        shuffle_windows = False,
+        shuffle_windows=False,
         verbose=False
     )
 
@@ -242,17 +293,20 @@ if __name__ == "__main__":
             collate_fn=model_collate_fn,
             **config_model["dataloader_setting"],
             pin_memory=True,
-            # drop_last=True,
+            # drop_last=True
         )
+
+    # ..................................................................................................................
+    # Evaluation loop
+    # ..................................................................................................................
 
     for batch_idx, batch_ in enumerate(train_dataloader):
 
         print(f"\nBatch {batch_idx}")
-        # print(batch_)
-        shot_id, window_index, x_train, y_train = batch_
+        shot_id, window_index, x_train, y_train = batch_  # noqa (right number of values to unpack)
 
-        print("The list of shot ID is ", shot_id)
-        print("The list of window Index is ", window_index)
+        print(f"The list of shot ID is {shot_id}")
+        print(f"The list of window index is {window_index}")
 
         print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
         # print("Mean x_train", [torch.nanmean(arr) for arr in x_train])
@@ -262,6 +316,8 @@ if __name__ == "__main__":
         # print("Mean y_train", [torch.nanmean(arr) for arr in y_train])
         # print("Std y_train", [np.nanstd(arr) for arr in y_train])
 
+        print("____________________________________________________\n")
+
     # print(x_train[0][0:10])
     # print("\n\n\n")
     # print(y_train[0][0:10])
@@ -269,4 +325,5 @@ if __name__ == "__main__":
 
 end = time.perf_counter()
 
+print("\n-----------------------------")
 print(f"Elapsed time: {end - start:.4f} seconds")

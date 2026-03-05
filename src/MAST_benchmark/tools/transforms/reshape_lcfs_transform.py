@@ -42,7 +42,7 @@ class ReshapeLcfsTransform:
         -------
         dict[str, Any]
             Torch dict with "time" and "key" keys where NaNs of profiles (i.e., when one full channel in the
-            profile is missing) are filled with zeros.  # FIXME: This description is verbatim copy from other transform.
+            profile is missing) are filled with zeros.  # FIXME: This description is verbatim copy from other transform. So? [Cecile, Rodrigo]
 
         """
 

@@ -3,10 +3,10 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-import os
 import yaml
+from typing import Union
 
-from MAST_benchmark.tools.path import METADATA_DIR
+from MAST_tools.constants import DEFAULT_SIGNALS_STATS_FILE
 from MAST_benchmark.tools.transforms.compose_transform import ComposeTransforms
 from MAST_benchmark.tools.transforms.stdscale_transform import StdScalingTransform
 from MAST_benchmark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
@@ -39,29 +39,33 @@ def build_common_signal_transform_map(
 
     # ..................................................................................................................
     def maybe_std(
-            var: str
-    ) -> list:  # TODO: Find better typehint
+            var: str,
+            stats_metadata_file_path: str = DEFAULT_SIGNALS_STATS_FILE
+    ) -> Union[list, list[StdScalingTransform]]:
         """
-        Return [StdScalingTransform] if enabled, else empty list.  # FIXME: StdScalingTransform returns None. So?
+        Return [StdScalingTransform] if enabled, else empty list.
 
         Parameters
         ----------
         var : str
             Input variable.
+        stats_metadata_file_path : str
+            Target path to the dict_stats_metadata YAML file.
+            Optional. Default: DEFAULT_SIGNALS_STATS_FILE.
 
         Returns
         -------
-        list  # TODO: Find better typehint
-            [StdScalingTransform] if enabled, else empty list.  # FIXME: StdScalingTransform returns None. So?
+        Union[list, list[StdScalingTransform]]
+            [<StdScalingTransform instance>] if enabled, else empty list.
 
         """
 
         if use_std_scaling:
-            with open(os.path.join(METADATA_DIR, "dict_stats_metadata.yaml"), "r") as f:
+            with open(stats_metadata_file_path, "r") as f:
                 dict_stats_metadata = yaml.safe_load(f)
             return [
                 StdScalingTransform(mean=dict_stats_metadata[var]["mean"], std=dict_stats_metadata[var]["std"])
-            ]  # TODO: Check this, as StdScalingTransform returns None.
+            ]
         return []
 
     # ..................................................................................................................
@@ -70,7 +74,7 @@ def build_common_signal_transform_map(
 
     signal_transform_map = {
         var: ComposeTransforms(
-            maybe_std(var)
+            maybe_std(var=var)
         )
         for var in [f"{source}-{signal}" for source, signal in source_signal_list]
     }
@@ -86,7 +90,7 @@ def build_common_signal_transform_map(
         "thomson_scattering-n_e",
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var) + [
+            transforms=maybe_std(var=var) + [
                 FillProfileWithZerosTransform(),
             ]
         )
@@ -94,7 +98,7 @@ def build_common_signal_transform_map(
     # Specific case of reformating LCFS
     for var in ["equilibrium-lcfs_r", "equilibrium-lcfs_z"]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var) + [
+            transforms=maybe_std(var=var) + [
                 ReshapeLcfsTransform(),
             ]
         )
@@ -105,7 +109,7 @@ def build_common_signal_transform_map(
         "magnetics-b_field_pol_probe_omv_voltage"
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var) + [
+            transforms=maybe_std(var=var) + [
                 STFTTransform(support_n=512),
             ]
         )

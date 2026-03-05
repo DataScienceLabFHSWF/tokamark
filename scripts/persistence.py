@@ -18,7 +18,7 @@ import psutil
 
 from MAST_benchmark.tasks import get_task_config, get_task_metadata, get_signals_metadata
 from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.data import initialize_MAST_dataset, initialize_model_dataset
+from MAST_benchmark.data import initialize_MAST_dataset, initialize_model_dataset  # FIXME: Broken from Cecile's changes to main. [Cecile]
 from MAST_benchmark.evaluator import WindowMetricsWriter, compute_task_metrics, compute_all_metrics
 
 
@@ -444,7 +444,7 @@ if __name__ == "__main__":
         "store_manager_settings": {
             "base_local_zarr_path": "/mast/tokamark/v1"
         },
-        "output_dir": Path(__file__).parents[1]/"output/mean",  # FIXME: Use correct directory. Also, should be <model>? [Rodrigo, Mike]
+        "output_dir": Path(__file__).parents[1]/"output"/default_model,  # FIXME: Tess this [Rodrigo]. Also, use correct path (new architecture).
         "dataloader_setting": {
             "batch_size": 4,
             "num_workers": 0

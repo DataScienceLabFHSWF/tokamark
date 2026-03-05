@@ -1,15 +1,42 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import numpy as np
+from typing import Any
+from collections.abc import Mapping
 
 
 # ======================================================================================================================
-def stft(data, times, support_n=512):
+def stft(
+        data,  # TODO: Add typehint. [Rodrigo]
+        times,  # TODO: Add typehint. [Rodrigo]
+        support_n: int = 512
+) -> tuple:  # TODO: Improve typehint [Rodrigo]
     """
-    data:   1D array, shape (T,)
-    times:  1D array, shape (T,)
-    return:
-        spectrum: (n_frames, support_n//2)
-        frame_times: (n_frames,)
+    TODO: Complete docstrings
+
+    Parameters
+    ----------
+    data : TODO [Rodrigo]
+        TODO [Rodrigo]
+        1D array, shape (T,)
+    times : TODO [Rodrigo]
+        TODO [Rodrigo]
+        1D array, shape (T,)
+    support_n : int
+        TODO [Rodrigo]
+        Optional. Default: 512
+
+    Returns
+    -------
+    tuple # TODO: Improve typehint [Rodrigo]
+        TODO [Rodrigo]
+        spectrum: (n_frames, support_n//2), frame_times: (n_frames,)
+
     """
+
     xx = np.linspace(0, 2 * np.pi, support_n)
     window = (1 - np.cos(xx)) / 2
 
@@ -43,17 +70,41 @@ def stft(data, times, support_n=512):
 
 # ======================================================================================================================
 class STFTTransform:
+    """
+    TODO [Rodrigo]
+    """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(self, support_n=512):
+    def __init__(
+            self,
+            support_n: int = 512
+    ):
+        """
+        TODO
+        """
+
         self.support_n = support_n
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(self, dict_):
+    def __call__(
+            self,
+            dict_: Mapping[str, Any]
+    ) -> dict[str, Any]:
         """
-        Input: dict with keys 'time' and 'values' (values shape: (C,T) or (T,))
-        Returns: dict with 'time' and STFT 'values' (shape: (C,n_frames,support_n//2))
+        TODO [Rodrigo]
+
+        Parameters
+        ----------
+        dict_ : Mapping[str, Any]
+            Dictionary with keys "time" and "values" (values shape: (C, T) or (T,))
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary with "time" and STFT "values" (shape: (C, n_frames, support_n//2))
+
         """
+
         time = np.asarray(dict_['time'])
         values = np.asarray(dict_['values'])
 

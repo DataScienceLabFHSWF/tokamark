@@ -2,31 +2,32 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
+
 import os.path
 from pathlib import Path
 import pandas as pd
 import numpy as np
 from torch import Tensor as TorchTensor
 
+from MAST_tools.constants import PROJECT_ROOT_DIR
 from MAST_benchmark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
 from MAST_benchmark.tools.utils import AutoAppendingDataFrame
-from MAST_tools.constants import PROJECT_ROOT_DIR
 
 
 ID_COLUMNS = ["shot_id", "window_index", "feature_name"]
 METRIC_COLUMNS = ["RMSE", "MAE"]
-COLUMNS = ID_COLUMNS + METRIC_COLUMNS
+COLUMNS = ID_COLUMNS + METRIC_COLUMNS  # FIXME: Pick better name [Rodrigo]
 
-WINDOW_METRICS_FILE = "windows_metrics.csv"  # TODO: Move to constants (also others below)
-SIGNAL_METRICS_FILE = "signals_metrics.csv"
-TASK_METRICS_FILE   = "tasks_metrics.csv"   # noqa (ignore multiple spaces)
-GROUP_METRICS_FILE  = "groups_metrics.csv"  # noqa (ignore multiple spaces)
+WINDOW_METRICS_FILENAME = "windows_metrics.csv"  # TODO: Perhaps move to constants (also others below) [Rodrigo]
+SIGNAL_METRICS_FILENAME = "signals_metrics.csv"
+TASK_METRICS_FILENAME   = "tasks_metrics.csv"   # noqa (ignore multiple spaces)
+GROUP_METRICS_FILENAME  = "groups_metrics.csv"  # noqa (ignore multiple spaces)
 
 
 # ======================================================================================================================
 class WindowMetricsWriter:
     """
-    TODO
+    TODO: Add docstrings [Rodrigo]
     """
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -52,7 +53,7 @@ class WindowMetricsWriter:
 
         """
 
-        metrics_path = Path(output_dir) / task / WINDOW_METRICS_FILE
+        metrics_path = Path(output_dir) / task / WINDOW_METRICS_FILENAME
         metrics_path.parent.mkdir(parents=True, exist_ok=True)
         if metrics_path.exists():
             metrics_path.unlink()
@@ -205,10 +206,10 @@ def compute_task_metrics(
         print(f"WARNING: Task {task} is not known. Available tasks are: {str(TASKS_CONFIGS_MAP.keys())}")
 
     output_dir = Path(output_dir)
-    target_file_path = output_dir/task/WINDOW_METRICS_FILE
+    target_file_path = output_dir/task/WINDOW_METRICS_FILENAME
     if not os.path.isfile(target_file_path):
         print(f"WARNING: Windows metric file {target_file_path} for {task} not found.")
-        return pd.DataFrame([])  # TODO: Test if this works
+        return pd.DataFrame([])  # TODO: Test if this works [Rodrigo]
 
     df = pd.read_csv(target_file_path)
 
@@ -222,7 +223,7 @@ def compute_task_metrics(
     df_signals.loc[task] = df_task
 
     if save:
-        df_signals.to_csv(output_dir/task/TASK_METRICS_FILE)
+        df_signals.to_csv(output_dir/task/TASK_METRICS_FILENAME)
 
     return df_signals
 
@@ -259,7 +260,7 @@ def compute_all_metrics(
 
     for group_id in GROUP_TASKS:
         for task in GROUP_TASKS[group_id]:
-            file_path = output_dir/task/WINDOW_METRICS_FILE
+            file_path = output_dir/task/WINDOW_METRICS_FILENAME
             if not file_path.exists():
                 print(f"WARNING: Task {task} was not evaluated, the corresponding files were not found.")
                 continue
@@ -310,8 +311,8 @@ def compute_all_metrics(
         df_groups = df_groups[ordered_cols]
 
     if save_locally:
-        df_signals.to_csv(output_dir/SIGNAL_METRICS_FILE, index=False)
-        df_groups.to_csv(output_dir/GROUP_METRICS_FILE, index=False)
+        df_signals.to_csv(output_dir/SIGNAL_METRICS_FILENAME, index=False)
+        df_groups.to_csv(output_dir/GROUP_METRICS_FILENAME, index=False)
 
     return df_signals, df_groups
 
@@ -320,7 +321,7 @@ def compute_all_metrics(
 if __name__ == "__main__":
 
     # NOTE: Change the path to the outputs dir here:
-    output_dir_ = f"{PROJECT_ROOT_DIR}/output/mean"
+    output_dir_ = f"{PROJECT_ROOT_DIR}/output/demo"  # FIXME: Test this [Rodrigo]
 
     compute_task_metrics(
         task="task_2-1",  # "task_2-1", "task_4-4"

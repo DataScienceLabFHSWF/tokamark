@@ -14,8 +14,8 @@ import torch.multiprocessing as mp
 from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_tools.constants import (
-    DEFAULT_CONFIG_GET_METADATA_FILE,  # noqa
-    DEFAULT_CONFIG_GET_METADATA_DEMO_FILE,  # noqa
+    DEFAULT_CONFIG_GET_METADATA_FILE,
+    DEFAULT_CONFIG_GET_METADATA_DEMO_FILE,
     DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
     DEFAULT_SIGNALS_STATS_FILE,
     DEFAULT_BASE_LOCAL_ZARR_PATH

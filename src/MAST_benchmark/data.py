@@ -3,51 +3,62 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-# FIXME: Compare against data_roh_on_old.py
-
-from typing import Optional, Mapping, Any
+from typing import Optional, Any
+from collections.abc import Mapping
 
 from MAST_tools.MAST_dataset import MastDataset
+from MAST_tools.constants import StoreManagerParametersType
 from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
-from MAST_benchmark.tools.MAST_composite_transform import (
-    build_common_signal_transform_map,
-)
+from MAST_benchmark.tools.MAST_composite_transform import build_common_signal_transform_map
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_MAST_dataset(  # noqa (allow uppercase)
     config_task: Mapping[str, Any],
-    shots_list: list,
+    shots_list: list[int],
     local_flag: bool = True,
     use_std_scaling: bool = True,
     return_incomplete_shots: bool = True,
     remove_outliers: bool = True,
+    store_manager_settings: Optional[StoreManagerParametersType] = None,
     verbose: bool = False
-):
+) -> MastDataset:
     """
-    Initialize MAST dataset.
+    Initialize and return MAST dataset.
 
     Parameters
     ----------
     config_task : Mapping[str, Any],
         Task configuration dictionary.
-    shots_list : list
+    shots_list : list[int]
         List of target shots.
     local_flag : bool
         If True, local mode is used.
+        Optional. Default: True.
     use_std_scaling : bool
         If True, standard scaling is used.
-    return_incomplete_shots :
+        Optional. Default: True.
+    return_incomplete_shots : bool
         If True, incomplete shots are allowed.
+        Optional. Default: True.
     remove_outliers : bool
         If True, outliers are removed.
+        Optional. Default: True.
+    store_manager_settings : Optional[StoreManagerParametersType]
+        Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
+        types as defined in `src.MAST_tools.data_models.StoreManagerParameters`. Only valid (keyword, value) pairs
+        are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
+        Optional. Default: None, which results in the default values for all the keywords as defined in
+        `src.MAST_tools.store_utils.MASTStorageManager.__init__`.
     verbose : bool
         If True, verbose mode is activated.
+        Optional. Default: True.
 
     """
 
     # ..................................................................................................................
     # Get unique source-signal
+
     source_signal_list = (
         (config_task["sources_and_signals"].get("input_name") or [])
         + (config_task["sources_and_signals"].get("actuator_name") or [])
@@ -59,8 +70,10 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
 
     # ..................................................................................................................
     # Create common transform map
+
     signal_transform_map = build_common_signal_transform_map(
-        source_signal_list, use_std_scaling
+        source_signal_list=source_signal_list,
+        use_std_scaling=use_std_scaling
     )
 
     mast_dataset = MastDataset(
@@ -71,6 +84,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         shot_level_transform=None,
         return_incomplete_shots=return_incomplete_shots,
         remove_outliers=remove_outliers,
+        store_manager_settings=store_manager_settings,
         verbose=verbose
     )
 
@@ -89,25 +103,25 @@ def initialize_TokaMark_dataset(  # noqa (allow uppercase)
     *,
     verbose: bool = False,
 ) -> Optional[TokaMarkDataset]:
-    """  FIXME: Check and update docstrings accordingly (legacy from previous method)
-    Wrap a single baseline shot-level dataset with TaskModelTransformWrapper.
+    """  # FIXME: Check and update docstrings accordingly (legacy from previous method) [Cecile, Rodrigo]
+    Wrap a single baseline shot-level dataset with TokaMarkDataset.
 
-    This is a single-split version of initialize_model_datasets(), intended to
-    be called explicitly for each split (train/val/test) from entrypoint scripts.
+    This is a single-split version of initialize_model_datasets(), intended to be called explicitly for each split
+    (train/val/test) from entrypoint scripts.  # TODO: To check [Cecile, Rodrigo]
 
     Parameters
     ----------
     dataset : Optional[MastDataset]
         Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
     task_metadata : Mapping[str, Any],
-        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
+        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).  # TODO: To check [Cecile, Rodrigo]
     config_metadata : Mapping[str, Any],
-        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
+        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).  # TODO: To check [Cecile, Rodrigo]
     custom_transform : Optional[Any]
-        Optional model-specific transform chain applied per window.
+        Optional model-specific transform chain applied per window.  # TODO: To check [Cecile, Rodrigo]
     test_mode : bool
         If True, activates test mode.
-        Optional. Default: False
+        Optional. Default: False.
     shuffle_windows : bool
         TODO
         Optional. Default: True.

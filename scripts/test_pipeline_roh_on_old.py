@@ -13,16 +13,17 @@ import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
 
-from MAST_benchmark.tools.utils import get_device, get_config_from_yaml
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.tasks import get_task_metadata, get_task_config
-from MAST_benchmark.data import initialize_MAST_dataset, initialize_model_dataset
 from MAST_tools.constants import (
     DEFAULT_CONFIG_TEST_FILE,
     DEFAULT_CONFIG_TEST_DEMO_FILE,
     DEFAULT_BASE_LOCAL_ZARR_PATH,
     DEFAULT_CONFIG_TASK_0_0_FILE
 )
+from MAST_benchmark.tools.utils import get_device, get_config_from_yaml
+from MAST_benchmark.data_split import get_train_test_val_shots
+from MAST_benchmark.tasks import get_task_metadata, get_task_config
+from MAST_benchmark.data import initialize_MAST_dataset, initialize_model_dataset
+
 
 # ------------------------------------------------------------------------------------------------------------------
 
@@ -194,7 +195,6 @@ if __name__ == "__main__":
         help="Keep outliers. If not provided, it defaults to `keep_outliers = False`, which in turn results in "
              "`remove_outliers = True`."
     )
-
     parser.add_argument(
         "--store_manager_settings",
         type=json.loads,
@@ -276,58 +276,6 @@ if __name__ == "__main__":
         verbose=False
     )
 
-    # TODO: Should we keep the block below?
-    """
-    # ------------------------------------------------------------------------------------------------------------------
-    # EXAMPLE WITH MODEL SPECIFIC PIPELINE 
-    # ------------------------------------------------------------------------------------------------------------------
-    
-    train_model_dataset = initialize_model_dataset(
-        dataset=train_MAST_dataset,
-        dict_task_metadata=dict_task_metadata,
-        config_task=config_task,
-        model_specific_transform=None,
-        verbose=True
-    )
-
-    # Set of 1-shot windows saved in <generator object TaskModelTransformWrapper.__getitem__ at 0x559637ec8200>
-
-    # You can transform them to list of list via:
-    list_list_shot_0 = [
-        (
-            item["shot_id"],
-            item["window_index"],
-            item["input"],
-            item["actuator"],
-            item["output"],
-        )
-        for item in train_model_dataset[0]
-    ]
-
-    shot_id, window_index, input_, actuator, output = list_list_shot_0[0]
-    print("\n\n\nshot_id is ", shot_id)
-    print("window_index is ", window_index)
-    print("input")
-    print(input_.keys())
-    print([input_[var]["values"].shape for var in input_])
-    print("actuator")
-    print(actuator.keys())
-    print([actuator[var]["values"].shape for var in actuator])
-    print("output")
-    print(output.keys())
-    print([output[var]["values"].shape for var in output])
-
-    # Or keep a list of dict with:
-    list_dict_shot_0 = [item for item in train_model_dataset[0]]
-    print(list_dict_shot_0[0].keys())
-    print("\n\n\nshot_id is ", list_dict_shot_0[0]["shot_id"])
-    print("window_index is ", list_dict_shot_0[0]["window_index"])
-    print("input, ", list_dict_shot_0[0]["input"].keys())
-    print("actuator, ", list_dict_shot_0[0]["actuator"].keys())
-    print("output, ", list_dict_shot_0[0]["output"].keys())
-    
-    """
-
     # ------------------------------------------------------------------------------------------------------------------
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # ------------------------------------------------------------------------------------------------------------------
@@ -380,9 +328,11 @@ if __name__ == "__main__":
 
         print("The list of shot IDs is an object of shape, ", shot_ids.shape)
         print("The list of window indices is an object of shape, ", window_indices.shape)
+
         print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
         # print("Mean x_train", [torch.nanmean(arr) for arr in x_train])
         # print("Std x_train", [np.nanstd(arr) for arr in x_train])
+
         print("The y_train has been collated to shape (B, ..., T), ", [arr.shape for arr in y_train])
         # print("Mean y_train", [torch.nanmean(arr) for arr in y_train])
         # print("Std y_train", [np.nanstd(arr) for arr in y_train])

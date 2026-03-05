@@ -6,13 +6,13 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import os
 
 # Dynamically find the repo root (no hardcoding!)
-PACKAGE_ROOT = os.path.abspath(
+PACKAGE_ROOT = os.path.abspath(  # FIXME: Make PACKAGE_ROOT match the new architecture. [Rodrigo]
     os.path.join(os.path.dirname(__file__), "..")
 )
 
 # Optional: define commonly used subdirectories
-TASKS_CONFIGS_DIR = os.path.join(PACKAGE_ROOT, "tasks_configs")
-METADATA_DIR = os.path.join(PACKAGE_ROOT, "metadata")
+TASKS_CONFIGS_DIR = os.path.join(PACKAGE_ROOT, "tasks_configs")  # FIXME: Make TASKS_CONFIGS_DIR match the new architecture. [Rodrigo]
+METADATA_DIR = os.path.join(PACKAGE_ROOT, "metadata")  # FIXME: Make this METADATA_DIR match the new architecture. [Rodrigo]
 
 
 # ======================================================================================================================

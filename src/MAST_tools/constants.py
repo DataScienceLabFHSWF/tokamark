@@ -3,7 +3,8 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Union, Mapping, Any
+from typing import Union, Any
+from collections.abc import Mapping
 from typing_extensions import Unpack
 import zarr.storage
 from xarray.core.dataset import Dataset
@@ -46,12 +47,14 @@ DEFAULT_SHOTS_STATS_TRAIN_FILE = os_join(METADATA_DIR, "shots_stats", "shots_sta
 DEFAULT_SHOTS_STATS_VAL_FILE = os_join(METADATA_DIR, "shots_stats", "shots_stats_val.csv")
 
 DEFAULT_METADATA_OUTLIER_FILE = os_join(METADATA_DIR, "dict_outlier_metadata.yaml")
+DEFAULT_TOKAMARK_DATA_SPLITS_FILE = os_join(METADATA_DIR, "TokaMark_data_splits.csv")
 
 DEFAULT_CONFIG_GET_METADATA_FILE = os_join(SCRIPTS_DIR, "preprocessing", "config_get_metadata.yaml")
 DEFAULT_CONFIG_GET_METADATA_DEMO_FILE = os_join(SCRIPTS_DIR, "preprocessing", "config_get_metadata_demo.yaml")
-DEFAULT_CONFIG_TEST_FILE = os_join(SCRIPTS_DIR, "config_test.yaml")
-DEFAULT_CONFIG_TEST_DEMO_FILE = os_join(SCRIPTS_DIR, "config_test_demo.yaml")
-DEFAULT_CONFIG_TASK_0_0_FILE = os_join(SCRIPTS_DIR, "config_task_0-0.yaml")
+DEFAULT_CONFIG_MODEL_TEST_FILE = os_join(SCRIPTS_DIR, "config_model_test.yaml")
+DEFAULT_CONFIG_MODEL_TEST_DEMO_FILE = os_join(SCRIPTS_DIR, "config_model_test_demo.yaml")
+DEFAULT_CONFIG_TASK_TEST_FILE = os_join(SCRIPTS_DIR, "config_task_test.yaml")
+
 
 # ======================================================================================================================
 # Default values

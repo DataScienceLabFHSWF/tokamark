@@ -1,5 +1,5 @@
-max_shot_index: 8  # If empty, all available shots are used.
-shuffle: false
+max_shot_index: 2  # If empty, all available shots are used.
+shuffle: true
 seed: 42
 local: false
 

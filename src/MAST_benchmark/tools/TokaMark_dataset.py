@@ -1,54 +1,206 @@
+"""
+Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
+Python style reference: https://google.github.io/styleguide/pyguide.html
+"""
+
 import random
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
-from typing import Optional, Mapping, Any
+from typing import Optional, Any
+from collections.abc import Callable, Mapping
+from collections.abc import Generator
+
+from MAST_tools.MAST_dataset import MastDataset
 
 
-# ----------------------------------------------------------------------------------------------------------------------
+# ======================================================================================================================
 # HELPERS
-# ----------------------------------------------------------------------------------------------------------------------
 
-# --------------------------------------------------------------
-# Filtering
-# --------------------------------------------------------------
-def _all_vars_have_nans(dict_obj):
+# ----------------------------------------------------------------------------------------------------------------------
+def _all_vars_have_nans(
+        dict_obj: Mapping[str, Any]
+) -> bool:
+    """
+    Check if all variables in an input mapping have Nan values.
+
+    Parameters
+    ----------
+    dict_obj : Mapping[str, Any]
+        Input mapping to be checked.
+
+    Returns
+    -------
+    bool
+        If True, all variables in input mapping have NaN values.
+
+    """
+
     return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
 
-def _any_vars_have_nans(dict_obj):
+
+# ----------------------------------------------------------------------------------------------------------------------
+def _any_vars_have_nans(
+        dict_obj: Mapping[str, Any]
+) -> bool:
+    """
+    Check if any variables in an input mapping have Nan values.
+
+    Parameters
+    ----------
+    dict_obj : Mapping[str, Any]
+        Input mapping to be checked.
+
+    Returns
+    -------
+    bool
+        If True, at least one variable in input mapping has NaN values.
+
+    """
+
     return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
 
-# --------------------------------------------------------------
-# Optional streaming shuffle buffer
-# --------------------------------------------------------------
-def _shuffle_buffer(iterator, buffer_size=512):
+
+# ----------------------------------------------------------------------------------------------------------------------
+def _shuffle_buffer(
+        iterator: Generator,
+        buffer_size: int = 512
+) -> Generator:
+    """
+    Streaming shuffle buffer.
+
+    Parameters
+    ----------
+    iterator : Generator
+        Input iterator.
+    buffer_size : int
+        Size of the buffer.
+        Optional. Default: 512.
+
+    Returns
+    -------
+    Generator
+        A Generator item.
+
+    """
+
     buffer = []
     for item in iterator:
         buffer.append(item)
         if len(buffer) >= buffer_size:
             idx = random.randrange(len(buffer))
             yield buffer.pop(idx)
+
     while buffer:
         idx = random.randrange(len(buffer))
         yield buffer.pop(idx)
 
 
-# ----------------------------------------------------------------------------------------------------------------------
-# MAIN DATASET
-# ----------------------------------------------------------------------------------------------------------------------
-
+# ======================================================================================================================
 class TokaMarkDataset(IterableDataset):
+    """
+    Iterable dataset class for TokaMark (MAST) data.
 
+    Attributes
+    ----------
+    base : MastDataset
+        Base dataset.
+    shots_list : list[int]
+        List of shot IDs in the dataset.
+    task_metadata : Mapping[str, Any]
+        Dictionary with task metadata.
+    data_metadata : Mapping[str, Any]
+        Dictionary with data metadata (namely, "dt" and "shape_values").
+    task_type : str
+        Type of task, either "markovian" or "non_markovian".
+    input_keys : list[str]
+        List of input keys in the "{source}-{signal}" format.
+    actuator_keys : list[str]
+        List of actuator keys in the "{source}-{signal}" format.
+    output_keys : list[str]
+        List of output keys in the "{source}-{signal}" format.
+    input_length : float
+        Target input length in seconds.  # TODO: Add better description. [Cecile, Tobia]
+    output_length : float
+        Target output length in seconds.  # TODO: Add better description. [Cecile, Tobia]
+    delta : float
+        Target delta.  # TODO: Add better description. [Cecile, Tobia]
+    stride : float
+        Target stride.  # TODO: Add better description. [Cecile, Tobia]
+    custom_transform : Optional[Callable]
+        Custom transform.  # TODO: Add better description. [Cecile, Tobia]
+    test_mode : bool
+        If True, test mode is activated.
+    shuffle_windows : bool
+        If True, shuffling of windows is performed.
+    shuffle_buffer_size : int
+        Size of the shuffle buffer.
+    verbose : bool
+        If True, verbose mode is activated.
+
+    Methods
+    -------
+    __iter__()
+        Worker-safe iterator.
+    _iterate_shots(start, end)
+        Shot iterator.
+    _process_shot(idx_shot)
+        Shot-processing generator.
+    _build_window(sample, global_start_time, t_cut, type_window)
+        Window-builder method.
+    _pad_time_series_to_interval(times, values, dt, t_start, t_end, shape_values)
+        Pad an input time series to a target interval.
+    _pad_sample_to_interval(sample, t_start, t_end)
+        Pad an input sample to a target interval.
+    get_shot_id(idx)
+        Return shot ID from shot index.
+
+    """
+
+    # ------------------------------------------------------------------------------------------------------------------
     def __init__(
         self,
-        base_dataset,
+        base_dataset: MastDataset,
         task_metadata: Mapping[str, Any],
         config_metadata: Mapping[str, Any],
-        custom_transform: Optional[Any] = None,
+        custom_transform: Optional[Callable] = None,
         test_mode: bool = False,
         shuffle_windows: bool = False,
         shuffle_buffer_size: int = 512,
         verbose: bool = False,
-    ):
+    ) -> None:
+        """
+        Initialize class attributes.
+
+        Parameters
+        ----------
+        base_dataset : MastDataset
+            Base dataset.
+        task_metadata : Mapping[str, Any]
+             Dictionary with task metadata.
+        config_metadata : Mapping[str, Any]
+            Dictionary with configuration metadata.
+        custom_transform : Optional[Callable]
+            Custom transform. # TODO: Check a better description for this parameter. [Cecile]
+            Optional. Default: None.
+        test_mode : bool = False
+            If True, test mode is activated.
+            Optional. Default: False.
+        shuffle_windows : bool
+            If True, shuffling of windows is performed.
+            Optional. Default: False.
+        shuffle_buffer_size : int
+            Size of the shuffle buffer.
+            Optional. Default: 512.
+        verbose : bool
+            If True, verbose mode is activated.
+            Optional. Default: False.
+
+        Returns
+        -------
+        None
+
+        """
+
         super().__init__()
 
         self.base = base_dataset
@@ -56,8 +208,8 @@ class TokaMarkDataset(IterableDataset):
         self.task_metadata = task_metadata
 
         self.data_metadata = {
-            key: {'dt': meta['dt'], 'shape_values': tuple(meta['values_shape'])}
-            for d in [task_metadata['input'], task_metadata['actuator'], task_metadata['output']]
+            key: {"dt": meta["dt"], "shape_values": tuple(meta["values_shape"])}
+            for d in [task_metadata["input"], task_metadata["actuator"], task_metadata["output"]]
             for key, meta in d.items()
         }
 
@@ -81,9 +233,16 @@ class TokaMarkDataset(IterableDataset):
         self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Worker-safe iterator
-    # ------------------------------------------------------------------------------------------------------------------
-    def __iter__(self):
+    def __iter__(self) -> Generator:
+        """
+        Worker-safe iterator.
+
+        Returns
+        -------
+        Generator
+            A Generator item.
+
+        """
 
         worker_info = get_worker_info()
 
@@ -95,31 +254,64 @@ class TokaMarkDataset(IterableDataset):
             start = worker_info.id * per_worker
             end = min(start + per_worker, len(self.base))
 
-        iterator = self._iterate_shots(start, end)
+        iterator = self._iterate_shots(start=start, end=end)
 
         if self.shuffle_windows:
-            iterator = _shuffle_buffer(iterator, self.shuffle_buffer_size)
+            iterator = _shuffle_buffer(iterator=iterator, buffer_size=self.shuffle_buffer_size)
 
         yield from iterator
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Iterate function
-    # ------------------------------------------------------------------------------------------------------------------
-    def _iterate_shots(self, start, end):
+    def _iterate_shots(
+            self,
+            start: int,
+            end: int
+    ) -> Generator:
+        """
+        Shot iterator.
+
+        Parameters
+        ----------
+        start : int
+            Start shot index.
+        end : int
+            End shot index.
+
+        Returns
+        -------
+        Generator
+            A Generator item.
+
+        """
 
         for idx_shot in range(start, end):
-            yield from self._process_shot(idx_shot)
+            yield from self._process_shot(idx_shot=idx_shot)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Shot processing
-    # ------------------------------------------------------------------------------------------------------------------
-    def _process_shot(self, idx_shot):
+    def _process_shot(
+            self,
+            idx_shot: int  # FIXME: Sometimes idx_shot, shot_idx, or even just idx. Unify. [Rodrigo]
+    ) -> Generator:
+        """
+        Shot-processing generator.
+
+        Parameters
+        ----------
+        idx_shot : int
+            Shot index.
+
+        Returns
+        -------
+        Generator
+            A Generator item.
+
+        """
 
         sample = self.base[idx_shot]
 
-        # --------------------------------------------------------------
-        # determine valid global time range (from outputs)
-        # --------------------------------------------------------------
+        # ..............................................................................................................
+        # Determine valid global time range (from outputs)
+
         t_start, t_end, delta_ts = [], [], []
 
         for var in self.output_keys:
@@ -130,7 +322,7 @@ class TokaMarkDataset(IterableDataset):
                 if self.test_mode:
                     if self.verbose:
                         print(
-                            f"Skipping shot {self.get_shot_id(idx_shot)} "
+                            f"Skipping shot {self.get_shot_id(idx=idx_shot)} "
                             f"(empty output '{var}')"
                         )
                     return   # ← skip whole shot
@@ -146,53 +338,66 @@ class TokaMarkDataset(IterableDataset):
             dts = np.diff(t_valid)
             if dts.size:
                 delta_ts.append(np.min(dts))
+
         if not delta_ts:
             return
 
-        global_start_time = np.min(t_start)
-        global_end_time = np.max(t_end)
+        global_start_time = float(np.min(t_start))
+        global_end_time = float(np.max(t_end))
 
         # Pad sample here 
         sample = self._pad_sample_to_interval(
-            sample,
-            global_start_time,
-            global_end_time,
+            sample=sample,
+            t_start=global_start_time,
+            t_end=global_end_time,
         )
 
-        t_cuts = np.arange(global_start_time + self.input_length, 
-                           global_end_time - self.delta - self.output_length, 
-                           self.stride)
+        t_cuts = np.arange(
+            start=global_start_time + self.input_length,
+            stop=global_end_time - self.delta - self.output_length,
+            step=self.stride
+        )
 
-        # --------------------------------------------------------------
-        # build windows
-        # --------------------------------------------------------------
+        # ..............................................................................................................
+        # Build windows
+
         for idx_t, t_cut in enumerate(t_cuts):
-            
-            input_slice = self._build_window(sample, 
-                                             global_start_time,
-                                             t_cut, 
-                                             "input")
-            actuator_slice = self._build_window(sample, 
-                                                global_start_time, 
-                                                t_cut, 
-                                                "actuator")
-            output_slice = self._build_window(sample, 
-                                              global_start_time,
-                                              t_cut, 
-                                              "output")
+
+            # TODO: Check type of t_cut (expected to be float) [Rodrigo]
+
+            input_slice = self._build_window(
+                sample=sample,
+                global_start_time=global_start_time,
+                t_cut=t_cut,
+                type_window="input"
+            )
+
+            actuator_slice = self._build_window(
+                sample=sample,
+                global_start_time=global_start_time,
+                t_cut=t_cut,
+                type_window="actuator"
+            )
+
+            output_slice = self._build_window(
+                sample=sample,
+                global_start_time=global_start_time,
+                t_cut=t_cut,
+                type_window="output"
+            )
 
             obj = {
                 "input": input_slice,
                 "actuator": actuator_slice,
                 "output": output_slice,
                 "t_cut": t_cut,
-                "shot_id": self.get_shot_id(idx_shot),
+                "shot_id": self.get_shot_id(idx=idx_shot),
                 "window_index": idx_t,
             }
 
-            # ----------------------------------------------------------
-            # filtering
-            # ----------------------------------------------------------
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Filtering
+
             if self.test_mode:
                 window_valid = (
                     not (
@@ -217,14 +422,33 @@ class TokaMarkDataset(IterableDataset):
             }
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Window builder
-    # ------------------------------------------------------------------------------------------------------------------
-    def _build_window(self, 
-                      sample, 
-                      global_start_time,
-                      t_cut,
-                      type_window # "input", "actuator", "output"
-                      ):
+    def _build_window(
+            self,
+            sample: Mapping[str, Any],
+            global_start_time: float,
+            t_cut: float,  # TODO: Check type conflict, as it is expected to be tuple[int, Any] from _process_shot. [Rodrigo]
+            type_window: str
+    ) -> dict[str, np.ndarray]:
+        """
+        Window-builder method.
+
+        Parameters
+        ----------
+        sample : Mapping[str, Any]
+            Input sample.
+        global_start_time : float
+            Global starting time for the target window.
+        t_cut : float
+            Cutting time for the target window.
+        type_window : str
+            Target window type. Valid options: "input", "actuator", "output"
+
+        Returns
+        -------
+        dict
+
+
+        """
 
         out = {}
 
@@ -254,17 +478,19 @@ class TokaMarkDataset(IterableDataset):
             times = sample[key]["time"]
             values = sample[key]["values"]
 
-            if times.size==0 or values.size==0:
+            if (times.size == 0) or (values.size == 0):
                 selected_times = np.full(ts_len[type_window], np.nan)
                 selected_values = np.full(shape_values + (ts_len[type_window],), np.nan)
 
             else:
 
-                # --------------------------------------------------
+                # ......................................................................................................
                 # Index Logic
-                # --------------------------------------------------
+
+                idx = None
                 if type_window == "input":
                     end_idx = int(round((t_cut - times[0]) / dt))
+
                     if self.task_type == "markovian":
                         idx = np.arange(end_idx - ts_in, end_idx)
                     else:
@@ -278,24 +504,27 @@ class TokaMarkDataset(IterableDataset):
 
                 elif type_window == "actuator":
                     cut_idx = int(round((t_cut - times[0]) / dt))
+
                     if self.task_type == "markovian":
                         idx_in = np.arange(cut_idx - ts_in, cut_idx)
                     else:
                         global_start_idx = int(round((global_start_time - times[0]) / dt))
                         idx_in = np.arange(global_start_idx, cut_idx)
+
                     idx_out = np.arange(
                         cut_idx,
                         cut_idx + ts_delta + ts_out
                     )
 
                     idx = np.concatenate([idx_in, idx_out])
-                # --------------------------------------------------
+
+                # ......................................................................................................
                 
                 idx = np.clip(idx, 0, len(times) - 1)
                 selected_times = times[idx]
                 selected_values = values[..., idx]
 
-            if selected_values.ndim == 2 and selected_values.shape[0] == 1:
+            if (selected_values.ndim == 2) and (selected_values.shape[0] == 1):
                 selected_values = selected_values[0]
 
             out[key] = {"time": selected_times, "values": selected_values}
@@ -303,14 +532,46 @@ class TokaMarkDataset(IterableDataset):
         return out
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Padding
-    # ------------------------------------------------------------------------------------------------------------------
-    def _pad_timeseries_to_interval(self, times, values, dt, t_start, t_end, shape_values):
+    @staticmethod
+    def _pad_time_series_to_interval(
+            times: np.ndarray,
+            values: np.ndarray,
+            dt: float,
+            t_start: float,
+            t_end: float,
+            shape_values: tuple
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Pad an input time series to a target interval.
+
+        Parameters
+        ----------
+        times : np.ndarray
+            Input array of times.
+        values : np.ndarray
+            Input array of values to be padded.
+        dt : float
+            Input delta time.
+        t_start : float
+            Starting time for the target interval.
+        t_end : float
+            Ending time for the target interval.
+        shape_values : tuple
+            Target shape for the padded values.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            (times, values) tuple.
+
+        """
         
         if not np.issubdtype(values.dtype, np.floating):
             values = values.astype(float)
         
-        # ---------- LEFT PAD ----------
+        # ..............................................................................................................
+        # Left pad
+
         if times[0] > t_start:
             n_pad = int(np.ceil((times[0] - t_start) / dt)) + 1
 
@@ -318,11 +579,13 @@ class TokaMarkDataset(IterableDataset):
             times = np.concatenate([left_times, times])
 
             pad_shape = shape_values + (n_pad,)
-            left_pad = np.full(pad_shape, np.nan)
+            left_pad = np.full(shape=pad_shape, fill_value=np.nan)
 
             values = np.concatenate([left_pad, values], axis=-1)
 
-        # ---------- RIGHT PAD ----------
+        # ..............................................................................................................
+        # Right pad
+
         if times[-1] < t_end:
             n_pad = int(np.ceil((t_end - times[-1]) / dt)) + 1
 
@@ -336,7 +599,33 @@ class TokaMarkDataset(IterableDataset):
 
         return times, values
 
-    def _pad_sample_to_interval(self, sample, t_start, t_end):
+    # ------------------------------------------------------------------------------------------------------------------
+    def _pad_sample_to_interval(
+            self,
+            sample: Mapping[str, Any],
+            t_start: float,
+            t_end: float
+    ) -> dict[str, Any]:
+        """
+        Pad an input sample to a target interval.
+
+        Parameters
+        ----------
+        sample : Mapping[str, Any]
+            Input sample to be padded to a target interval.
+        t_start : float
+            Starting time of the target interval.
+        t_end : float
+            Ending time of the target interval.
+
+        Returns
+        -------
+        dict[str, Any]
+            Padded sample.
+
+        """
+
+        padded_sample = dict(sample)
 
         for key in sample.keys():
             times = sample[key]["time"]
@@ -348,16 +637,39 @@ class TokaMarkDataset(IterableDataset):
             dt = self.data_metadata[key]['dt']
             shape_values = self.data_metadata[key]['shape_values']
 
-            times, values = self._pad_timeseries_to_interval(times, values, dt, t_start, t_end, shape_values)
+            times, values = self._pad_time_series_to_interval(
+                times=times,
+                values=values,
+                dt=dt,
+                t_start=t_start,
+                t_end=t_end,
+                shape_values=shape_values
+            )
 
-            sample[key]["time"] = times
-            sample[key]["values"] = values
+            padded_sample[key]["time"] = times
+            padded_sample[key]["values"] = values
 
-        return sample
+        return padded_sample
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Get shot ID
-    # ------------------------------------------------------------------------------------------------------------------
-    def get_shot_id(self, idx):
+    def get_shot_id(
+            self,
+            idx: int
+    ) -> int:
+        """
+        Return shot ID from shot index.
+
+        Parameters
+        ----------
+        idx : int
+            Shot index.
+
+        Returns
+        -------
+        int
+            Shot ID corresponding to the provided shot index.
+
+        """
+
         return self.base.shots_list[idx]
     

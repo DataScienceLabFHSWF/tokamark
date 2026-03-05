@@ -9,21 +9,21 @@ import numpy as np
 from typing import Any
 from collections.abc import Mapping
 
-from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR  # , METADATA_DIR  FIXME: Perhaps have a unified path file
+from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR  # FIXME: Make TASKS_CONFIGS_DIR match the new architecture. [Rodrigo]
 from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_tools.constants import DEFAULT_SIGNALS_STATS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-GROUP_TASKS = {  # FIXME: Unused here, but imported elsewhere. Try to put this in a common file?
+GROUP_TASKS = {  # FIXME: Unused here, but imported elsewhere. Try to put this in constants? [Rodrigo]
     1: ["task_1-1", "task_1-2", "task_1-3"],
     2: ["task_2-1", "task_2-2", "task_2-3"],
     3: ["task_3-1", "task_3-2", "task_3-3"],
     4: ["task_4-1", "task_4-2", "task_4-3", "task_4-4", "task_4-5"]
 }
 
-TASKS_CONFIGS_MAP = {
+TASKS_CONFIGS_MAP = {  # FIXME: Unused here, but imported elsewhere. Try to put this in constants? [Rodrigo]
     "task_1-1": "group_1_reconstruction/task_1-1.yaml",
     "task_1-2": "group_1_reconstruction/task_1-2.yaml",
     "task_1-3": "group_1_reconstruction/task_1-3.yaml",
@@ -61,7 +61,7 @@ def get_task_config(
     """
 
     task_path = TASKS_CONFIGS_MAP[task_name]
-    file_path = os.path.join(TASKS_CONFIGS_DIR, task_path)
+    file_path = os.path.join(TASKS_CONFIGS_DIR, task_path)  # FIXME: Make TASKS_CONFIGS_DIR match the new architecture. [Rodrigo]
 
     return get_config_from_yaml(file_path=file_path)
 
@@ -155,7 +155,7 @@ def get_task_metadata(
     sec_stride = config_task["stride_window"]  # min([dict_metadata[key]["dt"] for key in output_keys])
 
     # Split into role-scoped dicts (avoid overwriting)
-    out = {"sec_stride": sec_stride, "input": {}, "actuator": {}, "output": {}}
+    out = {"sec_stride": sec_stride, "input": {}, "actuator": {}, "output": {}}  # TODO: Meaning of sec_stride? Better name? [Rodrigo, Cecile, Tobia]
 
     # ..................................................................................................................
     # Get information
@@ -165,9 +165,9 @@ def get_task_metadata(
     sec_length = input_length
     for key in input_keys:
         out["input"][key] = dict_stats_metadata[key]
-        out["input"][key]["sec_length"] = sec_length
-        out["input"][key]["ts_length"] = int(np.round(sec_length / out["input"][key]["dt"]))
-        out["input"][key]["ts_stride"] = int(np.round(sec_stride / out["input"][key]["dt"]))
+        out["input"][key]["sec_length"] = sec_length  # TODO: Meaning of sec_length? Better name? [Rodrigo, Cecile, Tobia]
+        out["input"][key]["ts_length"] = int(np.round(sec_length / out["input"][key]["dt"]))  # TODO: Meaning of ts_length? Better name? Rodrigo, Cecile, Tobia]
+        out["input"][key]["ts_stride"] = int(np.round(sec_stride / out["input"][key]["dt"]))  # TODO: Meaning of ts_stride? Better name? [Rodrigo, Cecile, Tobia]
 
     # Actuator
     sec_length = input_length + delta + output_length

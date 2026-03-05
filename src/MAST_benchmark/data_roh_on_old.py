@@ -53,9 +53,9 @@ def initialize_MAST_dataset(  # noqa N802
         are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
         Optional. Default: None, which results in the default values for all the keywords as defined in
         `src.MAST_tools.store_utils.MASTStorageManager.__init__`.
-
     verbose : bool
         If True, verbose mode is activated.
+        Optional. Default: True.
 
     Returns
     -------

@@ -454,14 +454,14 @@ class MASTPlottingManager:
     #     # if fig_size is None:
     #     #     fig_size = [8, 4]
     #
-    #     self.plot_group(data_origin=data_origin, source_name='cameras', fig_size=fig_size)  # FIXME: No group cameras
+    #     self.plot_group(data_origin=data_origin, source_name='cameras', fig_size=fig_size)  # FIXME: No group cameras [Rodrigo]
 
     # ------------------------------------------------------------------------------------------------------------------
     # def make_movie(
     #         self,
     #         store
     # ):
-    #     raise NotImplementedError  # FIXME: No group cameras
+    #     raise NotImplementedError  # FIXME: No group cameras [Rodrigo]
 
     # output_video_file = "output_video.mp4"
     # fps = 10  # Frames per second

@@ -23,7 +23,7 @@ from MAST_tools.utils.general_utils import get_random_string
 from MAST_tools.constants import (
     BaseDataSourceType, ZarrStoreType, ZarrFSStoreType, ShotInfoType,
     DEFAULT_LOCAL_FLAG_VALUE,
-    DEFAULT_SIGNAL_AVAILABILITY_FILE,  # TODO: Check for other default directories (e.g., artifact/<>)
+    DEFAULT_SIGNAL_AVAILABILITY_FILE,  # TODO: Check for other default directories (e.g., artifact/<>) [Rodrigo]
     DEFAULT_BASE_FSSPEC_PROTOCOL,
     DEFAULT_TARGET_FSSPEC_PROTOCOL,
     DEFAULT_S3_ENDPOINT_URL,
@@ -91,7 +91,7 @@ class MASTStorageManager:
     make_shot_group(data_origin, verbose)
         Make a shot group from data origin (either a Zarr store or shot info).
 
-    # Pending methods  # TODO: Check if needed.
+    # Pending methods  # TODO: Check if needed. [Rodrigo]
     # ---------------
     #
     # print_store(...)
@@ -406,7 +406,7 @@ class MASTStorageManager:
         ----------
         path : str
             Target path to be evaluated via the invoked list dir method.
-        local : str
+        local : bool
             Boolean flag to define the 'fsspec' instance to be used. If True, it corresponds to `self.fs_local_fsspec`,
             i.e., a `fsspec.implementations.local.LocalFileSystem` instance; otherwise, `self.fs_remote_fsspec` is used,
             which corresponds to a 'fsspec' instance created either via `fsspec.filesystem` or via `s3fs.S3FileSystem`.
@@ -797,8 +797,8 @@ def tests() -> None:
         "get_all_shot_ids": False,
         "get_all_sources": False,
         "get_all_signals": False,
-        "make_group_from_store": False,  # TODO: Update dict_sources_with_signals.yaml and others to match this.
-        "make_group_from_shot_info": False,  # TODO: Update dict_sources_with_signals.yaml and others to match this.
+        "make_group_from_store": False,  # TODO: Update dict_sources_with_signals.yaml and others to match this. [Rodrigo]
+        "make_group_from_shot_info": False,  # TODO: Update dict_sources_with_signals.yaml and others to match this. [Rodrigo]
         "check_signal_availability": True
     }
 

@@ -66,7 +66,7 @@ class FillProfileWithZerosTransform:
 
     # ------------------------------------------------------------------------------------------------------------------
 
-# FIXME: Should we remove the commented code below?
+# FIXME: Should we remove the commented code below? [Cecile, Mike]
 
 # import pandas as pd
 # import matplotlib.pyplot as plt

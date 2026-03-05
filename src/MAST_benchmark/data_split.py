@@ -4,12 +4,11 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import os
-
 import pandas as pd
 import random
 from typing import Optional
 
-from MAST_benchmark.tools.path import METADATA_DIR
+from MAST_tools.constants import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -19,7 +18,8 @@ def get_train_test_val_shots(
         max_index_for_val: Optional[int] = None,
         max_index_for_test: Optional[int] = None,
         shuffle: bool = False,
-        seed: int = 42
+        seed: int = 42,
+        data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 ) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation.
@@ -45,6 +45,9 @@ def get_train_test_val_shots(
     seed : int
         For reproducibility of the rnd sequence.
         Optional. Default: 42.
+    data_splits_file_path : str
+        Pato to the data splits CSV file.
+        Optional. Default: DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 
     Returns
     -------
@@ -54,8 +57,7 @@ def get_train_test_val_shots(
     """
 
     # Read full data splits
-    file_path = os.path.join(METADATA_DIR, "data_splits.csv")
-    train_set_full, test_set_full, val_set_full = read_data_split_csv(csv_path=file_path)
+    train_set_full, test_set_full, val_set_full = read_data_split_csv(csv_path=data_splits_file_path)
 
     if shuffle:
         if not isinstance(seed, int):
@@ -109,7 +111,7 @@ def read_data_split_csv(
     """
 
     if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"CSV not found at: {csv_path}")
+        raise FileNotFoundError(f"CSV not found at {csv_path}")
 
     df = pd.read_csv(csv_path)
 
