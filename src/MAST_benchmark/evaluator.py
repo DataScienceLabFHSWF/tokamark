@@ -3,14 +3,24 @@
 Typical usage:
 1. During inference, create ``WindowMetricsAccumulator(task)`` and call
    ``add_batch(...)`` for each model batch.
-2. After one task is complete, call
-   ``compute_metrics(task, output_dir, window_metrics_accumulator, ...)``
-   to compute task metrics and optionally save:
-   ``<output_dir>/<task>/windows_metrics.csv`` and/or
-   ``<output_dir>/<task>/shots_metrics.csv`` and/or
-   ``<output_dir>/<task>/task_metrics.csv``.
-3. After all tasks are complete, call ``compute_summary_metrics(output_dir)`` to
-   produce ``signals_metrics.csv`` and ``groups_metrics.csv`` in ``output_dir``.
+2. After one task is complete, call:
+   ``compute_metrics(task, output_dir, window_metrics_accumulator, ...)``.
+   Default save flags are:
+   - ``save_windows_metrics=False``
+   - ``save_shot_metrics=False``
+   - ``save_task_metrics=True``
+   With defaults, only ``<output_dir>/<task>/task_metrics.csv`` is saved.
+   To enable other files, pass:
+   - ``save_windows_metrics=True`` for ``<output_dir>/<task>/windows_metrics.csv``
+   - ``save_shot_metrics=True`` for ``<output_dir>/<task>/shots_metrics.csv``
+   (you can enable any combination of the three flags).
+3. After all tasks are complete, call
+   ``compute_summary_metrics(output_dir, source=...)`` to produce
+   ``signals_metrics.csv`` and ``groups_metrics.csv`` in ``output_dir``.
+   Supported ``source`` values are:
+   - ``source="task_metrics"`` (default): reads ``task_metrics.csv`` per task
+   - ``source="windows_metrics"``: reads ``windows_metrics.csv`` per task
+   - ``source="shots_metrics"``: reads ``shots_metrics.csv`` per task
 
 Aggregation follows the benchmark hierarchy:
 - signal rows: equal-weight mean/std across shots
@@ -202,6 +212,46 @@ def _extract_task_summary_from_task_metrics(task, output_dir):
     return summary, signal_rows
 
 
+def _extract_task_summary_from_shots_metrics(task, output_dir):
+    """Load one task summary row from ``shots_metrics.csv``."""
+    file_path = Path(output_dir) / task / SHOT_METRICS_FILE
+    if not file_path.exists():
+        print(
+            f"Warning: task {task} was yet evaluated, the corresponding files were not found."
+        )
+        return None
+
+    df = pd.read_csv(file_path)
+    if "shot_id" not in df.columns:
+        print(f"Warning: {file_path} has no shot_id column. Skipping task {task}.")
+        return None
+
+    df_task_shots = df.copy()
+    for metric in TASK_METRICS:
+        if metric not in df_task_shots.columns:
+            df_task_shots[metric] = np.nan
+        df_task_shots[metric] = pd.to_numeric(df_task_shots[metric], errors="coerce")
+
+    df_task_shots = df_task_shots.set_index("shot_id")
+    return {"task": task, **_build_task_summary_row_from_shots(df_task_shots)}
+
+
+def _extract_task_summary_from_windows_metrics(task, output_dir):
+    """Load one task summary row (and signal rows) from ``windows_metrics.csv``."""
+    file_path = Path(output_dir) / task / WINDOW_METRICS_FILE
+    if not file_path.exists():
+        print(
+            f"Warning: task {task} was yet evaluated, the corresponding files were not found."
+        )
+        return None, None
+
+    df = pd.read_csv(file_path)
+    df_signals, df_task_shots = aggregate_windows_metrics(df)
+    summary = {"task": task, **_build_task_summary_row_from_shots(df_task_shots)}
+    signal_rows = df_signals.reset_index().assign(task=task)
+    return summary, signal_rows
+
+
 def aggregate_windows_metrics(df):
     """Aggregate window rows into signal-level and shot-level dataframes."""
     df = df.copy()
@@ -320,33 +370,35 @@ def compute_metrics(
 
 
 def compute_summary_metrics(output_dir=".", source="task_metrics", save_locally=True):
-    """Aggregate all tasks into signal/group metrics from task or window files."""
+    """Aggregate all tasks into signal/group metrics from task/window/shot files."""
     output_dir = Path(output_dir)
 
     all_signals = []
     all_groups = []
 
-    if source not in {"task_metrics", "windows_metrics"}:
-        raise ValueError("source must be either 'task_metrics' or 'windows_metrics'")
+    if source not in {"task_metrics", "windows_metrics", "shots_metrics"}:
+        raise ValueError(
+            "source must be one of: 'task_metrics', 'windows_metrics', 'shots_metrics'"
+        )
 
     for group_id in group_tasks:
         group_task_summaries = []
 
         for task in group_tasks[group_id]:
             if source == "windows_metrics":
-                file_path = output_dir / task / WINDOW_METRICS_FILE
-                if not file_path.exists():
-                    print(
-                        f"Warning: task {task} was yet evaluated, the corresponding files were not found."
-                    )
-                    continue
-
-                df = pd.read_csv(file_path)
-                df_signals, df_task_shots = aggregate_windows_metrics(df)
-                all_signals.append(df_signals.reset_index().assign(task=task))
-                group_task_summaries.append(
-                    {"task": task, **_build_task_summary_row_from_shots(df_task_shots)}
+                task_summary, signal_rows = _extract_task_summary_from_windows_metrics(
+                    task, output_dir
                 )
+                if task_summary is None:
+                    continue
+                group_task_summaries.append(task_summary)
+                if signal_rows is not None and len(signal_rows) > 0:
+                    all_signals.append(signal_rows)
+            elif source == "shots_metrics":
+                task_summary = _extract_task_summary_from_shots_metrics(task, output_dir)
+                if task_summary is None:
+                    continue
+                group_task_summaries.append(task_summary)
             else:
                 task_summary, signal_rows = _extract_task_summary_from_task_metrics(
                     task, output_dir
