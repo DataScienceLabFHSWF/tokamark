@@ -7,6 +7,7 @@ Typical usage:
    ``compute_metrics(task, output_dir, window_metrics_accumulator, ...)``
    to compute task metrics and optionally save:
    ``<output_dir>/<task>/windows_metrics.csv`` and/or
+   ``<output_dir>/<task>/shots_metrics.csv`` and/or
    ``<output_dir>/<task>/task_metrics.csv``.
 3. After all tasks are complete, call ``compute_summary_metrics(output_dir)`` to
    produce ``signals_metrics.csv`` and ``groups_metrics.csv`` in ``output_dir``.
@@ -35,6 +36,7 @@ SIGNAL_STD_COLUMNS = tuple(f"{metric}_std_pop" for metric in TASK_METRICS)
 SIGNAL_VALUE_COLUMNS = TASK_METRICS
 
 WINDOW_METRICS_FILE = "windows_metrics.csv"
+SHOT_METRICS_FILE = "shots_metrics.csv"
 SIGNAL_METRICS_FILE = "signals_metrics.csv"
 TASK_METRICS_FILE = "task_metrics.csv"
 GROUP_METRICS_FILE = "groups_metrics.csv"
@@ -252,6 +254,7 @@ def compute_metrics(
     output_dir,
     window_metrics_accumulator,
     save_windows_metrics=False,
+    save_shot_metrics=False,
     save_task_metrics=True,
 ):
     """Compute one task metrics from an in-memory window metrics accumulator."""
@@ -297,6 +300,19 @@ def compute_metrics(
 
     if save_windows_metrics:
         df.to_csv(task_output_dir / WINDOW_METRICS_FILE, index=False)
+    if save_shot_metrics:
+        df_shots = df_task_shots.reset_index()
+        n_windows = (
+            df.groupby("shot_id", as_index=False)["window_index"]
+            .nunique()
+            .rename(columns={"window_index": "n_windows"})
+        )
+        df_shots = df_shots.merge(n_windows, on="shot_id", how="left")
+        ordered_cols = ["shot_id", "n_windows"] + [
+            c for c in df_shots.columns if c not in {"shot_id", "n_windows"}
+        ]
+        df_shots = df_shots[ordered_cols]
+        df_shots.to_csv(task_output_dir / SHOT_METRICS_FILE, index=False)
     if save_task_metrics:
         df_task_metrics.to_csv(task_output_dir / TASK_METRICS_FILE, index=False)
 
