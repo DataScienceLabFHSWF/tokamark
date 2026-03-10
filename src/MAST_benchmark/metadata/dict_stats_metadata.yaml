@@ -29,17 +29,19 @@ magnetics-b_field_tor_probe_saddle_voltage:
   mean: 0.10374492184738746
   std: 0.7207909506296567
 magnetics-b_field_tor_probe_cc_field:
-  dt: 2.0e-06
+  dt: 0.001024
   values_shape:
   - 3
-  mean: -3.0715533042047245e-07
-  std: 2.0014198523339808e-05
+  - 256
+  mean: 1.801159134697749e-07
+  std: 4.695158432006124e-05
 magnetics-b_field_pol_probe_omv_voltage:
-  dt: 2.0e-06
+  dt: 0.001024
   values_shape:
   - 3
-  mean: 0.0034782653863861803
-  std: 0.1701782179706301
+  - 256
+  mean: 32.22836556478141
+  std: 10790.944721875469
 pf_active-coil_voltage:
   dt: 0.00025
   values_shape:

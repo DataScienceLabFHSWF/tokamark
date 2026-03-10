@@ -20,6 +20,9 @@ from MAST_benchmark.tools.transforms.reshape_lcfs_transform import (
 from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import (
     FillProfileWithZerosTransform,
 )
+from MAST_benchmark.tools.transforms.stft_transform import(
+    STFTTransform,
+)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -89,9 +92,9 @@ def build_common_signal_transform_map(
         "thomson_scattering-n_e",
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            maybe_std(var) + [
+            [
                 FillProfileWithZerosTransform(),
-            ]
+            ] + maybe_std(var)
         )
 
     # Specific case of reformating LCFS
@@ -99,6 +102,17 @@ def build_common_signal_transform_map(
         signal_transform_map[var] = ComposeTransforms(
             [
                 ReshapeLcfsTransform(),
+            ] + maybe_std(var)
+        )
+
+    # Specific case of profiles with NaNs in full channel
+    for var in [
+        "magnetics-b_field_tor_probe_cc_field",
+        "magnetics-b_field_pol_probe_omv_voltage"
+    ]:
+        signal_transform_map[var] = ComposeTransforms(
+            [
+                STFTTransform(support_n=512),
             ] + maybe_std(var)
         )
 
