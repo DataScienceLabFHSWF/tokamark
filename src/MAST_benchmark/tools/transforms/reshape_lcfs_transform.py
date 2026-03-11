@@ -41,8 +41,9 @@ class ReshapeLcfsTransform:
         Returns
         -------
         dict[str, Any]
-            Torch dict with "time" and "key" keys where NaNs of profiles (i.e., when one full channel in the
-            profile is missing) are filled with zeros.  # FIXME: This description is verbatim copy from other transform. So? [Cecile, Rodrigo]
+            Torch dict with "time" and "key" keys where NaNs of profiles (i.e., when one full channel in the profile
+            is missing) are filled with zeros.
+            # FIXME: This description is verbatim copy from other transform, and it does not fit here. [Cecile]
 
         """
 
@@ -58,7 +59,7 @@ class ReshapeLcfsTransform:
                 resized_vector = np.full(shape=(170,), fill_value=np.nan)
             else:
                 scale_factor = 170 / len_cleaned_vector
-                resized_vector = zoom(cleaned_vector, scale_factor, order=1)  # order=1 = linear interpolation
+                resized_vector = zoom(input=cleaned_vector, output=scale_factor, order=1)  # order=1 = linear interp.
             new_profile.append(resized_vector)
 
         return {

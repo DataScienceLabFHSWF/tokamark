@@ -61,3 +61,9 @@ def _read_parquet_data(
         raise FileNotFoundError(f"No data available for path {path} ({ee}).")
     except FileNotFoundError as ee:
         raise FileNotFoundError(f"No data available for path {path} ({ee}).")
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def warning_print(input_string: str, prefix: str = "[WARNING] "):
+    """Print warning text."""
+    print(f"\033[93m{prefix}{input_string}\033[0m")

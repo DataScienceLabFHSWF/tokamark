@@ -40,7 +40,7 @@ def get_device(
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_config_from_yaml(
-        file_path: Union[LiteralString, str, bytes]
+        file_path: Union[LiteralString, str, bytes, Path]
 ) -> dict[str, Any]:
     """
     Get configuration from YAML file.
@@ -186,4 +186,4 @@ class AutoAppendingDataFrame:
     # ------------------------------------------------------------------------------------------------------------------
     def view(self) -> pd.DataFrame:
         """Return a copy of the current DataFrame."""
-        return self.df.copy()  # FIXME: Ask Mike the intended behavior.
+        return self.df.copy()  # FIXME: Unknown intended behavior. [Mike]

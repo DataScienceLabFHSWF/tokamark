@@ -6,7 +6,7 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import random
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
-from typing import Optional, Any
+from typing import Optional, Any, Union
 from collections.abc import Callable, Mapping
 from collections.abc import Generator
 
@@ -119,15 +119,16 @@ class TokaMarkDataset(IterableDataset):
     output_keys : list[str]
         List of output keys in the "{source}-{signal}" format.
     input_length : float
-        Target input length in seconds.  # TODO: Add better description. [Cecile, Tobia]
+        Input length in seconds.
     output_length : float
-        Target output length in seconds.  # TODO: Add better description. [Cecile, Tobia]
+        Output length in seconds.
     delta : float
-        Target delta.  # TODO: Add better description. [Cecile, Tobia]
+        Distance in seconds between the end on the input interval and the beginning of the output interval.
+        For forecasting, `delta` should be 0, and for reconstruction, `delta` should be `-input_length`.
     stride : float
-        Target stride.  # TODO: Add better description. [Cecile, Tobia]
+        Distance between two consecutive windows.
     custom_transform : Optional[Callable]
-        Custom transform.  # TODO: Add better description. [Cecile, Tobia]
+        Custom model-specific transform chain applied per window.
     test_mode : bool
         If True, test mode is activated.
     shuffle_windows : bool
@@ -143,7 +144,7 @@ class TokaMarkDataset(IterableDataset):
         Worker-safe iterator.
     _iterate_shots(start, end)
         Shot iterator.
-    _process_shot(idx_shot)
+    _process_shot(shot_idx)
         Shot-processing generator.
     _build_window(sample, global_start_time, t_cut, type_window)
         Window-builder method.
@@ -180,10 +181,10 @@ class TokaMarkDataset(IterableDataset):
         config_metadata : Mapping[str, Any]
             Dictionary with configuration metadata.
         custom_transform : Optional[Callable]
-            Custom transform. # TODO: Check a better description for this parameter. [Cecile]
+            Custom model-specific transform chain applied per window.
             Optional. Default: None.
-        test_mode : bool = False
-            If True, test mode is activated.
+        test_mode : bool
+            If True, test mode is activated.  # TODO: Add better description. [Cecile]
             Optional. Default: False.
         shuffle_windows : bool
             If True, shuffling of windows is performed.
@@ -214,15 +215,15 @@ class TokaMarkDataset(IterableDataset):
         }
 
         self.task_type = config_metadata["task_type"]
-        seg = config_metadata["task_window_segmenter"]
+        segmenter_metadata = config_metadata["task_window_segmenter"]
 
-        self.input_keys = [f"{s}-{k}" for s, k in (seg["input_keys"] or [])]
-        self.actuator_keys = [f"{s}-{k}" for s, k in (seg["actuator_keys"] or [])]
-        self.output_keys = [f"{s}-{k}" for s, k in (seg["output_keys"] or [])]
+        self.input_keys = [f"{s}-{k}" for s, k in (segmenter_metadata["input_keys"] or [])]
+        self.actuator_keys = [f"{s}-{k}" for s, k in (segmenter_metadata["actuator_keys"] or [])]
+        self.output_keys = [f"{s}-{k}" for s, k in (segmenter_metadata["output_keys"] or [])]
 
-        self.input_length = seg["input_length"]
-        self.output_length = seg["output_length"]
-        self.delta = seg["delta"]
+        self.input_length = segmenter_metadata["input_length"]
+        self.output_length = segmenter_metadata["output_length"]
+        self.delta = segmenter_metadata["delta"]
 
         self.stride = float(self.task_metadata["sec_stride"])
 
@@ -284,20 +285,20 @@ class TokaMarkDataset(IterableDataset):
 
         """
 
-        for idx_shot in range(start, end):
-            yield from self._process_shot(idx_shot=idx_shot)
+        for shot_idx in range(start, end):
+            yield from self._process_shot(shot_idx=shot_idx)
 
     # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(
             self,
-            idx_shot: int  # FIXME: Sometimes idx_shot, shot_idx, or even just idx. Unify. [Rodrigo]
+            shot_idx: int
     ) -> Generator:
         """
         Shot-processing generator.
 
         Parameters
         ----------
-        idx_shot : int
+        shot_idx : int
             Shot index.
 
         Returns
@@ -307,7 +308,7 @@ class TokaMarkDataset(IterableDataset):
 
         """
 
-        sample = self.base[idx_shot]
+        sample = self.base[shot_idx]
 
         # ..............................................................................................................
         # Determine valid global time range (from outputs)
@@ -322,7 +323,7 @@ class TokaMarkDataset(IterableDataset):
                 if self.test_mode:
                     if self.verbose:
                         print(
-                            f"Skipping shot {self.get_shot_id(idx=idx_shot)} "
+                            f"Skipping shot {self.get_shot_id(idx=shot_idx)} "
                             f"(empty output '{var}')"
                         )
                     return   # ← skip whole shot
@@ -363,7 +364,7 @@ class TokaMarkDataset(IterableDataset):
 
         for idx_t, t_cut in enumerate(t_cuts):
 
-            # TODO: Check type of t_cut (expected to be float) [Rodrigo]
+            t_cut = np.float32(t_cut)  # TODO: Check if this work to avoid error in type check. [Rodrigo]
 
             input_slice = self._build_window(
                 sample=sample,
@@ -391,7 +392,7 @@ class TokaMarkDataset(IterableDataset):
                 "actuator": actuator_slice,
                 "output": output_slice,
                 "t_cut": t_cut,
-                "shot_id": self.get_shot_id(idx=idx_shot),
+                "shot_id": self.get_shot_id(idx=shot_idx),
                 "window_index": idx_t,
             }
 
@@ -426,7 +427,7 @@ class TokaMarkDataset(IterableDataset):
             self,
             sample: Mapping[str, Any],
             global_start_time: float,
-            t_cut: float,  # TODO: Check type conflict, as it is expected to be tuple[int, Any] from _process_shot. [Rodrigo]
+            t_cut: Union[float, np.float16, np.float32, np.float64],
             type_window: str
     ) -> dict[str, np.ndarray]:
         """
@@ -672,4 +673,5 @@ class TokaMarkDataset(IterableDataset):
         """
 
         return self.base.shots_list[idx]
-    
+
+    # ------------------------------------------------------------------------------------------------------------------

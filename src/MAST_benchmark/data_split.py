@@ -8,7 +8,7 @@ import pandas as pd
 import random
 from typing import Optional
 
-from MAST_tools.constants import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
+from MAST_benchmark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ def get_train_test_val_shots(
         Optional. Default: 42.
     data_splits_file_path : str
         Pato to the data splits CSV file.
-        Optional. Default: DEFAULT_TOKAMARK_DATA_SPLITS_FILE
+        Optional. Default: MAST_benchmark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE.
 
     Returns
     -------

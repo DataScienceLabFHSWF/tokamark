@@ -1,8 +1,0 @@
-max_shot_index: 2  # If empty, all available shots are used.
-shuffle: true
-seed: 42
-local: false
-
-dataloader_setting:
-  batch_size: 8
-  num_workers: 0

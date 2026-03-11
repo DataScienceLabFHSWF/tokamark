@@ -3,6 +3,7 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
+import os.path
 import numpy as np
 import zarr
 import zarr.storage
@@ -18,20 +19,27 @@ import time
 from posixpath import join as posix_join
 from os.path import join as os_join
 
-from MAST_tools.data_models import ShotInfo
-from MAST_tools.utils.general_utils import get_random_string
-from MAST_tools.constants import (
-    BaseDataSourceType, ZarrStoreType, ZarrFSStoreType, ShotInfoType,
-    DEFAULT_LOCAL_FLAG_VALUE,
-    DEFAULT_SIGNAL_AVAILABILITY_FILE,  # TODO: Check for other default directories (e.g., artifact/<>) [Rodrigo]
-    DEFAULT_BASE_FSSPEC_PROTOCOL,
-    DEFAULT_TARGET_FSSPEC_PROTOCOL,
-    DEFAULT_S3_ENDPOINT_URL,
-    DEFAULT_S3_MAST_DATASET_PATH,
-    DEFAULT_BASE_LOCAL_ZARR_PATH
+from MAST_tools.utils.data_utils import (
+    ShotInfo,
+    BaseDataSourceType, ZarrStoreType, ZarrFSStoreType, ShotInfoType
+)
+from MAST_tools.utils.general_utils import get_random_string, warning_print
+from MAST_tools.utils.path_utils import (
+    DEFAULT_SIGNAL_AVAILABILITY_FILE
 )
 
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Default values
+
+DEFAULT_BASE_FSSPEC_PROTOCOL = "simplecache"  # TODO: Perhaps move all these to class __init__? [Rodrigo]
+DEFAULT_TARGET_FSSPEC_PROTOCOL = "s3"
+DEFAULT_S3_ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
+DEFAULT_S3_MAST_DATASET_PATH = "/mast/tokamark/v1"  # Other options: "mast/leve2/shots", "mast/test/level2/shots"
+DEFAULT_BASE_LOCAL_ZARR_PATH = "/mast/tokamark/v1"
+
+DEFAULT_LOCAL_FLAG_VALUE = False
 
 
 # ======================================================================================================================
@@ -62,6 +70,8 @@ class MASTStorageManager:
 
     Methods
     -------
+    _check_local_zarr_database()
+        Run access checks for a potential local Zarr database.
     _is_digit(item)
         Check if provided item is of type digit.
     _get_store_from_data_origin(data_origin)
@@ -129,22 +139,28 @@ class MASTStorageManager:
                 - Only option guaranteed to be thread/process-safe.
             Full list of supported protocols obtained via `fsspec.available_protocols()`.
             More info available at https://filesystem-spec.readthedocs.io/en/latest/features.html.
-            Default: BASE_FSSPEC_PROTOCOL, as defined in `src.MAST_tools.constants`.
+            Default: MAST_tools.utils.store_utils.DEFAULT_BASE_FSSPEC_PROTOCOL.
         target_fsspec_protocol : str
             Target filesystem protocol for the selected base 'fsspec' protocol.
-            Default: TARGET_FSSPEC_PROTOCOL, as defined in `src.MAST_tools.constants`.
+            Default: MAST_tools.utils.store_utils.DEFAULT_TARGET_FSSPEC_PROTOCOL.
         s3_endpoint_url : str
             Endpoint of the cloud S3 bucket used for remote data pulling (i.e., for local=False in some methods).
-            Default: S3_ENDPOINT_URL, as defined in `src.MAST_tools.constants`.
+            Default: MAST_tools.utils.store_utils.DEFAULT_S3_ENDPOINT_URL.
         s3_mast_dataset_path : str
             Path for the target MAST dataset within the configured S3 bucket.
+            Default: MAST_tools.utils.store_utils.DEFAULT_S3_MAST_DATASET_PATH.
         base_local_zarr_path : Optional[str]
             Local root path used for local data pulling in Zarr format.
-            Default: BASE_LOCAL_ZARR_PATH, as defined in `src.MAST_tools.constants`.
+            Default: MAST_tools.utils.store_utils.BASE_LOCAL_ZARR_PATH.
 
         Returns
         -------
         None
+
+        Raises
+        ------
+        FileNotFoundError
+            If provided `base_local_zarr_path` directory is not found.
 
         """
 
@@ -154,11 +170,49 @@ class MASTStorageManager:
         self.s3_mast_dataset_path = s3_mast_dataset_path
         self.base_local_zarr_path = base_local_zarr_path
 
+        self._check_local_zarr_database()
         self.fs_local_fsspec = fsspec.filesystem("file")
         self.fs_remote_fsspec = self._create_fs_remote(library="fsspec")
         self.fs_remote_s3fs = self._create_fs_remote(library="s3fs")
 
         self.store_manager_id = f"store_manager_{get_random_string(4)}"
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def _check_local_zarr_database(self):
+        """Run access checks for a potential local Zarr database."""
+
+        warning_message = ""
+        if self.base_local_zarr_path is None:
+            warning_message = (
+                f"No path for local Zarr database was set during the creation of the MASTStorageManager instance."
+            )
+        else:
+            # Warn about inexistent path
+            if not os.path.isdir(self.base_local_zarr_path):
+                warning_message = (
+                    f"The path `{self.base_local_zarr_path}` for a local Zarr database, which was set during the "
+                    f"creation of the MASTStorageManager instance, does not correspond to a valid local directory."
+                )
+            else:
+                zarr_files = [file_ for file_ in os.listdir(self.base_local_zarr_path) if file_.endswith(".zarr")]
+                if len(zarr_files):
+                    print(
+                        f"[INFO] Local Zarr database identified under `{self.base_local_zarr_path}` with "
+                        f"{len(zarr_files)} Zarr files in it."
+                    )
+                else:
+                    # Warn about no Zarr files found
+                    warning_message = (
+                        f"No Zarr files found under the path `{self.base_local_zarr_path}`, which was set during the "
+                        f"creation of the MASTStorageManager instance."
+                    )
+        if warning_message:
+            additional_warning = (
+                f"This will cause local pipelines to fail. To avoid this, either provide a valid installation path for "
+                f"a local Zarr database, or use default MASTStorageManager settings and install the database under "
+                f"the default directory `{DEFAULT_BASE_LOCAL_ZARR_PATH}`."
+            )
+            warning_print(f"\n{warning_message} {additional_warning}\n")
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
@@ -230,8 +284,8 @@ class MASTStorageManager:
         ----------
         shot_info : ShotInfoType
             Dictionary with shot information required for store creation, with valid keys and types as defined in
-            `src.MAST_tools.data_models.ShotInfo`. Default value for the non-required key "local" is
-            DEFAULT_LOCAL_FLAG_VALUE as defined in `src.MAST_tools.constants`.
+            `MAST_tools.data_models.ShotInfo`. Default value for the non-required key "local" is
+            `MAST_tools.utils.store_utils.DEFAULT_LOCAL_FLAG_VALUE`.
 
         Returns
         -------
@@ -489,7 +543,7 @@ class MASTStorageManager:
             Example: {"thomson_scattering": ["n_e"], "summary": ["power_nbi", "ip"]}
         availability_data_file_path : str
             Path to suitable csv file with signal availability.
-            Optional. Default: DEFAULT_SIGNAL_AVAILABILITY_FILE, as defined in `src.MAST_tools.constants.py`.
+            Optional. Default: MAST_tools.utils.path_utils.DEFAULT_SIGNAL_AVAILABILITY_FILE.
 
         Returns
         -------
@@ -645,7 +699,7 @@ class MASTStorageManager:
         ----------
         shot_info : ShotInfoType
             Dictionary with shot information required for store creation, with valid keys and types as defined in
-            `src.MAST_tools.data_models.ShotInfo`. Keys and values are validated via `self._parse_shot_info_dict()`,
+            `MAST_tools.data_models.ShotInfo`. Keys and values are validated via `self._parse_shot_info_dict()`,
             where default values for non-required keys are also set.
 
         verbose : bool

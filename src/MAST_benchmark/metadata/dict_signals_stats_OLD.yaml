@@ -1,0 +1,237 @@
+magnetics-flux_loop_flux:
+  dt: 0.0002
+  values_shape:
+  - 15
+  mean: -0.23392699580285178
+  std: 0.3898702217219659
+magnetics-b_field_pol_probe_ccbv_field:
+  dt: 0.0002
+  values_shape:
+  - 40
+  mean: 0.08100472297250123
+  std: 0.14410162330015613
+magnetics-b_field_pol_probe_obr_field:
+  dt: 0.0002
+  values_shape:
+  - 18
+  mean: -0.00476935976395406
+  std: 0.07735630879948949
+magnetics-b_field_pol_probe_obv_field:
+  dt: 0.0002
+  values_shape:
+  - 18
+  mean: -0.021480868508110814
+  std: 0.03321186356517636
+magnetics-b_field_tor_probe_saddle_voltage:
+  dt: 2.0e-05
+  values_shape:
+  - 12
+  mean: 0.10374492184738746
+  std: 0.7207909506296567
+magnetics-b_field_tor_probe_cc_field:
+  dt: 0.001024
+  values_shape:
+  - 3
+  - 256
+  mean: 1.801159134697749e-07
+  std: 4.695158432006124e-05
+magnetics-b_field_pol_probe_omv_voltage:
+  dt: 0.001024
+  values_shape:
+  - 3
+  - 256
+  mean: 32.22836556478141
+  std: 10790.944721875469
+pf_active-coil_voltage:
+  dt: 0.00025
+  values_shape:
+  - 4
+  mean: -2.589970227263919
+  std: 3070.670524401914
+pf_active-coil_current:
+  dt: 0.00025
+  values_shape:
+  - 10
+  mean: 557.226274809436
+  std: 5065.041009986871
+pf_active-solenoid_current:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: -2930.2381650905713
+  std: 12593.767717493254
+pulse_schedule-i_plasma:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: 423507.65327603207
+  std: 317643.69664110435
+pulse_schedule-n_e_line:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: 5.3311961282852905e+19
+  std: 5.5098207617880285e+19
+interferometer-n_e_line:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: 8.067915915650877e+19
+  std: 5.1341456073130797e+20
+summary-power_nbi:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: 731879.237006398
+  std: 1109663.2740711092
+summary-ip:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: 333267.40301860194
+  std: 324391.5494323114
+gas_injection-total_injected:
+  dt: 0.00025
+  values_shape:
+  - 1
+  mean: 2.505385236708265e+21
+  std: 2.469140379526533e+21
+equilibrium-psi:
+  dt: 0.005
+  values_shape:
+  - 65
+  - 65
+  mean: -0.02335569818330801
+  std: 0.05579013302818227
+equilibrium-elongation:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 1.7327046202038623
+  std: 0.21410663586405176
+equilibrium-elongation_axis:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 1.4391313292091665
+  std: 0.2108499505498801
+equilibrium-triangularity_upper:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 0.32541466354483645
+  std: 0.10214302330679821
+equilibrium-triangularity_lower:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 0.3480931926602389
+  std: 0.0979637370356623
+equilibrium-lcfs_r:
+  dt: 0.005
+  values_shape:
+  - 170
+  mean: 0.7430755265547497
+  std: 0.37748767246074244
+equilibrium-lcfs_z:
+  dt: 0.005
+  values_shape:
+  - 170
+  mean: -0.03329687494695711
+  std: 0.6483089767168372
+equilibrium-x_point_r:
+  dt: 0.005
+  values_shape:
+  - 2
+  mean: 0.504223316560303
+  std: 0.7676277491973306
+equilibrium-x_point_z:
+  dt: 0.005
+  values_shape:
+  - 2
+  mean: -0.07758928119459549
+  std: 7.140605937927534
+equilibrium-minor_radius:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 0.5439020280562962
+  std: 0.06326515462972619
+equilibrium-magnetic_axis_r:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 0.8522809345781048
+  std: 0.09452175581202235
+equilibrium-magnetic_axis_z:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: -0.02407555701451834
+  std: 0.07326059803662123
+equilibrium-q95:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 7.726024266209744
+  std: 3.4019046681184504
+equilibrium-beta_tor:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 2.432305538420569
+  std: 3.4722593461825495
+equilibrium-beta_pol:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 0.2151170675631981
+  std: 0.32607499340986884
+equilibrium-beta_normal:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: 1.0284405027554158
+  std: 1.3481414758352757
+equilibrium-bvac_rmag:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: -0.4445585220997438
+  std: 0.16793731542503698
+equilibrium-bphi_rmag:
+  dt: 0.005
+  values_shape:
+  - 1
+  mean: -0.5127951434607065
+  std: 0.19562135129562927
+spectrometer_visible-filter_spectrometer_dalpha_voltage:
+  dt: 2.0e-05
+  values_shape:
+  - 3
+  mean: 0.35036990936371293
+  std: 0.4497144347106105
+soft_x_rays-horizontal_cam_lower:
+  dt: 2.0e-05
+  values_shape:
+  - 18
+  mean: 0.005473743155456756
+  std: 0.030200036131898835
+soft_x_rays-horizontal_cam_upper:
+  dt: 2.0e-05
+  values_shape:
+  - 18
+  mean: 0.0032371164368277415
+  std: 0.02705686927273422
+thomson_scattering-t_e:
+  dt: 0.005
+  values_shape:
+  - 120
+  mean: 325.4568908146307
+  std: 334.8295236665037
+thomson_scattering-n_e:
+  dt: 0.005
+  values_shape:
+  - 120
+  mean: 1.6891822717128243e+19
+  std: 1.4289468333579725e+19

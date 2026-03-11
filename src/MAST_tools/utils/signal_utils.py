@@ -8,12 +8,11 @@ import numpy as np
 import xarray as xr
 from typing import Union, Optional, Any
 
-from MAST_tools.data_models import ShotInfo
-from MAST_tools.utils.store_utils import MASTStorageManager
-from MAST_tools.constants import (
-    BaseDataSourceType, ExtendedDataSourceType, XarrayDatasetType, StoreManagerParametersType,
-    DEFAULT_BASE_LOCAL_ZARR_PATH
+from MAST_tools.utils.data_utils import (
+    ShotInfo, StoreManagerParameters,
+    BaseDataSourceType, ExtendedDataSourceType, XarrayDatasetType, StoreManagerParametersType
 )
+from MAST_tools.utils.store_utils import MASTStorageManager
 from MAST_tools.utils.general_utils import get_random_string
 
 
@@ -60,10 +59,10 @@ class MASTSignalManager:
         ----------
         store_manager_settings : Optional[StoreManagerParametersType]
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
-            types as defined in `src.MAST_tools.data_models.StoreManagerParameters`. Only valid (keyword, value) pairs
+            types as defined in `MAST_tools.utils.data_utils..StoreManagerParameters`. Only valid (keyword, value) pairs
             are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
             Optional. Default: None, which results in the default values for all the keywords as defined in
-            `src.MAST_tools.store_utils.MASTStorageManager.__init__`.
+            `MAST_tools.store_utils.MASTStorageManager.__init__`.
 
         Returns
         -------
@@ -79,11 +78,7 @@ class MASTSignalManager:
         """
 
         self.signal_manager_id = f"store_manager_{get_random_string(4)}"
-
-        if store_manager_settings is None:
-            self.store_manager_settings = {}  # I.e., values in `src.MAST_tools.store_utils.MASTStorageManager.__init__`
-        else:
-            self.store_manager_settings = store_manager_settings
+        self.store_manager_settings = store_manager_settings or StoreManagerParameters()
         self.store_manager = MASTStorageManager(**self.store_manager_settings)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -399,12 +394,13 @@ def tests() -> None:
         "signal_times_from_shot_info": True
     }
 
+    base_local_zarr_path = "/mast/tokamark/v1"  # -> REMARK: Use correct local folder for local tests.
     signal_manager = MASTSignalManager(
-        store_manager_settings={
-            "target_fsspec_protocol": "s3",
-            "base_local_zarr_path": DEFAULT_BASE_LOCAL_ZARR_PATH  # -> Use correct local folder for local tests.
-        }
+        store_manager_settings=StoreManagerParameters(
+            base_local_zarr_path=base_local_zarr_path
+        )
     )
+
     # print(type(signal_manager.store_manager))
     # print(signal_manager.store_manager.base_fsspec_protocol)
     # print(signal_manager.store_manager.target_fsspec_protocol)

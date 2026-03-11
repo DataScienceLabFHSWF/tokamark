@@ -4,15 +4,20 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import os
+from pathlib import Path
 
-# Dynamically find the repo root (no hardcoding!)
-PACKAGE_ROOT = os.path.abspath(  # FIXME: Make PACKAGE_ROOT match the new architecture. [Rodrigo]
-    os.path.join(os.path.dirname(__file__), "..")
-)
 
-# Optional: define commonly used subdirectories
-TASKS_CONFIGS_DIR = os.path.join(PACKAGE_ROOT, "tasks_configs")  # FIXME: Make TASKS_CONFIGS_DIR match the new architecture. [Rodrigo]
-METADATA_DIR = os.path.join(PACKAGE_ROOT, "metadata")  # FIXME: Make this METADATA_DIR match the new architecture. [Rodrigo]
+# ======================================================================================================================
+# Default directories
+
+PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent   # Dynamically find the repo root (no hardcoding!)
+PACKAGE_ROOT_DIR = Path(__file__).parent.parent                 # Dynamically find the repo root (no hardcoding!)
+
+TASKS_CONFIGS_DIR = os.path.join(PACKAGE_ROOT_DIR, "tasks_configs")
+PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
+DEFAULT_SIGNALS_STATS_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_signals_stats.yaml")
+
+DEFAULT_TOKAMARK_DATA_SPLITS_FILE = os.path.join(PACKAGE_METADATA_DIR, "TokaMark_data_splits.csv")
 
 
 # ======================================================================================================================
@@ -20,6 +25,8 @@ if __name__ == "__main__":
 
     # One can print to verify when developing
 
-    print("Repo root:", PACKAGE_ROOT)
+    print()
+    print("Repo root dir:", PROJECT_ROOT_DIR)
+    print("Package root dir:", PACKAGE_ROOT_DIR)
     print("Tasks configs dir:", TASKS_CONFIGS_DIR)
-    print("Metadata dir:", METADATA_DIR)
+    print("Metadata dir:", PACKAGE_METADATA_DIR)

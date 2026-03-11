@@ -4,24 +4,25 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 from typing import Optional, Any
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from MAST_tools.MAST_dataset import MastDataset
-from MAST_tools.constants import StoreManagerParametersType
 from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
 from MAST_benchmark.tools.MAST_composite_transform import build_common_signal_transform_map
+from MAST_tools.utils.data_utils import StoreManagerParametersType
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_MAST_dataset(  # noqa (allow uppercase)
-    config_task: Mapping[str, Any],
-    shots_list: list[int],
-    local_flag: bool = True,
-    use_std_scaling: bool = True,
-    return_incomplete_shots: bool = True,
-    remove_outliers: bool = True,
-    store_manager_settings: Optional[StoreManagerParametersType] = None,
-    verbose: bool = False
+        config_task: Mapping[str, Any],
+        shots_list: list[int],
+        local_flag: bool = True,
+        use_std_scaling: bool = True,
+        return_incomplete_shots: bool = True,
+        remove_outliers: bool = True,
+        *,
+        store_manager_settings: Optional[StoreManagerParametersType] = None,
+        verbose: bool = False
 ) -> MastDataset:
     """
     Initialize and return MAST dataset.
@@ -46,10 +47,10 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         Optional. Default: True.
     store_manager_settings : Optional[StoreManagerParametersType]
         Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
-        types as defined in `src.MAST_tools.data_models.StoreManagerParameters`. Only valid (keyword, value) pairs
+        types as defined in `MAST_tools.utils.data_utils.StoreManagerParameters`. Only valid (keyword, value) pairs
         are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
         Optional. Default: None, which results in the default values for all the keywords as defined in
-        `src.MAST_tools.store_utils.MASTStorageManager.__init__`.
+        `MAST_tools.store_utils.MASTStorageManager.__init__`.
     verbose : bool
         If True, verbose mode is activated.
         Optional. Default: True.
@@ -93,40 +94,40 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_TokaMark_dataset(  # noqa (allow uppercase)
-    dataset: Optional[MastDataset],
-    task_metadata: Mapping[str, Any],
-    config_metadata: Mapping[str, Any],
-    custom_transform: Optional[Any] = None,
-    test_mode: bool = False,
-    shuffle_windows: bool = True,
-    shuffle_buffer_size: int = 512,
-    *,
-    verbose: bool = False,
+        dataset: Optional[MastDataset],
+        task_metadata: Mapping[str, Any],
+        config_metadata: Mapping[str, Any],
+        custom_transform: Optional[Callable] = None,
+        test_mode: bool = False,
+        shuffle_windows: bool = True,
+        shuffle_buffer_size: int = 512,
+        *,
+        verbose: bool = False,
 ) -> Optional[TokaMarkDataset]:
-    """  # FIXME: Check and update docstrings accordingly (legacy from previous method) [Cecile, Rodrigo]
-    Wrap a single baseline shot-level dataset with TokaMarkDataset.
+    """
+    # TODO: Check if the whole docstrings added by Rodrigo makes sense. [Cecile]
 
-    This is a single-split version of initialize_model_datasets(), intended to be called explicitly for each split
-    (train/val/test) from entrypoint scripts.  # TODO: To check [Cecile, Rodrigo]
+    Wrap a single baseline shot-level dataset with TokaMarkDataset.
+    This method is intended to be called explicitly for each split (train/val/test) from entrypoint scripts.
 
     Parameters
     ----------
     dataset : Optional[MastDataset]
         Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
     task_metadata : Mapping[str, Any],
-        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).  # TODO: To check [Cecile, Rodrigo]
+        Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
     config_metadata : Mapping[str, Any],
-        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).  # TODO: To check [Cecile, Rodrigo]
+        Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
     custom_transform : Optional[Any]
-        Optional model-specific transform chain applied per window.  # TODO: To check [Cecile, Rodrigo]
+        Optional model-specific transform chain applied per window.
     test_mode : bool
-        If True, activates test mode.
+        If True, activates test mode.  # TODO: Better description for this parameter. [Cecile]
         Optional. Default: False.
     shuffle_windows : bool
-        TODO
+        If True, windows are shuffled before returning them.
         Optional. Default: True.
     shuffle_buffer_size : int
-        TODO
+        Size of the shuffle buffer.
         Optional. Default: 512
     verbose : bool
         If True, enables verbose prints in the wrapper.

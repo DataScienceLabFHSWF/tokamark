@@ -10,37 +10,35 @@ from collections.abc import Mapping
 
 # ======================================================================================================================
 def stft(
-        data,  # TODO: Add typehint. [Rodrigo]
-        times,  # TODO: Add typehint. [Rodrigo]
+        data: np.ndarray,
+        times: np.ndarray,
         support_n: int = 512
-) -> tuple:  # TODO: Improve typehint [Rodrigo]
+) -> tuple[np.ndarray, np.ndarray]:
     """
-    TODO: Complete docstrings
+    Return the short-time Fourier transform of input data using input (sample) times.
 
     Parameters
     ----------
-    data : TODO [Rodrigo]
-        TODO [Rodrigo]
-        1D array, shape (T,)
-    times : TODO [Rodrigo]
-        TODO [Rodrigo]
-        1D array, shape (T,)
+    data : np.ndarray
+        Input 1D data array of shape (T,).
+    times : np.ndarray
+        Input 1D times array of shape (T,).
     support_n : int
-        TODO [Rodrigo]
-        Optional. Default: 512
+        TODO: Add suitable description. Number of support points? [Cecile]
+        Optional. Default: 512.
 
     Returns
     -------
-    tuple # TODO: Improve typehint [Rodrigo]
-        TODO [Rodrigo]
-        spectrum: (n_frames, support_n//2), frame_times: (n_frames,)
+    tuple[np.ndarray, np.ndarray]
+        Pair (spectrum, frame_times), with spectrum being of shape (n_frames, support_n//2) and frame_times being of
+        shape (n_frames, ).
 
     """
 
     xx = np.linspace(0, 2 * np.pi, support_n)
     window = (1 - np.cos(xx)) / 2
 
-    nnp = int(len(data) / support_n)  # number of non-overlapping windows
+    nnp = int(len(data) / support_n)  # Number of non-overlapping windows
 
     if nnp == 0:
         # No full window fits -> return empty arrays
@@ -56,31 +54,51 @@ def stft(
     times = times[:nnp * support_n].reshape(nnp, support_n)
 
     # Simple frame time: mean time within each window
-    # frame_times = times.mean(axis=1)  # (n_frames,)
-    frame_times = np.array([t[-1] for t in times])  # (n_frames,)
+    # frame_times = times.mean(axis=1)  # Shape: (n_frames,)  # TODO: Should we keep this? [Cecile]
+    frame_times = np.array([t[-1] for t in times])  # Shape: (n_frames,)
 
     spectrum = np.fft.fft(data)
     spectrum = spectrum[:, :support_n // 2]
+    spectrum = np.abs(spectrum * np.conjugate(spectrum))  # Shape: (n_frames, support_n//2)
 
-    spectrum = np.abs(spectrum * np.conjugate(spectrum))
-
-    # spectrum shape: (n_frames, support_n//2)
     return spectrum, frame_times
 
 
 # ======================================================================================================================
 class STFTTransform:
     """
-    TODO [Rodrigo]
+    Class for the Short-time Fourier Transform (STFT) Transform.
+
+    Attributes
+    ----------
+    support_n : int
+        TODO: Add suitable description. Number of support points? [Cecile]
+
+    Methods
+    -------
+    __call__(dict_)
+        Call method for the class to behave like a function.
+
     """
 
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(
             self,
             support_n: int = 512
-    ):
+    ) -> None:
         """
-        TODO
+        Initialize class attributes.
+
+        Parameters
+        ----------
+        support_n : int
+            TODO: Add suitable description. Number of support points? [Cecile]
+            Optional. Default: 512.
+
+        Return
+        ------
+        None
+
         """
 
         self.support_n = support_n
@@ -91,7 +109,7 @@ class STFTTransform:
             dict_: Mapping[str, Any]
     ) -> dict[str, Any]:
         """
-        TODO [Rodrigo]
+        Call method for the class to behave like a function.
 
         Parameters
         ----------
@@ -119,7 +137,7 @@ class STFTTransform:
         spectra = []
         frame_times = None
         for ch in range(values.shape[0]):
-            spectrum, frame_times = stft(values[ch], time, support_n=self.support_n)
+            spectrum, frame_times = stft(data=values[ch], times=time, support_n=self.support_n)
             spectra.append(spectrum)
 
         if not spectra:
@@ -131,7 +149,7 @@ class STFTTransform:
 
         return {
             'time': frame_times,
-            # 'values': spectrum_stack
+            # 'values': spectrum_stack  # TODO: Should we remove this? [Cecile]
             'values': spectrum_stack.transpose(0, 2, 1)
         }
 

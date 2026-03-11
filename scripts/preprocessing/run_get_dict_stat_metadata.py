@@ -3,37 +3,19 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-import argparse
 import yaml
-import json
+import argparse
+from pathlib import Path
 import numpy as np
 from typing import Any
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
+from MAST_tools.utils.general_utils import warning_print
 from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_tools.constants import (
-    DEFAULT_CONFIG_GET_METADATA_FILE,
-    DEFAULT_CONFIG_GET_METADATA_DEMO_FILE,
-    DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
-    DEFAULT_SIGNALS_STATS_FILE,
-    DEFAULT_BASE_LOCAL_ZARR_PATH
-)
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-
-DEMO_MODE = True  # TODO: Check why demo results are equal to full results. [Rodrigo, Cecile]
-
-if DEMO_MODE:
-    default_config = DEFAULT_CONFIG_GET_METADATA_DEMO_FILE
-    default_max_samples = 2
-    default_signals_stats_file_path = DEFAULT_SIGNALS_STATS_FILE.replace(".yaml", "_DEMO.yaml")
-else:
-    default_config = DEFAULT_CONFIG_GET_METADATA_FILE
-    default_max_samples = 100
-    default_signals_stats_file_path = DEFAULT_SIGNALS_STATS_FILE
+from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
+from scripts.preprocessing.preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -80,77 +62,67 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config",
+        "--config_file_path",
         type=str,
-        default=default_config,
-        help="Path to the config_get_metadata YAML file."
+        default="config_get_metadata.yaml",
+        help="Path to the YAML file with configuration to get metadata."
     )
     parser.add_argument(
         "--signals_mean_std_train_file_path",
         type=str,
         default=DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
-        help="Path to the dict_signals_mean_std_train YAML file."
+        help="Path to the `dict_signals_mean_std_train.yaml` file."
     )
     parser.add_argument(
-        "--signals_stats_file_path",
+        "--signals_stats_saving_file_path",
         type=str,
-        default=default_signals_stats_file_path,
+        default=DEFAULT_SIGNALS_STATS_FILE,
         help="Path to the YAML file where signals statistics will be saved."
     )
     parser.add_argument(
-        "--max_samples",
-        type=int,
-        default=default_max_samples,
-        help="Maximum number of samples."
-    )
-    parser.add_argument(
-        "--use_std_scaling",
+        "--demo_mode",
         action="store_true",
-        help="Activate STD scaling. If not provided, it defaults to `use_std_scaling = False`."
+        help="Activate demo mode."
     )
     parser.add_argument(
-        "--skip_incomplete_shots",
-        action="store_true",
-        help="Skip incomplete shots. If not provided, it defaults to `skip_incomplete_shots = False`, which in turn "
-             "results in `return_incomplete_shots = True`."
-    )
-    parser.add_argument(
-        "--keep_outliers",
-        action="store_true",
-        help="Keep outliers. If not provided, it defaults to `keep_outliers = False`, which in turn results in "
-             "`remove_outliers = True`."
-    )
-    parser.add_argument(
-        "--store_manager_settings",
-        type=json.loads,
-        help="User-defined store manager settings for the target MAST_dataset instance as defined in "
-             "`src.MAST_tools.MAST_dataset.StoreManagerParameters`, passed as (keyword, value) pairs in a JSON object. "
-             "It is useful to provide store manager settings different than the default ones defined in "
-             "`src.MAST_tools.store_utils.MASTStorageManager.__init__`.",
-        default='{"base_local_zarr_path":"' + DEFAULT_BASE_LOCAL_ZARR_PATH + '"}',
+        "--demo_suffix",
+        type=str,
+        default="_DEMO",
+        help="Suffix used in demo mode when saving results."
     )
 
     args, _ = parser.parse_known_args()
 
-    # Trick to default boolean parameters to True
-    args.return_incomplete_shots = not args.skip_incomplete_shots
-    args.remove_outliers = not args.keep_outliers
+    # ------------------------------------------------------------------------------------------------------------------
+    # Experiment configuration
+    # ------------------------------------------------------------------------------------------------------------------
 
     # Load Task YAML config
-    with open(args.config, "r") as f:
+    with open(args.config_file_path, "r") as f:
         config = yaml.safe_load(f)
+
+    # REMARK: Demo mode could be enforced (e.g., for testing) by uncommenting the following line.
+    # args.demo_mode = True  # TODO: Check why demo results are equal to full results. [Rodrigo, Cecile]
+
+    # If required, override values with settings for demo mode
+    if args.demo_mode:
+        warning_print("Running in demo mode.")
+
+        config["get_shots_settings"]["max_index"] = 2
+        config["get_shots_settings"]["shuffle"] = True
+
+        config["max_data_samples"] = 2
+
+        args.signals_stats_saving_file_path = Path(OUTPUT_DIR) / f"dict_signals_stats{args.demo_suffix}.yaml"
+
+    # REMARK: Default values for `store_manager_settings` can be overridden as follows:
+    # config["store_manager_settings"]["base_local_zarr_path"] = "/path/to/local/zarr/dataset"
 
     # ------------------------------------------------------------------------------------------------------------------
     # Specific Data Preprocessing for LCFS profiles
     # ------------------------------------------------------------------------------------------------------------------
 
-    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index=config["max_shot_index"],
-        shuffle=config["shuffle"],
-        seed=config["seed"]
-    )
-
-    local_flag = config["local"]
+    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(**config["get_shots_settings"])
 
     # ------------------------------------------------------------------------------------------------------------------
     # Load dict_signals_mean_std_train.yaml
@@ -164,13 +136,13 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
 
     preprocessing_train_dataset = initialize_MAST_dataset( 
-        config_task=config,
+        config_task=config["task_configuration"],
         shots_list=train_shots_,
-        local_flag=local_flag,
-        use_std_scaling=args.use_std_scaling,                   # It defaults to False
-        return_incomplete_shots=args.return_incomplete_shots,   # It defaults to True
-        remove_outliers=args.remove_outliers,                   # It defaults to True
-        store_manager_settings=args.store_manager_settings
+        local_flag=config["local"],
+        use_std_scaling=False,          # <- To get an unstandardized dataset
+        return_incomplete_shots=True,   # <- To include all available shots
+        remove_outliers=True,           # <- To mitigate effect of outliers in the calculation of signal statistics
+        store_manager_settings=config["store_manager_settings"]
     )
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -186,7 +158,7 @@ if __name__ == "__main__":
     for i, sample in enumerate(preprocessing_train_dataset):  # noqa (type check)
         # print(i)
 
-        if i >= args.max_samples:
+        if i >= config["max_data_samples"]:
             break  # Stop after limit, but keep what we collected
 
         for var, signal in sample.items():
@@ -209,19 +181,22 @@ if __name__ == "__main__":
             dt = round(np.median(np.diff(time)), 6)
 
             dict_metadata[var] = {
-                "dt": dt,
-                "values_shape": values.shape[:-1],  # Exclude time dimension
+                "dt": dt,  # TODO: This variable should have a meaningful name. What does "dt" stand for? [Cecile]
+                "values_shape": values.shape[:-1],  # <- Exclude time dimension
                 "mean": dict_mean_std[var]["mean"]["no_outliers_z6"], 
                 "std": dict_mean_std[var]["std"]["no_outliers_z6"],
             }
+            # FIXME:
+            #  - From Tobia: dt is "Time in seconds between two consecutive measurements for a specific signal". Right?
+            #  - If better name is decided, find and replace all "dt" occurrences [Cecile, Rodrigo]
         
         # Stop once all variables are filled
         if set(dict_metadata.keys()) == target_vars:
-            print("dict_metadata fully filled. Stopping.")
+            print("Metadata dictionary `dict_metadata` fully filled. Stopping.")
             break
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Optional safety check
+    # Safety check
     # ------------------------------------------------------------------------------------------------------------------
 
     if len(dict_metadata) == 0:
@@ -232,5 +207,6 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
 
     clean_dict = to_python(obj=dict_metadata)
-    with open(args.signals_stats_file_path, "w") as f_:
-        yaml.dump(clean_dict, f_, sort_keys=False)
+    with open(args.signals_stats_saving_file_path, "w+") as f_:
+        print(f"Saving results to file `{args.signals_stats_saving_file_path}`.")
+        yaml.dump(data=clean_dict, stream=f_, sort_keys=False)

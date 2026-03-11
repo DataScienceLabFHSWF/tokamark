@@ -2,11 +2,12 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
-
+import argparse
 import os
 from pathlib import Path
 from typing import Any, Sequence
 from collections.abc import Mapping
+
 from tqdm import tqdm
 import numpy as np
 from torch import ones_like, Tensor
@@ -16,10 +17,16 @@ import torch.multiprocessing as mp
 from multiprocessing import cpu_count
 import psutil
 
+from MAST_tools.utils.general_utils import warning_print
+from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_benchmark.tasks import get_task_config, get_task_metadata, get_signals_metadata
 from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.data import initialize_MAST_dataset, initialize_model_dataset  # FIXME: Broken from Cecile's changes to main. [Cecile]
+from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
 from MAST_benchmark.evaluator import WindowMetricsWriter, compute_task_metrics, compute_all_metrics
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+CONFIG_FILES_DIR = Path("config_files")
 
 
 # ======================================================================================================================
@@ -133,20 +140,16 @@ def MAST_collate_fn(  # noqa N802
         return t.nelement() * t.element_size() / 1024 ** 2
 
     # ..............................................................................................................
+    # Flatten the batch of lists into a single list, and return it
 
-    # Flatten the batch of lists into a single list
-    flattened_batch = []
+    # New (working) approach
+    flattened_batch = [
+        (item["shot_id"], item["window_index"], item["x"], item["y"])
+        for item in batch
+        # if (contains_nans(item["x"]) or contains_nans(item["y"]))  # TODO: Should we keep this condition? [Mike]
+    ]
 
-    for shot in batch:
-        for sample in shot:
-            
-            # if not (contains_nans(sample["x"])
-            #         or contains_nans(sample["y"])):  # TODO: Should we keep this? [Mike]
-            flattened_batch.append(
-                (sample["shot_id"], sample["window_index"], sample["x"], sample["y"])
-            )
-
-    flattened_batch = default_collate(flattened_batch) if (len(flattened_batch) > 0) else None
+    flattened_batch = default_collate(batch=flattened_batch) if (len(flattened_batch) > 0) else None
 
     if verbose:
         proc = psutil.Process(pid=os.getpid())
@@ -203,60 +206,68 @@ def persistence_evaluation_loop(
 
     for batch_idx, batch_ in tqdm(enumerate(test_dataloader)):
         if batch_ is None:
-            print("WARNING: Empty batch skipped.")
+            warning_print(f"Empty batch {batch_idx} skipped.")
             continue
 
         shot_ids, window_indices, x_test, y_test = batch_  # noqa (right number of values to unpack)
 
         # tqdm.write(
-        #     f"-> Processing batch {batch_idx} which has {len(shot_id.unique())} shots and {len(shot_id)} elements."
+        #     f"-> Processing batch {batch_idx} with {len(shot_id.unique())} shots and {len(shot_id)} elements."
         # )
-        print(f"-> Processing batch {batch_idx} which has {len(shot_ids.unique())} shots and {len(shot_ids)} elements.")
+        print(f"\n-> Processing batch {batch_idx} with {len(shot_ids.unique())} shots and {len(shot_ids)} elements.")
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Model prediction
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         y_pred = {}
-        if model == "persistence":
+        if model.startswith("persistence"):
             for key in x_test:
                 last = x_test[key][..., -1].unsqueeze(-1)
                 y_pred[key] = last.expand_as(other=y_test[key])
-        elif model == "mean":
+        elif model.startswith("mean"):
             signal_metadata = get_signals_metadata()
-            for key in y_test:
+            for key in y_test:                                # FIXME: Should the below use mean rather than std? [Mike]
                 std = signal_metadata[key]["std"]
-                y_pred[key] = ones_like(input=y_test[key]) * std  # FIXME: This should use mean, not std. So? [Mike]
+                y_pred[key] = ones_like(input=y_test[key]) * std
         else:
-            print(f"Persistence pipeline: model {model} is not known.")
+            warning_print(f"Persistence pipeline: model {model} is not known.")
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute RMSEs per feature
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         for feature_name in feature_names:
-            y_t = (
-                y_test[feature_name]
-                .squeeze(1)
-                .reshape(len(shot_ids), -1)
-                .numpy()
-            )
-            y_p = (
-                y_pred[feature_name]
-                .squeeze(1)
-                .reshape(len(shot_ids), -1)
-                .numpy()
-            )
 
-            window_metrics.compute_and_append(
-                y_target=y_t,
-                y_pred=y_p,
-                shot_ids=shot_ids,
-                window_indices=window_indices,
-                feature_name=feature_name
-            )
+            try:
+
+                y_t = (
+                    y_test[feature_name]
+                    .squeeze(1)
+                    .reshape(len(shot_ids), -1)
+                    .numpy()
+                )
+                y_p = (
+                    y_pred[feature_name]
+                    .squeeze(1)
+                    .reshape(len(shot_ids), -1)
+                    .numpy()
+                )
+
+                window_metrics.compute_and_append(
+                    y_target=y_t,
+                    y_pred=y_p,
+                    shot_ids=shot_ids,
+                    window_indices=window_indices,
+                    feature_name=feature_name
+                )
+
+            except KeyError:
+                warning_print(f"Missing feature {feature_name} for batch {batch_idx}. Skipping.")
+                pass
 
     print(f"\n✅ Evaluation done. RMSEs and MSEs saved (incrementally).")
+    print(f"---------------------------------------------------------\n")
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -265,6 +276,9 @@ def run_persistence_pipeline(
         pipeline_config: Mapping[str, Any]
 ) -> None:
     """
+
+    Run persistence pipeline.
+
     Parameters
     ----------
     task : str
@@ -283,8 +297,9 @@ def run_persistence_pipeline(
     # ..................................................................................................................
 
     config_task = get_task_config(task_name=task)
+    target_model = pipeline_config["persistence_settings"]["model"]
 
-    if pipeline_config["model"] == "persistence":
+    if target_model == "persistence":
 
         # Pipeline for "persistence" model
 
@@ -315,7 +330,7 @@ def run_persistence_pipeline(
         config_task["sources_and_signals"]["actuator_name"] = None
         config_task["task_window_segmenter"]["actuator_keys"] = None
 
-    else:
+    elif target_model == "mean":
 
         # Pipeline for "mean" model
 
@@ -323,16 +338,19 @@ def run_persistence_pipeline(
         chosen_signals = [f"{source}-{signal}" for source, signal in config_task["sources_and_signals"]["output_name"]]
 
         # 2. Set values of `input_name` field
-        config_task["sources_and_signals"]["input_name"] = [["magnetics", "flux_loop_flux"]]  # FIXME: Why these two? [Mike]
-        # TODO: Check if this should be `output_name` instead. [Mike]
+        config_task["sources_and_signals"]["input_name"] = [["magnetics", "flux_loop_flux"]]  # FIXME: Why these? [Mike]
+        # TODO: Check if this should be `output_name` instead. [Rodrigo, Mike]
 
         # 3. Re-assign `input_keys` values with updated `input_name` values
         config_task["task_window_segmenter"]["input_keys"] = config_task["sources_and_signals"]["input_name"]
-        # TODO: Check if this should have `output_keys` and `output_name` instead. [Mike]
+        # TODO: Check if this should have `output_keys` and `output_name` instead. [Rodrigo, Mike]
 
         # 3. Set `actuator_name` and `actuator_keys` values to None
         config_task["sources_and_signals"]["actuator_name"] = None
         config_task["task_window_segmenter"]["actuator_keys"] = None
+
+    else:
+        raise ValueError(f'Unknown persistence model {target_model}.')
 
     # ..................................................................................................................
     # Proceed if chosen signals are available
@@ -353,33 +371,30 @@ def run_persistence_pipeline(
         # Initialize MAST datasets
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-            max_index=pipeline_config["max_shot_index"],
-            shuffle=pipeline_config["shuffle"]
-        )
+        train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(**pipeline_config["get_shots_settings"])
         print(f"Number of test shots: {len(test_shots_)}")
 
         test_mast_dataset = initialize_MAST_dataset(
             config_task=config_task,
             shots_list=test_shots_,
-            local_flag=pipeline_config["local_flag"],
+            local_flag=pipeline_config["local"],
             use_std_scaling=True,
-            store_manager_settings=pipeline_config.get("store_manager_settings"),
-            return_incomplete_shots=True
+            return_incomplete_shots=True,
+            store_manager_settings=pipeline_config["store_manager_settings"]
         )
 
-        test_dataset = initialize_model_dataset(
+        test_dataset = initialize_TokaMark_dataset(
             dataset=test_mast_dataset,
-            dict_task_metadata=dict_task_metadata,
-            config_task=config_task,
-            model_specific_transform=PersistenceTransform(chosen_signals),
+            task_metadata=dict_task_metadata,
+            config_metadata=config_task,
+            custom_transform=PersistenceTransform(signals=chosen_signals),
             test_mode=True
         )
 
         test_dataloader = DataLoader(
             dataset=test_dataset,
             collate_fn=MAST_collate_fn,
-            **pipeline_config["dataloader_setting"]
+            **pipeline_config["dataloader_settings"]
         )
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -388,19 +403,19 @@ def run_persistence_pipeline(
 
         window_metrics = WindowMetricsWriter(
             task=task,
-            output_dir=pipeline_config["output_dir"]
+            output_dir=pipeline_config["persistence_settings"]["output_dir"]
         )
 
         persistence_evaluation_loop(
             test_dataloader=test_dataloader,
             feature_names=chosen_signals,
             window_metrics=window_metrics,
-            model=pipeline_config["model"]
+            model=pipeline_config["persistence_settings"]["model"]
         )
 
         compute_task_metrics(
             task=task,
-            output_dir=pipeline_config["output_dir"]
+            output_dir=pipeline_config["persistence_settings"]["output_dir"]
         )
 
     else:
@@ -410,62 +425,78 @@ def run_persistence_pipeline(
 # ======================================================================================================================
 if __name__ == "__main__":
 
-    # ------------------------------------------------------------------------------------------------------------------
-    MEAN_MODE = False  # TODO: Re-run and check for both modes. [Rodrigo]
-    DEMO_MODE = False  # TODO: Implement pipeline. [Rodrigo]
-
-    if MEAN_MODE:
-
-        # Model
-        default_model = "mean"
-
-        # Mean model tasks
-        ar_tasks = ["task_2-1", "task_2-2", "task_2-3"]
-
-    else:
-
-        # Model
-        default_model = "persistence"
-
-        # Persistence model tasks
-        # REMARK: From the persistence point of view, tasks "task_4-1", "task_4-2" are identical to "task_3-2".
-        ar_tasks = ["task_2-1", "task_3-1", "task_3-2", "task_4-4", "task_4-5"]
-
-    # ------------------------------------------------------------------------------------------------------------------
-
     print(f"Number of available CPU cores: {cpu_count()}\n")
     mp.set_start_method(method="spawn", force=True)
 
-    pipeline_config_ = {  # TODO: Perhaps use external configs (full and demo)? [Rodrigo]
-        "max_shot_index": None,  # If None, all available shot IDs are used.
-        "shuffle": False,
-        "seed": 42,
-        "local_flag": False,
-        "store_manager_settings": {
-            "base_local_zarr_path": "/mast/tokamark/v1"
-        },
-        "output_dir": Path(__file__).parents[1]/"output"/default_model,  # FIXME: Tess this [Rodrigo]. Also, use correct path (new architecture).
-        "dataloader_setting": {
-            "batch_size": 4,
-            "num_workers": 0
-        },
-        "model": default_model,
-        "all_metrics": False
-    }
+    # ------------------------------------------------------------------------------------------------------------------
+    # Argument parsing
+    # ------------------------------------------------------------------------------------------------------------------
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--persistence_model",
+        type=str,
+        choices=["persistence", "mean"],
+        default="persistence",
+        help="Target model for the persistence pipeline."
+    )
+    parser.add_argument(
+        "--demo_mode",
+        action="store_true",
+        help="Activate demo mode."
+    )
+    parser.add_argument(
+        "--demo_suffix",
+        type=str,
+        default="_DEMO",
+        help="Suffix used in demo mode when saving results."
+    )
+
+    args, _ = parser.parse_known_args()
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Experiment configuration
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # Load Persistence YAML config
+    config_filepath = CONFIG_FILES_DIR / f"config_{args.persistence_model}_model.yaml"
+    config = get_config_from_yaml(file_path=config_filepath)
+
+    # REMARK: Demo mode could be enforced for testing purposes by uncommenting the following line.
+    args.demo_mode = True  # TODO: Re-run and check for both modes. Also, comment out after tests. [Rodrigo]
+
+    # If required, override values with settings for demo mode
+    if args.demo_mode:
+        warning_print("Running in demo mode.")
+
+        config["get_shots_settings"]["max_index"] = 2
+        config["get_shots_settings"]["shuffle"] = False
+
+        config["persistence_settings"]["output_dir"] += args.demo_suffix
+        config["persistence_settings"]["ar_tasks"] = [config["persistence_settings"]["ar_tasks"][0]]  # FIXME: Broken for (persistence, task_4-4) (see error info). [Rodrigo]
+
+    # REMARK: Default values for `store_manager_settings` can be overridden as follows:
+    # config["store_manager_settings"]["base_local_zarr_path"] = "/path/to/local/zarr/dataset"
 
     # ------------------------------------------------------------------------------------------------------------------
     # Looping over auto-regressive tasks
     # ------------------------------------------------------------------------------------------------------------------
 
-    for task_ in ar_tasks:
+    output_dir = config["persistence_settings"]["output_dir"]
+
+    for task_ in config["persistence_settings"]["ar_tasks"]:
         print("---------------------------------------------")
-        print(f"Running persistence pipeline for {task_}...\n")
-        run_persistence_pipeline(task=task_, pipeline_config=pipeline_config_)
-        print(f"\nFinished persistence pipeline for {task_}.")
-        print("---------------------------------------------\n\n")
+        print(f'Running persistence pipeline for {task_}, model `{args.persistence_model}`...\n')
+        run_persistence_pipeline(task=task_, pipeline_config=config)
+        print(f'\nFinished `{args.persistence_model}` pipeline for {task_}.')
+        print("=========================================================\n")
 
-    if pipeline_config_["all_metrics"]:
-        print("\nComputing all metrics...")
-        compute_all_metrics(output_dir=pipeline_config_["output_dir"])
+    if config["persistence_settings"]["compute_all_metrics"]:
 
-    print("DONE")
+        print("---------------------------------------------------------")
+        print(f'Computing all metrics for `{args.persistence_model}` pipeline....\n')
+        compute_all_metrics(output_dir=output_dir)
+        print(f'\nFinished computation of all metrics for `{args.persistence_model}` pipeline.')
+        print("=========================================================\n\n")
+
+    print(f'\nAll done. Results saved under the target directory `{output_dir}`.')

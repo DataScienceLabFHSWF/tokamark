@@ -13,9 +13,8 @@ from typing import Union, Optional
 from types import NoneType
 import warnings
 
-from MAST_tools.data_models import ShotInfo
+from MAST_tools.utils.data_utils import ShotInfo, BaseDataSourceType
 from MAST_tools.utils import store_utils, signal_utils
-from MAST_tools.constants import BaseDataSourceType
 
 
 # ======================================================================================================================
@@ -446,7 +445,7 @@ class MASTPlottingManager:
         self.plot_group(data_origin=data_origin, source_name='thomson_scattering', fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # def plot_cameras(
+    # def plot_cameras(  # FIXME: Check if group cameras are now available. [Rodrigo]
     #         self,
     #         data_origin: BaseDataSourceType,
     #         fig_size: Optional[Union[list[int], set[int]]] = None
@@ -454,14 +453,14 @@ class MASTPlottingManager:
     #     # if fig_size is None:
     #     #     fig_size = [8, 4]
     #
-    #     self.plot_group(data_origin=data_origin, source_name='cameras', fig_size=fig_size)  # FIXME: No group cameras [Rodrigo]
+    #     self.plot_group(data_origin=data_origin, source_name='cameras', fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # def make_movie(
+    # def make_movie(  # FIXME: Check if group cameras are now available. [Rodrigo]
     #         self,
     #         store
     # ):
-    #     raise NotImplementedError  # FIXME: No group cameras [Rodrigo]
+    #     raise NotImplementedError
 
     # output_video_file = "output_video.mp4"
     # fps = 10  # Frames per second

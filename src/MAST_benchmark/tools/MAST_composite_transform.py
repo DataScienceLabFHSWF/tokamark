@@ -6,12 +6,12 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import yaml
 from typing import Union
 
-from MAST_tools.constants import DEFAULT_SIGNALS_STATS_FILE
 from MAST_benchmark.tools.transforms.compose_transform import ComposeTransforms
 from MAST_benchmark.tools.transforms.stdscale_transform import StdScalingTransform
 from MAST_benchmark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
 from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
 from MAST_benchmark.tools.transforms.stft_transform import STFTTransform
+from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------

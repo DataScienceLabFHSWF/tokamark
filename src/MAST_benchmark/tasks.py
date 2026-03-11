@@ -3,27 +3,29 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-import os
 import yaml
 import numpy as np
+from pathlib import Path
 from typing import Any
 from collections.abc import Mapping
 
-from MAST_benchmark.tools.path import TASKS_CONFIGS_DIR  # FIXME: Make TASKS_CONFIGS_DIR match the new architecture. [Rodrigo]
 from MAST_benchmark.tools.utils import get_config_from_yaml
-from MAST_tools.constants import DEFAULT_SIGNALS_STATS_FILE
+from MAST_benchmark.tools.path import (
+    TASKS_CONFIGS_DIR,
+    DEFAULT_SIGNALS_STATS_FILE
+)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-GROUP_TASKS = {  # FIXME: Unused here, but imported elsewhere. Try to put this in constants? [Rodrigo]
+GROUP_TASKS = {  # REMARK: Unused here, but imported elsewhere.
     1: ["task_1-1", "task_1-2", "task_1-3"],
     2: ["task_2-1", "task_2-2", "task_2-3"],
     3: ["task_3-1", "task_3-2", "task_3-3"],
     4: ["task_4-1", "task_4-2", "task_4-3", "task_4-4", "task_4-5"]
 }
 
-TASKS_CONFIGS_MAP = {  # FIXME: Unused here, but imported elsewhere. Try to put this in constants? [Rodrigo]
+TASKS_CONFIGS_MAP = {
     "task_1-1": "group_1_reconstruction/task_1-1.yaml",
     "task_1-2": "group_1_reconstruction/task_1-2.yaml",
     "task_1-3": "group_1_reconstruction/task_1-3.yaml",
@@ -61,7 +63,7 @@ def get_task_config(
     """
 
     task_path = TASKS_CONFIGS_MAP[task_name]
-    file_path = os.path.join(TASKS_CONFIGS_DIR, task_path)  # FIXME: Make TASKS_CONFIGS_DIR match the new architecture. [Rodrigo]
+    file_path = Path(TASKS_CONFIGS_DIR) / task_path
 
     return get_config_from_yaml(file_path=file_path)
 
@@ -105,7 +107,7 @@ def get_task_metadata(
     config_task : Mapping[str, Any]
         Dictionary with task configuration.
     verbose : bool
-        If True, activate verbose mode.
+        If True, verbose mode is activated.
         Default: False.
 
     Returns
@@ -152,38 +154,50 @@ def get_task_metadata(
     delta = config_task["task_window_segmenter"]["delta"]
 
     # Get stride from config file
-    sec_stride = config_task["stride_window"]  # min([dict_metadata[key]["dt"] for key in output_keys])
+    stride_in_secs = config_task["stride_window"]  # min([dict_metadata[key]["dt"] for key in output_keys])
 
     # Split into role-scoped dicts (avoid overwriting)
-    out = {"sec_stride": sec_stride, "input": {}, "actuator": {}, "output": {}}  # TODO: Meaning of sec_stride? Better name? [Rodrigo, Cecile, Tobia]
+    out = {
+        "sec_stride": stride_in_secs,
+        "input": {},
+        "actuator": {},
+        "output": {}
+    }
+    # FIXME: [Cecile, Tobia, Rodrigo]
+    #  - From Tobia: "sec_stride" is "Time in seconds between two consecutive windows.
+    #  - It should be changed to "stride_in_secs".
 
     # ..................................................................................................................
     # Get information
     # ..................................................................................................................
 
     # Input
-    sec_length = input_length
+    length_in_secs = input_length
     for key in input_keys:
         out["input"][key] = dict_stats_metadata[key]
-        out["input"][key]["sec_length"] = sec_length  # TODO: Meaning of sec_length? Better name? [Rodrigo, Cecile, Tobia]
-        out["input"][key]["ts_length"] = int(np.round(sec_length / out["input"][key]["dt"]))  # TODO: Meaning of ts_length? Better name? Rodrigo, Cecile, Tobia]
-        out["input"][key]["ts_stride"] = int(np.round(sec_stride / out["input"][key]["dt"]))  # TODO: Meaning of ts_stride? Better name? [Rodrigo, Cecile, Tobia]
+        out["input"][key]["sec_length"] = length_in_secs
+        out["input"][key]["ts_length"] = int(np.round(length_in_secs / out["input"][key]["dt"]))
+        out["input"][key]["ts_stride"] = int(np.round(stride_in_secs / out["input"][key]["dt"]))
+    # FIXME: [Cecile, Tobia, Rodrigo]
+    #  - "sec_length" should be changed to "length_in_seconds", or so.
+    #  - "ts_length" should be changed to "length_in_time_stamps", or so.
+    #  - "ts_stride" should be changed to "stride_in_time_stamps", or so.
 
     # Actuator
-    sec_length = input_length + delta + output_length
+    length_in_secs = input_length + delta + output_length
     for key in actuator_keys:
         out["actuator"][key] = dict_stats_metadata[key]
-        out["actuator"][key]["sec_length"] = sec_length
-        out["actuator"][key]["ts_length"] = int(np.round(sec_length / out["actuator"][key]["dt"]))
-        out["actuator"][key]["ts_stride"] = int(np.round(sec_stride / out["actuator"][key]["dt"]))
+        out["actuator"][key]["sec_length"] = length_in_secs
+        out["actuator"][key]["ts_length"] = int(np.round(length_in_secs / out["actuator"][key]["dt"]))
+        out["actuator"][key]["ts_stride"] = int(np.round(stride_in_secs / out["actuator"][key]["dt"]))
 
     # Output
-    sec_length = output_length
+    length_in_secs = output_length
     for key in output_keys:
         out["output"][key] = dict_stats_metadata[key]
-        out["output"][key]["sec_length"] = sec_length
-        out["output"][key]["ts_length"] = int(np.round(sec_length / out["output"][key]["dt"]))
-        out["output"][key]["ts_stride"] = int(np.round(sec_stride / out["output"][key]["dt"]))
+        out["output"][key]["sec_length"] = length_in_secs
+        out["output"][key]["ts_length"] = int(np.round(length_in_secs / out["output"][key]["dt"]))
+        out["output"][key]["ts_stride"] = int(np.round(stride_in_secs / out["output"][key]["dt"]))
 
     # ..................................................................................................................
     # Relevant prints, if verbose mode is activated

@@ -1,0 +1,23 @@
+local: false
+
+get_shots_settings:
+  max_index:      # If empty, all available shots are used.
+  shuffle: false  # If true, shuffling is done before selection of subset of shot IDs.
+  seed: 42
+
+# User-defined settings to override default values in `src.MAST_tools.store_utils.MASTStorageManager.__init__`:
+store_manager_settings:
+  base_local_zarr_path: /mast/tokamark/v1  # REMARK: Only relevant when `local` above is true.
+
+dataloader_settings:
+  batch_size: 4
+  num_workers: 0
+
+persistence_settings:
+  model: mean
+  compute_all_metrics: true
+  output_dir: ../output/mean
+  ar_tasks:
+    - task_2-1
+    - task_2-2
+    - task_2-3

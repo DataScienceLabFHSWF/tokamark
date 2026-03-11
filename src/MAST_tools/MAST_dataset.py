@@ -12,11 +12,9 @@ from collections.abc import Callable, Mapping
 from torch.utils.data import Dataset
 
 from MAST_tools.utils import signal_utils
-from MAST_tools.constants import (
-    StoreManagerParametersType,
-    DEFAULT_METADATA_OUTLIER_FILE
-)
-from MAST_tools.data_models import ShotInfo
+from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
+
+from MAST_tools.utils.data_utils import ShotInfo, StoreManagerParametersType
 
 
 # ======================================================================================================================
@@ -157,7 +155,7 @@ class MastDataset(Dataset):
         shot_level_transform: Optional[Callable] = None,
         return_incomplete_shots: bool = False,
         remove_outliers: bool = False,
-        outlier_metadata_file: str = DEFAULT_METADATA_OUTLIER_FILE,
+        outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
         store_manager_settings: Optional[StoreManagerParametersType] = None,
         verbose: bool = False
     ) -> None:
@@ -187,13 +185,13 @@ class MastDataset(Dataset):
             Optional. Default: False.
         outlier_metadata_file : str
             Source file for outlier metadata, only used when `remove_outliers` is True.
-            Optional: Default: DEFAULT_METADATA_OUTLIER_FILE, as defined in `src.MAST_tools.constants.py`
+            Optional: Default: DEFAULT_OUTLIER_METADATA_FILE, as defined in `MAST_tools.utils.path_utils.py`
         store_manager_settings : Optional[StoreManagerParametersType]
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
-            types as defined in `src.MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)
+            types as defined in `MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)
             pairs are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
             Optional. Default: None, which results in the default values for all the keywords as defined in
-            `src.MAST_tools.store_utils.MASTStorageManager.__init__`.
+            `MAST_tools.store_utils.MASTStorageManager.__init__`.
         verbose : bool
             If True, verbose mode is activated.
             Optional. Default: False.

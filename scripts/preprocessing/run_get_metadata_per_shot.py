@@ -6,40 +6,28 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import os
 import csv
 import argparse
-import yaml
-import json
 import numpy as np
 from typing import Any
 from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 from torch.utils.data import Dataset, DataLoader
 
-from MAST_benchmark.data import initialize_MAST_dataset
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_tools.MAST_dataset import MastDataset
-from MAST_tools.constants import (
-    DEFAULT_BASE_LOCAL_ZARR_PATH,
-    DEFAULT_CONFIG_GET_METADATA_FILE,  # noqa
-    DEFAULT_CONFIG_GET_METADATA_DEMO_FILE,  # noqa
+from preproc_paths import (
     DEFAULT_SHOTS_STATS_VAL_FILE,
     DEFAULT_SHOTS_STATS_TEST_FILE,
-    DEFAULT_SHOTS_STATS_TRAIN_FILE,
+    DEFAULT_SHOTS_STATS_TRAIN_FILE
 )
+
+from MAST_benchmark.tools.utils import get_config_from_yaml
+from MAST_tools.utils.general_utils import warning_print
+from MAST_tools.MAST_dataset import MastDataset
+from MAST_benchmark.data import initialize_MAST_dataset
+from MAST_benchmark.data_split import get_train_test_val_shots
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-DEMO_MODE = False  # TODO: Recalculate files using DEMO_MODE = False. [Rodrigo]
-
-if DEMO_MODE:
-    default_config = DEFAULT_CONFIG_GET_METADATA_DEMO_FILE
-    default_shots_stats_val_file = DEFAULT_SHOTS_STATS_VAL_FILE.replace(".csv", "_DEMO.csv")
-    default_shots_stats_test_file = DEFAULT_SHOTS_STATS_TEST_FILE.replace(".csv", "_DEMO.csv")
-    default_shots_stats_train_file = DEFAULT_SHOTS_STATS_TRAIN_FILE.replace(".csv", "_DEMO.csv")
-else:
-    default_config = DEFAULT_CONFIG_GET_METADATA_FILE
-    default_shots_stats_val_file = DEFAULT_SHOTS_STATS_VAL_FILE
-    default_shots_stats_test_file = DEFAULT_SHOTS_STATS_TEST_FILE
-    default_shots_stats_train_file = DEFAULT_SHOTS_STATS_TRAIN_FILE
+CSV_HEADER = ["shot_idx", "shot_id", "variable", "n_dim_shot", "mean", "variance"]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -60,7 +48,7 @@ class ShotStatsDataset(Dataset):
     ----------
     dataset : MastDataset
         Target dataset.
-    sources_signals : list
+    sources_signals : list[str]
         List of source-signal items.
 
     Methods
@@ -148,7 +136,7 @@ class ShotStatsDataset(Dataset):
             if len(values) > 0:
 
                 mean_sample = np.nanmean(values)
-                # std_sample = np.nanstd(values)  # Unbiased std NOT REALLY  # FIXME: Is this needed? [Cecle]
+                # std_sample = np.nanstd(values)  # Unbiased std NOT REALLY  # FIXME: Is this needed? [Cecile]
                 variance_sample = np.nanvar(values, ddof=0)  # Unbiased variance
 
                 # Handle all-NaN arrays
@@ -215,8 +203,7 @@ def compute_mean_std_per_shot_to_csv(
         writer = csv.writer(ff)
 
         # Write header
-        header = ["shot_idx", "shot_id", "variable", "n_dim_shot", "mean", "variance"]
-        writer.writerow(header)
+        writer.writerow(CSV_HEADER)
 
         counter = 0
         for batch in loader:
@@ -254,149 +241,164 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config",
+        "--config_file",
         type=str,
-        default=default_config,
-        help="Path to the config_get_metadata YAML file.",
+        default="config_get_metadata.yaml",
+        help="Path to the YAML file with configuration to get metadata.",
     )
     parser.add_argument(
-        "--shots_stats_val_path",
+        "--shots_stats_train_saving_file_path",
         type=str,
-        default=default_shots_stats_val_file,
-        help="Path to the CSV file where shots statistics for validation will be saved."
-    )
-    parser.add_argument(
-        "--shots_stats_test_path",
-        type=str,
-        default=default_shots_stats_test_file,
-        help="Path to the CSV file where shots statistics for testing will be saved."
-    )
-    parser.add_argument(
-        "--shots_stats_train_path",
-        type=str,
-        default=default_shots_stats_train_file,
+        default=DEFAULT_SHOTS_STATS_TRAIN_FILE,
         help="Path to the CSV file where shots statistics for training will be saved."
     )
     parser.add_argument(
-        "--use_std_scaling",
-        action="store_true",
-        help="Activate STD scaling. If not provided, it defaults to `use_std_scaling = False`."
+        "--shots_stats_val_saving_file_path",
+        type=str,
+        default=DEFAULT_SHOTS_STATS_VAL_FILE,
+        help="Path to the CSV file where shots statistics for validation will be saved."
     )
     parser.add_argument(
-        "--skip_incomplete_shots",
-        action="store_true",
-        help="Skip incomplete shots. If not provided, it defaults to `skip_incomplete_shots = False`, which in turn "
-             "results in `return_incomplete_shots = True`."
+        "--shots_stats_test_saving_file_path",
+        type=str,
+        default=DEFAULT_SHOTS_STATS_TEST_FILE,
+        help="Path to the CSV file where shots statistics for testing will be saved."
     )
     parser.add_argument(
-        "--remove_outliers",
+        "--demo_mode",
         action="store_true",
-        help="Remove outliers. If not provided, it defaults to `remove_outliers = False`."
+        help="Activate demo mode."
     )
     parser.add_argument(
-        "--store_manager_settings",
-        type=json.loads,
-        help="User-defined store manager settings for the target MAST_dataset instance as defined in "
-             "`src.MAST_tools.MAST_dataset.StoreManagerParameters`, passed as (keyword, value) pairs in a JSON object. "
-             "It is useful to provide store manager settings different than the default ones defined in "
-             "`src.MAST_tools.store_utils.MASTStorageManager.__init__`.",
-        default='{\"base_local_zarr_path\":\"' + DEFAULT_BASE_LOCAL_ZARR_PATH + '\"}'
+        "--demo_suffix",
+        type=str,
+        default="_DEMO",
+        help="Suffix used in demo mode when saving results."
     )
 
     args, _ = parser.parse_known_args()
 
-    # Trick to default boolean parameters to True
-    args.return_incomplete_shots = not args.skip_incomplete_shots
+    # ------------------------------------------------------------------------------------------------------------------
+    # Experiment configuration
+    # ------------------------------------------------------------------------------------------------------------------
 
     # Load Task YAML config
-    with open(args.config, "r") as f:
-        config = yaml.safe_load(f)
+    config = get_config_from_yaml(file_path=args.config_file)
+
+    # REMARK: Demo mode could be enforced (e.g., for testing) by uncommenting the following line.
+    # args.demo_mode = True
+
+    # If required, override values with settings for demo mode
+    if args.demo_mode:
+        warning_print("Running in demo mode.")
+
+        filename_demo_suffix = f"{args.demo_suffix}.csv"
+        args.shots_stats_train_saving_file_path = str(args.shots_stats_train_saving_file_path).replace(
+            ".csv",
+            filename_demo_suffix
+        )
+        args.shots_stats_val_saving_file_path = str(args.shots_stats_val_saving_file_path).replace(
+            ".csv",
+            filename_demo_suffix
+        )
+        args.shots_stats_test_saving_file_path = str(args.shots_stats_test_saving_file_path).replace(
+            ".csv",
+            filename_demo_suffix
+        )
+
+        config["get_shots_settings"]["max_index"] = 2
+        config["get_shots_settings"]["shuffle"] = True
+
+        config["dataloader_settings"]["batch_size"] = 10
+        config["dataloader_settings"]["num_workers"] = 10
+
+        config["max_data_samples"] = 2
 
     # ------------------------------------------------------------------------------------------------------------------
     # Specific Data Preprocessing for LCFS profiles
     # ------------------------------------------------------------------------------------------------------------------
 
-    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index=config["max_shot_index"],
-        shuffle=config["shuffle"],
-        seed=config["seed"]
-    )
-
-    local_flag = config["local"]
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Create unstandardized val dataset
-    # ------------------------------------------------------------------------------------------------------------------
-
-    print("\nProcessing val dataset...")
-
-    preprocessing_val_dataset = initialize_MAST_dataset( 
-        config_task=config,
-        shots_list=val_shots_,
-        local_flag=local_flag,
-        use_std_scaling=args.use_std_scaling,                   # It defaults to False
-        return_incomplete_shots=args.return_incomplete_shots,   # t defaults to True
-        remove_outliers=args.remove_outliers,                   # It defaults to False
-        store_manager_settings=args.store_manager_settings
-    )
-
-    compute_mean_std_per_shot_to_csv(
-        dataset=preprocessing_val_dataset,
-        csv_path=args.shots_stats_val_path,
-        num_workers=20,     # Default value "32" may trigger warnings depending on local resources.
-        batch_size=20       # Default value "32" may trigger warnings depending on local resources.
-    )
-
-    print("... Done.")
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Create unstandardized test dataset
-    # ------------------------------------------------------------------------------------------------------------------
-
-    print("\nProcessing test dataset...")
-
-    preprocessing_test_dataset = initialize_MAST_dataset( 
-        config_task=config,
-        shots_list=test_shots_,
-        local_flag=local_flag,
-        use_std_scaling=args.use_std_scaling,                   # It defaults to False
-        return_incomplete_shots=args.return_incomplete_shots,   # It defaults to True
-        remove_outliers=args.remove_outliers,                   # It defaults to False
-        store_manager_settings=args.store_manager_settings
-    )
-
-    compute_mean_std_per_shot_to_csv(
-        dataset=preprocessing_test_dataset,
-        csv_path=args.shots_stats_test_path,
-        num_workers=20,     # Default value "32" may trigger warnings depending on local resources.
-        batch_size=20       # Default value "32" may trigger warnings depending on local resources.
-    )
-
-    print("... Done.")
+    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(**config["get_shots_settings"])
 
     # ------------------------------------------------------------------------------------------------------------------
     # Create unstandardized train dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    print("\nProcessing train dataset...")
+    print("\nProcessing training dataset...")
 
-    preprocessing_train_dataset = initialize_MAST_dataset( 
-        config_task=config,
+    unstandardized_train_dataset = initialize_MAST_dataset(
+        config_task=config["task_configuration"],
         shots_list=train_shots_,
-        local_flag=local_flag,
-        use_std_scaling=args.use_std_scaling,                   # It defaults to False
-        return_incomplete_shots=args.return_incomplete_shots,   # It defaults to True
-        remove_outliers=args.remove_outliers,                   # It defaults to False
-        store_manager_settings=args.store_manager_settings
+        local_flag=config["local"],
+        use_std_scaling=False,          # <- To get unstandardized dataset
+        return_incomplete_shots=True,   # <- To include all available shots
+        remove_outliers=False,          # <- To keep outliers
+        store_manager_settings=config["store_manager_settings"]
     )
+
+    print("Computing Mean/STD values per shot in training dataset...")
 
     compute_mean_std_per_shot_to_csv(
-        dataset=preprocessing_train_dataset,
-        csv_path=args.shots_stats_train_path,
-        num_workers=20,     # Default value "32" may trigger warnings depending on local resources.
-        batch_size=20       # Default value "32" may trigger warnings depending on local resources.
+        dataset=unstandardized_train_dataset,
+        csv_path=args.shots_stats_train_saving_file_path,
+        **config["dataloader_settings"]
     )
 
-    print("... Done.")
+    print(f"Mean/STD results saved at {args.shots_stats_train_saving_file_path}")
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Create unstandardized val dataset
+    # ------------------------------------------------------------------------------------------------------------------
+
+    print("\nProcessing validation dataset...")
+
+    unstandardized_val_dataset = initialize_MAST_dataset(
+        config_task=config["task_configuration"],
+        shots_list=val_shots_,
+        local_flag=config["local"],
+        use_std_scaling=False,          # <- To get unstandardized dataset
+        return_incomplete_shots=True,   # <- To include all available shots
+        remove_outliers=False,          # <- To keep outliers
+        store_manager_settings=config["store_manager_settings"]
+    )
+
+    print("Computing Mean/STD values per shot in validation dataset dataset...")
+
+    compute_mean_std_per_shot_to_csv(
+        dataset=unstandardized_val_dataset,
+        csv_path=args.shots_stats_val_saving_file_path,
+        **config["dataloader_settings"]
+    )
+
+    print(f"Mean/STD results saved at {args.shots_stats_val_saving_file_path}")
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Create unstandardized test dataset
+    # ------------------------------------------------------------------------------------------------------------------
+
+    print("\nProcessing testing dataset...")
+
+    unstandardized_test_dataset = initialize_MAST_dataset(
+        config_task=config["task_configuration"],
+        shots_list=test_shots_,
+        local_flag=config["local"],
+        use_std_scaling=False,          # <- To get unstandardized dataset
+        return_incomplete_shots=True,   # <- To include all available shots
+        remove_outliers=False,          # <- To keep outliers
+        store_manager_settings=config["store_manager_settings"]
+    )
+
+    print("Computing Mean/STD values per shot in testing dataset dataset...")
+    compute_mean_std_per_shot_to_csv(
+        dataset=unstandardized_test_dataset,
+        csv_path=args.shots_stats_test_saving_file_path,
+        **config["dataloader_settings"]
+    )
+
+    print(f"Mean/STD results saved at {args.shots_stats_test_saving_file_path}")
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Ending
+    # ------------------------------------------------------------------------------------------------------------------
 
     print("\nAll computations done.")
