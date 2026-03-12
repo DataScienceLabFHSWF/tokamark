@@ -15,7 +15,7 @@ def stft(
         support_n: int = 512
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Return the short-time Fourier transform of input data using input (sample) times.
+    Return the short-time Fourier transform (STFT) of input data using input (sample) times.
 
     Parameters
     ----------
@@ -24,7 +24,7 @@ def stft(
     times : np.ndarray
         Input 1D times array of shape (T,).
     support_n : int
-        TODO: Add suitable description. Number of support points? [Cecile]
+        Number of support points for the STFT.
         Optional. Default: 512.
 
     Returns
@@ -54,7 +54,6 @@ def stft(
     times = times[:nnp * support_n].reshape(nnp, support_n)
 
     # Simple frame time: mean time within each window
-    # frame_times = times.mean(axis=1)  # Shape: (n_frames,)  # TODO: Should we keep this? [Cecile]
     frame_times = np.array([t[-1] for t in times])  # Shape: (n_frames,)
 
     spectrum = np.fft.fft(data)
@@ -72,7 +71,7 @@ class STFTTransform:
     Attributes
     ----------
     support_n : int
-        TODO: Add suitable description. Number of support points? [Cecile]
+        Number of support points for the STFT.
 
     Methods
     -------
@@ -92,7 +91,7 @@ class STFTTransform:
         Parameters
         ----------
         support_n : int
-            TODO: Add suitable description. Number of support points? [Cecile]
+            Number of support points for the STFT.
             Optional. Default: 512.
 
         Return

@@ -42,7 +42,7 @@ def to_python(
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, tuple):
-        return list(obj)  # FIXME: This should have the same logic as the list case. [Cecile]
+        return [to_python(v) for v in obj]
     if isinstance(obj, dict):
         return {k: to_python(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     # REMARK: Demo mode could be enforced (e.g., for testing) by uncommenting the following line.
-    # args.demo_mode = True  # TODO: Check why demo results are equal to full results. [Rodrigo, Cecile]
+    # args.demo_mode = True
 
     # If required, override values with settings for demo mode
     if args.demo_mode:
@@ -184,10 +184,11 @@ if __name__ == "__main__":
                 "dt": dt,  # TODO: This variable should have a meaningful name. What does "dt" stand for? [Cecile]
                 "values_shape": values.shape[:-1],  # <- Exclude time dimension
                 "mean": dict_mean_std[var]["mean"]["no_outliers_z6"], 
-                "std": dict_mean_std[var]["std"]["no_outliers_z6"],
+                "std": dict_mean_std[var]["std"]["no_outliers_z6"]
             }
             # FIXME:
             #  - From Tobia: dt is "Time in seconds between two consecutive measurements for a specific signal". Right?
+            #  - From Cecile: granularity.
             #  - If better name is decided, find and replace all "dt" occurrences [Cecile, Rodrigo]
         
         # Stop once all variables are filled

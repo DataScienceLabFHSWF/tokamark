@@ -69,7 +69,6 @@ class ModelSpecificTransform:  # TEMPLATE
 
         """
 
-        # dictionary that persists across calls  # FIXME: Is this comment relevant? [Cecile]
         self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -167,7 +166,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pipeline_config_file_path",
         type=str,
-        default=CONFIG_FILES_DIR / "config_test_cnn_pipeline.yaml",
+        default=CONFIG_FILES_DIR / "config_test_pipeline.yaml",
         help="Path to the model YAML config file."
     )
     parser.add_argument(
@@ -188,7 +187,7 @@ if __name__ == "__main__":
     # Experiment configuration
     # ------------------------------------------------------------------------------------------------------------------
 
-    # Load CNN YAML config
+    # Load the config YAML file
     pipeline_config = get_config_from_yaml(file_path=args.pipeline_config_file_path)
 
     # REMARK: Demo mode could be enforced (e.g., for testing) by uncommenting the following line.
@@ -229,23 +228,23 @@ if __name__ == "__main__":
         verbose=True
     )
 
-    # val_MAST_dataset = initialize_MAST_dataset(  # FIXME: Unused instance [Cecile]
-    #     config_task=config_task,
-    #     shots_list=val_shots_,
-    #     local_flag=local_flag,
-    #     **pipeline_config["mast_dataset_init_settings"],
-    #     store_manager_settings=pipeline_config["store_manager_settings"],
-    #     verbose=True
-    # )
+    val_MAST_dataset = initialize_MAST_dataset(
+        config_task=config_task,
+        shots_list=val_shots_,
+        local_flag=local_flag,
+        **pipeline_config["mast_dataset_init_settings"],
+        store_manager_settings=pipeline_config["store_manager_settings"],
+        verbose=True
+    )
 
-    # test_MAST_dataset = initialize_MAST_dataset(  # FIXME: Unused instance [Cecile]
-    #     config_task=config_task,
-    #     shots_list=test_shots_,
-    #     local_flag=local_flag,
-    #     **pipeline_config["mast_dataset_init_settings"],
-    #     store_manager_settings=pipeline_config["store_manager_settings"],
-    #     verbose=True
-    # )
+    test_MAST_dataset = initialize_MAST_dataset(
+        config_task=config_task,
+        shots_list=test_shots_,
+        local_flag=local_flag,
+        **pipeline_config["mast_dataset_init_settings"],
+        store_manager_settings=pipeline_config["store_manager_settings"],
+        verbose=True
+    )
 
     # ------------------------------------------------------------------------------------------------------------------
     # Initialize task-specific metadata
@@ -279,8 +278,10 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
+    # Similarly, DataLoader instances can be created for val and test, i.e. val_dataloader and test_dataloader.
+
     # ..................................................................................................................
-    # Evaluation loop
+    # Evaluation loop for train_dataloader
     # ..................................................................................................................
 
     for batch_idx, batch_ in enumerate(train_dataloader):
@@ -304,6 +305,12 @@ if __name__ == "__main__":
     # print(x_train[0][0:10])
     # print("\n\n\n")
     # print(y_train[0][0:10])
+
+    # ..................................................................................................................
+    # Evaluation loop for val and test
+    # ..................................................................................................................
+
+    # Similarly, evaluation loops can be put in place for val_dataloader and test_dataloader instances.
 
 
 end = time.perf_counter()

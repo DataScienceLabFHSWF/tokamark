@@ -2,6 +2,7 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
+
 import argparse
 import os
 from pathlib import Path
@@ -10,7 +11,8 @@ from collections.abc import Mapping
 
 from tqdm import tqdm
 import numpy as np
-from torch import ones_like, Tensor
+from torch import ones_like
+from torch import Tensor as TorchTensor
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
 import torch.multiprocessing as mp
@@ -22,7 +24,11 @@ from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_benchmark.tasks import get_task_config, get_task_metadata, get_signals_metadata
 from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
-from MAST_benchmark.evaluator import WindowMetricsWriter, compute_task_metrics, compute_all_metrics
+from MAST_benchmark.evaluator import (
+    WindowMetricsAccumulator,
+    compute_metrics,
+    compute_summary_metrics
+)
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -135,7 +141,7 @@ def MAST_collate_fn(  # noqa N802
         return any(np.isnan(x_).any() for x_ in data)
 
     # ..............................................................................................................
-    def tensor_size(t: Tensor) -> float:
+    def tensor_size(t: TorchTensor) -> float:
         """Get size of given tensor."""
         return t.nelement() * t.element_size() / 1024 ** 2
 
@@ -176,11 +182,11 @@ def MAST_collate_fn(  # noqa N802
 def persistence_evaluation_loop(
     test_dataloader: DataLoader,
     feature_names: list[str],
-    window_metrics: WindowMetricsWriter,
+    accumulator: WindowMetricsAccumulator,
     model: str = "persistence"
-) -> None:
+):
     """
-    Evaluate persistence model per shot/window and save incremental RMSEs to CSV.
+    Evaluate persistence model per shot/window and populate an accumulator.
 
     Parameters
     ----------
@@ -188,8 +194,8 @@ def persistence_evaluation_loop(
         Test DataLoader instance.
     feature_names : list[str]
         List of feature (signal) names.
-    window_metrics : WindowMetricsWriter
-        Input WindowMetricsWriter instance.
+    accumulator : WindowMetricsAccumulator
+        Input WindowMetricsAccumulator instance.
     model : str
         Model type. Valid options are "persistence" and "mean".
         Optional. Default: "persistence".
@@ -254,11 +260,11 @@ def persistence_evaluation_loop(
                     .numpy()
                 )
 
-                window_metrics.compute_and_append(
+                accumulator.add_batch(
                     y_target=y_t,
                     y_pred=y_p,
-                    shot_ids=shot_ids,
-                    window_indices=window_indices,
+                    shot_id=shot_ids,  # TODO: This should be shot_ids=
+                    window_index=window_indices,  # TODO: This should be window_indices=
                     feature_name=feature_name
                 )
 
@@ -266,7 +272,7 @@ def persistence_evaluation_loop(
                 warning_print(f"Missing feature {feature_name} for batch {batch_idx}. Skipping.")
                 pass
 
-    print(f"\n✅ Evaluation done. RMSEs and MSEs saved (incrementally).")
+    print(f"\n✅ Evaluation done. Window metrics accumulator is ready.")
     print(f"---------------------------------------------------------\n")
 
 
@@ -345,7 +351,7 @@ def run_persistence_pipeline(
         config_task["task_window_segmenter"]["input_keys"] = config_task["sources_and_signals"]["input_name"]
         # TODO: Check if this should have `output_keys` and `output_name` instead. [Rodrigo, Mike]
 
-        # 3. Set `actuator_name` and `actuator_keys` values to None
+        # 4. Set `actuator_name` and `actuator_keys` values to None
         config_task["sources_and_signals"]["actuator_name"] = None
         config_task["task_window_segmenter"]["actuator_keys"] = None
 
@@ -379,7 +385,7 @@ def run_persistence_pipeline(
             shots_list=test_shots_,
             local_flag=pipeline_config["local"],
             use_std_scaling=True,
-            return_incomplete_shots=True,
+            return_incomplete_shots=False,  # TODO: Using False to try and fix error with Tasks 4.4. Remove after tests.
             store_manager_settings=pipeline_config["store_manager_settings"]
         )
 
@@ -401,23 +407,26 @@ def run_persistence_pipeline(
         # Evaluation
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        window_metrics = WindowMetricsWriter(
-            task=task,
-            output_dir=pipeline_config["persistence_settings"]["output_dir"]
-        )
+        accumulator = WindowMetricsAccumulator(task=task)
 
         persistence_evaluation_loop(
             test_dataloader=test_dataloader,
             feature_names=chosen_signals,
-            window_metrics=window_metrics,
-            model=pipeline_config["persistence_settings"]["model"]
+            accumulator=accumulator,
+            model=pipeline_config["persistence_settings"]["model"],
         )
 
-        compute_task_metrics(
+        if accumulator.is_empty():
+            print(f"No windows metrics were computed for task {task}.")
+            return
+
+        compute_metrics(
             task=task,
-            output_dir=pipeline_config["persistence_settings"]["output_dir"]
+            output_dir=pipeline_config["persistence_settings"]["output_dir"],
+            window_metrics_accumulator=accumulator,
+            save_windows_metrics=pipeline_config["persistence_settings"]["save_windows_metrics"],
+            save_task_metrics=pipeline_config["persistence_settings"]["save_task_metrics"]
         )
-
     else:
         print("No common signals between input and output - not possible to run persistence.")  # REMARK: Only case.
 
@@ -437,7 +446,7 @@ if __name__ == "__main__":
         "--persistence_model",
         type=str,
         choices=["persistence", "mean"],
-        default="persistence",
+        default="persistence",  # FIXME: Pipeline is broken for (persistence, task_4-4/4-5) (see error info). [Rodrigo]
         help="Target model for the persistence pipeline."
     )
     parser.add_argument(
@@ -463,7 +472,7 @@ if __name__ == "__main__":
     config = get_config_from_yaml(file_path=config_filepath)
 
     # REMARK: Demo mode could be enforced for testing purposes by uncommenting the following line.
-    args.demo_mode = True  # TODO: Re-run and check for both modes. Also, comment out after tests. [Rodrigo]
+    # args.demo_mode = True  # TODO: Re-run and check for full mode. Also, comment out after tests. [Rodrigo]
 
     # If required, override values with settings for demo mode
     if args.demo_mode:
@@ -473,7 +482,7 @@ if __name__ == "__main__":
         config["get_shots_settings"]["shuffle"] = False
 
         config["persistence_settings"]["output_dir"] += args.demo_suffix
-        config["persistence_settings"]["ar_tasks"] = [config["persistence_settings"]["ar_tasks"][0]]  # FIXME: Broken for (persistence, task_4-4) (see error info). [Rodrigo]
+        config["persistence_settings"]["ar_tasks"] = [config["persistence_settings"]["ar_tasks"][0]]
 
     # REMARK: Default values for `store_manager_settings` can be overridden as follows:
     # config["store_manager_settings"]["base_local_zarr_path"] = "/path/to/local/zarr/dataset"
@@ -491,11 +500,11 @@ if __name__ == "__main__":
         print(f'\nFinished `{args.persistence_model}` pipeline for {task_}.')
         print("=========================================================\n")
 
-    if config["persistence_settings"]["compute_all_metrics"]:
+    if config["persistence_settings"]["compute_summary_metrics"]:
 
         print("---------------------------------------------------------")
         print(f'Computing all metrics for `{args.persistence_model}` pipeline....\n')
-        compute_all_metrics(output_dir=output_dir)
+        compute_summary_metrics(output_dir=output_dir)
         print(f'\nFinished computation of all metrics for `{args.persistence_model}` pipeline.')
         print("=========================================================\n\n")
 

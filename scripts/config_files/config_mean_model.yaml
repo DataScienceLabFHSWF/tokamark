@@ -10,12 +10,14 @@ store_manager_settings:
   base_local_zarr_path: /mast/tokamark/v1  # REMARK: Only relevant when `local` above is true.
 
 dataloader_settings:
-  batch_size: 4
-  num_workers: 0
+  batch_size: 20  # 4
+  num_workers: 20  # 0
 
 persistence_settings:
   model: mean
-  compute_all_metrics: true
+  compute_summary_metrics: true
+  save_windows_metrics: false
+  save_task_metrics: true
   output_dir: ../output/mean
   ar_tasks:
     - task_2-1

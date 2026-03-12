@@ -10,17 +10,19 @@ store_manager_settings:
   base_local_zarr_path: /mast/tokamark/v1  # REMARK: Only relevant when `local` above is true.
 
 dataloader_settings:
-  batch_size: 4
-  num_workers: 0
+  batch_size: 20  # 4
+  num_workers: 20  # 0
 
 persistence_settings:
   model: persistence
-  compute_all_metrics: true
+  compute_summary_metrics: true
+  save_windows_metrics: false
+  save_task_metrics: true
   output_dir: ../output/persistence
   ar_tasks:  # REMARK: From the persistence point of view, tasks "task_4-1" and "task_4-2" are identical to "task_3-2".
-    - task_2-1
-    - task_3-1
-    - task_3-2
-    - task_4-4  # FIXME: This task is triggering runtime errors. [Rodrigo, Mike]
-    - task_4-5
+    # - task_2-1
+    # - task_3-1
+    # - task_3-2
+    # - task_4-4  # FIXME [Rodrigo, Mike]: This task is triggering runtime errors. Example: stack expects each tensor to be equal size, but got [624] at entry 0 and [1224] at entry 1
+    - task_4-5  # FIXME [Rodrigo, Mike]: This task is triggering runtime errors. Example: stack expects each tensor to be equal size, but got [624] at entry 0 and [1224] at entry 1
     # TODO: What about task_3.3, task_4.3? [Mike, Rodrigo]

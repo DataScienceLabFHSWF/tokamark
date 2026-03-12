@@ -12,14 +12,6 @@ dataloader_settings:
   batch_size: 8
   num_workers: 0
 
-cnn_settings:
-  D: 64
-
-training_args:
-  lr: 0.00001
-  max_epochs: 500
-  patience: 5
-
 mast_dataset_init_settings:
   use_std_scaling: true
   return_incomplete_shots: true
@@ -28,6 +20,3 @@ mast_dataset_init_settings:
 tokamark_dataset_init_settings:
   test_mode: true
   shuffle_windows: false
-
-paths:
-  data_output_directory: ../output/test_cnn

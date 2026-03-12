@@ -136,7 +136,6 @@ class ShotStatsDataset(Dataset):
             if len(values) > 0:
 
                 mean_sample = np.nanmean(values)
-                # std_sample = np.nanstd(values)  # Unbiased std NOT REALLY  # FIXME: Is this needed? [Cecile]
                 variance_sample = np.nanvar(values, ddof=0)  # Unbiased variance
 
                 # Handle all-NaN arrays
