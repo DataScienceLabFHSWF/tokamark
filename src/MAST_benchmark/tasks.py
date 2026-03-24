@@ -163,10 +163,6 @@ def get_task_metadata(
         "actuator": {},
         "output": {}
     }
-    # TODO [Cecile/Tobia/Rodrigo]:
-    #  - Change "sec_stride" to "stride_in_secs"?
-    #  - Implications of the above?
-    #  - RESULT: Use proposed names.
 
     # ..................................................................................................................
     # Get information
@@ -179,12 +175,6 @@ def get_task_metadata(
         out["input"][key]["length_in_seconds"] = length_in_secs
         out["input"][key]["length_in_time_stamps"] = int(np.round(length_in_secs / out["input"][key]["dt"]))
         out["input"][key]["stride_in_time_stamps"] = int(np.round(stride_in_secs / out["input"][key]["dt"]))
-    # TODO: [Cecile/Tobia/Rodrigo]
-    #  - Change "sec_length" to "length_in_seconds"?
-    #  - Change "ts_length" to "length_in_time_stamps"?
-    #  - Change "ts_stride" to "stride_in_time_stamps"?
-    #  - Implications of the above?
-    #  - RESULT: Use proposed names.
 
     # Actuator
     length_in_secs = input_length + delta + output_length
