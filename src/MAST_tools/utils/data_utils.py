@@ -3,15 +3,11 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Union, Any, TypedDict, Optional
-from typing_extensions import NotRequired
 from collections.abc import Mapping
-from typing_extensions import Unpack
+from typing import Union, Any, TypedDict, Optional
+from typing_extensions import NotRequired, Unpack
 import zarr.storage
 from xarray.core.dataset import Dataset
-
-
-# TODO: Evaluate the use of Literal[<val_1>, ..., [val_n]] (via from typing import Literal) for args from given choices. [Rodrigo]
 
 
 # ======================================================================================================================

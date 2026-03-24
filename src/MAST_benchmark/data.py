@@ -3,8 +3,8 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Optional, Any
 from collections.abc import Callable, Mapping
+from typing import Optional, Any
 
 from MAST_tools.MAST_dataset import MastDataset
 from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
@@ -53,7 +53,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         `MAST_tools.store_utils.MASTStorageManager.__init__`.
     verbose : bool
         If True, verbose mode is activated.
-        Optional. Default: True.
+        Optional. Default: False.
 
     """
 
@@ -102,11 +102,10 @@ def initialize_TokaMark_dataset(  # noqa (allow uppercase)
         shuffle_windows: bool = True,
         shuffle_buffer_size: int = 512,
         *,
-        verbose: bool = False,
+        verbose: bool = False
 ) -> Optional[TokaMarkDataset]:
     """
-    # TODO: Check if the whole docstrings added by Rodrigo makes sense. [Cecile]
-
+    #
     Wrap a single baseline shot-level dataset with TokaMarkDataset.
     This method is intended to be called explicitly for each split (train/val/test) from entrypoint scripts.
 
@@ -114,14 +113,14 @@ def initialize_TokaMark_dataset(  # noqa (allow uppercase)
     ----------
     dataset : Optional[MastDataset]
         Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
-    task_metadata : Mapping[str, Any],
+    task_metadata : Mapping[str, Any]
         Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
-    config_metadata : Mapping[str, Any],
+    config_metadata : Mapping[str, Any]
         Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
     custom_transform : Optional[Any]
         Optional model-specific transform chain applied per window.
     test_mode : bool
-        If True, activates test mode.  # TODO: Better description for this parameter. [Cecile]
+        If True, activates test mode. This forces at least one input to be full, and all outputs to be full.
         Optional. Default: False.
     shuffle_windows : bool
         If True, windows are shuffled before returning them.

@@ -4,8 +4,8 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import numpy as np
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 
 # ======================================================================================================================
@@ -43,8 +43,8 @@ def stft(
     if nnp == 0:
         # No full window fits -> return empty arrays
         return (
-            np.zeros((0, support_n // 2), dtype=float),
-            np.zeros((0,), dtype=float),
+            np.zeros(shape=(0, support_n // 2), dtype=float),
+            np.zeros(shape=(0,), dtype=float),
         )
 
     window = np.tile(window, nnp)
@@ -76,7 +76,7 @@ class STFTTransform:
     Methods
     -------
     __call__(dict_)
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
     """
 
@@ -94,9 +94,9 @@ class STFTTransform:
             Number of support points for the STFT.
             Optional. Default: 512.
 
-        Return
-        ------
-        None
+        Returns
+        -------
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
@@ -108,7 +108,7 @@ class STFTTransform:
             dict_: Mapping[str, Any]
     ) -> dict[str, Any]:
         """
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
         Parameters
         ----------
@@ -144,11 +144,8 @@ class STFTTransform:
         else:
             spectrum_stack = np.stack(spectra, axis=0)
 
-        # print(spectrum_stack.transpose(0, 2, 1).shape)
-
         return {
             'time': frame_times,
-            # 'values': spectrum_stack  # TODO: Should we remove this? [Cecile]
             'values': spectrum_stack.transpose(0, 2, 1)
         }
 

@@ -9,12 +9,14 @@ from pathlib import Path
 import numpy as np
 from typing import Any
 from multiprocessing import cpu_count
+
 import torch.multiprocessing as mp
 
 from MAST_tools.utils.general_utils import warning_print
 from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
+
 from scripts.preprocessing.preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
 
 
@@ -181,15 +183,11 @@ if __name__ == "__main__":
             dt = round(np.median(np.diff(time)), 6)
 
             dict_metadata[var] = {
-                "dt": dt,  # TODO: This variable should have a meaningful name. What does "dt" stand for? [Cecile]
+                "dt": dt,  # <- Time granularity.
                 "values_shape": values.shape[:-1],  # <- Exclude time dimension
                 "mean": dict_mean_std[var]["mean"]["no_outliers_z6"], 
                 "std": dict_mean_std[var]["std"]["no_outliers_z6"]
             }
-            # FIXME:
-            #  - From Tobia: dt is "Time in seconds between two consecutive measurements for a specific signal". Right?
-            #  - From Cecile: granularity.
-            #  - If better name is decided, find and replace all "dt" occurrences [Cecile, Rodrigo]
         
         # Stop once all variables are filled
         if set(dict_metadata.keys()) == target_vars:
@@ -211,3 +209,5 @@ if __name__ == "__main__":
     with open(args.signals_stats_saving_file_path, "w+") as f_:
         print(f"Saving results to file `{args.signals_stats_saving_file_path}`.")
         yaml.dump(data=clean_dict, stream=f_, sort_keys=False)
+
+    # ------------------------------------------------------------------------------------------------------------------

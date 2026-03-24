@@ -5,6 +5,9 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 
 from MAST_tools.utils.path_utils import PROJECT_ROOT_DIR
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+
 ARTIFACTS_DIR = PROJECT_ROOT_DIR / "artifacts"
 SHOT_STATS_DIR = ARTIFACTS_DIR / "shots_stats"
 

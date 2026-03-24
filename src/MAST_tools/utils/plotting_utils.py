@@ -70,7 +70,7 @@ class MASTPlottingManager:
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         """
 
@@ -445,64 +445,6 @@ class MASTPlottingManager:
         self.plot_group(data_origin=data_origin, source_name='thomson_scattering', fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # def plot_cameras(  # FIXME: Check if group cameras are now available. [Rodrigo]
-    #         self,
-    #         data_origin: BaseDataSourceType,
-    #         fig_size: Optional[Union[list[int], set[int]]] = None
-    # ):
-    #     # if fig_size is None:
-    #     #     fig_size = [8, 4]
-    #
-    #     self.plot_group(data_origin=data_origin, source_name='cameras', fig_size=fig_size)
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # def make_movie(  # FIXME: Check if group cameras are now available. [Rodrigo]
-    #         self,
-    #         store
-    # ):
-    #     raise NotImplementedError
-
-    # output_video_file = "output_video.mp4"
-    # fps = 10  # Frames per second
-    # frame_width, frame_height = 1000, 500  # Resolution matching figsize in pixels
-    #
-    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # video_writer = cv2.VideoWriter(output_video_file, fourcc, fps, (frame_width, frame_height))
-    #
-    # try:
-    #     profiles = xr.open_zarr(store, group='cameras')
-    #
-    #     for t in range(1, len(profiles.camera_a.time), 1):
-    #         print(t)
-    #         if t % 5 != 0:
-    #             continue
-    #         try:
-    #             fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-    #             profiles['camera_a'].isel(time=t).plot(ax=axes[0])
-    #             profiles['camera_b'].isel(time=t).plot(ax=axes[1])
-    #
-    #             plt.tight_layout()
-    #
-    #             fig.canvas.draw()
-    #             frame = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    #             frame = frame.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    #
-    #             # Resize frame to match video resolution
-    #             frame = cv2.resize(frame, (frame_width, frame_height))
-    #
-    #             # Write the frame to the video
-    #             video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-    #
-    #             # Close the figure to free memory
-    #             plt.close(fig)
-    #         except Exception as e:
-    #             print(f"Error {e}")
-    #
-    #         # Release the video writer
-    #     video_writer.release()
-    #
-    # except Exception as e:
-    #     print(f"Error: {e}")
 
 
 # ----------------------------------------------------------------------------------------------------------------------

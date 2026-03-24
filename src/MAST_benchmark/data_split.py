@@ -22,8 +22,8 @@ def get_train_test_val_shots(
         data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 ) -> tuple[list, list, list]:
     """
-    Generate lists of shot IDs for training, testing, and validation.
-    These lists can be subsets of the corresponding complete lists.
+    Generate lists of shot IDs for training, testing, and validation. These lists can be subsets of the corresponding
+    complete lists.
 
     Parameters
     ----------
@@ -47,7 +47,7 @@ def get_train_test_val_shots(
         Optional. Default: 42.
     data_splits_file_path : str
         Pato to the data splits CSV file.
-        Optional. Default: MAST_benchmark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE.
+        Optional. Default: `MAST_benchmark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE`.
 
     Returns
     -------
@@ -62,8 +62,8 @@ def get_train_test_val_shots(
     if shuffle:
         if not isinstance(seed, int):
             raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")  # noqa
+
         random.seed(seed)
-            
         random.shuffle(train_set_full)
         random.shuffle(test_set_full)
         random.shuffle(val_set_full)
@@ -120,3 +120,5 @@ def read_data_split_csv(
     shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
+
+# ----------------------------------------------------------------------------------------------------------------------

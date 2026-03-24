@@ -5,10 +5,10 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 
 import random
 import numpy as np
-from torch.utils.data import IterableDataset, get_worker_info
 from typing import Optional, Any, Union
-from collections.abc import Callable, Mapping
-from collections.abc import Generator
+from collections.abc import Callable, Mapping, Generator
+
+from torch.utils.data import IterableDataset, get_worker_info
 
 from MAST_tools.MAST_dataset import MastDataset
 
@@ -130,7 +130,7 @@ class TokaMarkDataset(IterableDataset):
     custom_transform : Optional[Callable]
         Custom model-specific transform chain applied per window.
     test_mode : bool
-        If True, test mode is activated.
+        If True, activates test mode. This forces at least one input to be full, and all outputs to be full.
     shuffle_windows : bool
         If True, shuffling of windows is performed.
     shuffle_buffer_size : int
@@ -184,7 +184,7 @@ class TokaMarkDataset(IterableDataset):
             Custom model-specific transform chain applied per window.
             Optional. Default: None.
         test_mode : bool
-            If True, test mode is activated.  # TODO: Add better description. [Cecile]
+            If True, activates test mode. This forces at least one input to be full, and all outputs to be full.
             Optional. Default: False.
         shuffle_windows : bool
             If True, shuffling of windows is performed.
@@ -198,7 +198,7 @@ class TokaMarkDataset(IterableDataset):
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         """
 
@@ -225,7 +225,7 @@ class TokaMarkDataset(IterableDataset):
         self.output_length = segmenter_metadata["output_length"]
         self.delta = segmenter_metadata["delta"]
 
-        self.stride = float(self.task_metadata["sec_stride"])
+        self.stride = float(self.task_metadata["stride_in_secs"])
 
         self.custom_transform = custom_transform
         self.test_mode = test_mode
@@ -377,7 +377,7 @@ class TokaMarkDataset(IterableDataset):
 
         for idx_t, t_cut in enumerate(t_cuts):
 
-            t_cut = np.float32(t_cut)  # TODO: Check if this work to avoid error in type check. [Rodrigo]
+            t_cut = np.float32(t_cut)
 
             input_slice = self._build_window(
                 sample=sample,
@@ -406,7 +406,7 @@ class TokaMarkDataset(IterableDataset):
                 "output": output_slice,
                 "t_cut": t_cut,
                 "shot_id": self.get_shot_id(idx=shot_idx),
-                "window_index": idx_t,
+                "window_index": idx_t
             }
 
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -418,11 +418,11 @@ class TokaMarkDataset(IterableDataset):
                         _all_vars_have_nans(obj["input"])
                         and _all_vars_have_nans(obj["actuator"])
                     )
-                    and not _any_vars_have_nans(obj["output"])
+                    and (not _any_vars_have_nans(obj["output"]))
                 )
                 if not window_valid:
                     if self.verbose:
-                        print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid")
+                        print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid.")
                     continue
 
             obj2 = self.custom_transform(obj) if self.custom_transform else obj
@@ -432,7 +432,7 @@ class TokaMarkDataset(IterableDataset):
             yield {
                 "shot_id": obj["shot_id"],
                 "window_index": idx_t,
-                **obj2,
+                **obj2
             }
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -460,7 +460,7 @@ class TokaMarkDataset(IterableDataset):
         Returns
         -------
         dict
-
+            Built window from passed values.
 
         """
 
@@ -469,7 +469,7 @@ class TokaMarkDataset(IterableDataset):
         keys = {
             "input": self.input_keys,
             "actuator": self.actuator_keys,
-            "output": self.output_keys,
+            "output": self.output_keys
         }
 
         for key in keys[type_window]:
@@ -565,7 +565,7 @@ class TokaMarkDataset(IterableDataset):
         values : np.ndarray
             Input array of values to be padded.
         dt : float
-            Input delta time.
+            Input time granularity.
         t_start : float
             Starting time for the target interval.
         t_end : float

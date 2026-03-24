@@ -17,8 +17,6 @@ PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
 # ======================================================================================================================
 # Default file paths
 
-# FIXME: Recalculate DEFAULT_SIGNAL_AVAILABILITY_FILE, DEFAULT_SOURCES_WITH_SIGNALS_FILE for TokaMark dataset. [Rodrigo]
-
 DEFAULT_SIGNAL_AVAILABILITY_FILE = os.path.join(PACKAGE_METADATA_DIR, "signal_availability.csv")
 DEFAULT_SOURCES_WITH_SIGNALS_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_sources_with_signals.yaml")
 DEFAULT_OUTLIER_METADATA_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_outlier_metadata.yaml")

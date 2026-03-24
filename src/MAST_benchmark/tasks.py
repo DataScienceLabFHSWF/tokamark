@@ -6,8 +6,8 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import yaml
 import numpy as np
 from pathlib import Path
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_benchmark.tools.path import (
@@ -158,14 +158,15 @@ def get_task_metadata(
 
     # Split into role-scoped dicts (avoid overwriting)
     out = {
-        "sec_stride": stride_in_secs,
+        "stride_in_secs": stride_in_secs,  # Time in seconds between two consecutive windows.
         "input": {},
         "actuator": {},
         "output": {}
     }
-    # FIXME: [Cecile, Tobia, Rodrigo]
-    #  - From Tobia: "sec_stride" is "Time in seconds between two consecutive windows.
-    #  - It should be changed to "stride_in_secs".
+    # TODO [Cecile/Tobia/Rodrigo]:
+    #  - Change "sec_stride" to "stride_in_secs"?
+    #  - Implications of the above?
+    #  - RESULT: Use proposed names.
 
     # ..................................................................................................................
     # Get information
@@ -175,29 +176,31 @@ def get_task_metadata(
     length_in_secs = input_length
     for key in input_keys:
         out["input"][key] = dict_stats_metadata[key]
-        out["input"][key]["sec_length"] = length_in_secs
-        out["input"][key]["ts_length"] = int(np.round(length_in_secs / out["input"][key]["dt"]))
-        out["input"][key]["ts_stride"] = int(np.round(stride_in_secs / out["input"][key]["dt"]))
-    # FIXME: [Cecile, Tobia, Rodrigo]
-    #  - "sec_length" should be changed to "length_in_seconds", or so.
-    #  - "ts_length" should be changed to "length_in_time_stamps", or so.
-    #  - "ts_stride" should be changed to "stride_in_time_stamps", or so.
+        out["input"][key]["length_in_seconds"] = length_in_secs
+        out["input"][key]["length_in_time_stamps"] = int(np.round(length_in_secs / out["input"][key]["dt"]))
+        out["input"][key]["stride_in_time_stamps"] = int(np.round(stride_in_secs / out["input"][key]["dt"]))
+    # TODO: [Cecile/Tobia/Rodrigo]
+    #  - Change "sec_length" to "length_in_seconds"?
+    #  - Change "ts_length" to "length_in_time_stamps"?
+    #  - Change "ts_stride" to "stride_in_time_stamps"?
+    #  - Implications of the above?
+    #  - RESULT: Use proposed names.
 
     # Actuator
     length_in_secs = input_length + delta + output_length
     for key in actuator_keys:
         out["actuator"][key] = dict_stats_metadata[key]
-        out["actuator"][key]["sec_length"] = length_in_secs
-        out["actuator"][key]["ts_length"] = int(np.round(length_in_secs / out["actuator"][key]["dt"]))
-        out["actuator"][key]["ts_stride"] = int(np.round(stride_in_secs / out["actuator"][key]["dt"]))
+        out["actuator"][key]["length_in_seconds"] = length_in_secs
+        out["actuator"][key]["length_in_time_stamps"] = int(np.round(length_in_secs / out["actuator"][key]["dt"]))
+        out["actuator"][key]["stride_in_time_stamps"] = int(np.round(stride_in_secs / out["actuator"][key]["dt"]))
 
     # Output
     length_in_secs = output_length
     for key in output_keys:
         out["output"][key] = dict_stats_metadata[key]
-        out["output"][key]["sec_length"] = length_in_secs
-        out["output"][key]["ts_length"] = int(np.round(length_in_secs / out["output"][key]["dt"]))
-        out["output"][key]["ts_stride"] = int(np.round(stride_in_secs / out["output"][key]["dt"]))
+        out["output"][key]["length_in_seconds"] = length_in_secs
+        out["output"][key]["length_in_time_stamps"] = int(np.round(length_in_secs / out["output"][key]["dt"]))
+        out["output"][key]["stride_in_time_stamps"] = int(np.round(stride_in_secs / out["output"][key]["dt"]))
 
     # ..................................................................................................................
     # Relevant prints, if verbose mode is activated
@@ -214,3 +217,5 @@ def get_task_metadata(
                 print(f'  Values shape: {val["values_shape"]}')
 
     return out
+
+    # ..................................................................................................................

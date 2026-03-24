@@ -63,9 +63,11 @@ def build_common_signal_transform_map(
         if use_std_scaling:
             with open(stats_metadata_file_path, "r") as f:
                 dict_stats_metadata = yaml.safe_load(f)
+
             return [
                 StdScalingTransform(mean=dict_stats_metadata[var]["mean"], std=dict_stats_metadata[var]["std"])
             ]
+
         return []
 
     # ..................................................................................................................
@@ -115,3 +117,5 @@ def build_common_signal_transform_map(
         )
 
     return signal_transform_map
+
+    # ..................................................................................................................

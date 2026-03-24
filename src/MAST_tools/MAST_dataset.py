@@ -55,7 +55,7 @@ class CachedDataset(Dataset):
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         """
 
@@ -198,7 +198,7 @@ class MastDataset(Dataset):
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         """
 

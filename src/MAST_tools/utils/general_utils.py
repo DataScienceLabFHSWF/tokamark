@@ -30,8 +30,7 @@ def get_random_string(n=4):
 
 # ----------------------------------------------------------------------------------------------------------------------
 def _read_parquet_data(
-        path: str,
-        local: bool
+        path: str
 ) -> pd.DataFrame:
     """
     Read MAST data from a target file path using parquet pipeline.
@@ -40,8 +39,6 @@ def _read_parquet_data(
     ----------
     path : str
         Target file path.
-    local: bool
-        Boolean flag to activate local mode. If True, use local data, otherwise use remote data.
 
     Returns
     -------

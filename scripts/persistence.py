@@ -6,18 +6,17 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import argparse
 import os
 from pathlib import Path
-from typing import Any, Sequence
 from collections.abc import Mapping
-
-from tqdm import tqdm
+from typing import Any, Sequence
 import numpy as np
+from multiprocessing import cpu_count
+import psutil
+
 from torch import ones_like
 from torch import Tensor as TorchTensor
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
 import torch.multiprocessing as mp
-from multiprocessing import cpu_count
-import psutil
 
 from MAST_tools.utils.general_utils import warning_print
 from MAST_benchmark.tools.utils import get_config_from_yaml
@@ -48,7 +47,7 @@ class PersistenceTransform:
     Methods
     -------
     __call__(segment)
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
     """
 
@@ -67,7 +66,7 @@ class PersistenceTransform:
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
@@ -79,7 +78,7 @@ class PersistenceTransform:
             segment: Mapping[str, Any]
     ) -> dict[str, Any]:
         """
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
         Parameters
         ----------
@@ -101,6 +100,7 @@ class PersistenceTransform:
             for signal_name in self.signals:
                 if signal_name in segment[label]:
                     subset[signal_name] = segment[label][signal_name]["values"]
+
             return subset
 
         # ..............................................................................................................
@@ -136,11 +136,6 @@ def MAST_collate_fn(  # noqa N802
     """
 
     # ..............................................................................................................
-    def contains_nans(data: Any) -> bool:  # TODO: Should we keep this? [Mike]
-        """Check if given data contains NaN values."""
-        return any(np.isnan(x_).any() for x_ in data)
-
-    # ..............................................................................................................
     def tensor_size(t: TorchTensor) -> float:
         """Get size of given tensor."""
         return t.nelement() * t.element_size() / 1024 ** 2
@@ -152,7 +147,6 @@ def MAST_collate_fn(  # noqa N802
     flattened_batch = [
         (item["shot_id"], item["window_index"], item["x"], item["y"])
         for item in batch
-        # if (contains_nans(item["x"]) or contains_nans(item["y"]))  # TODO: Should we keep this condition? [Mike]
     ]
 
     flattened_batch = default_collate(batch=flattened_batch) if (len(flattened_batch) > 0) else None
@@ -176,6 +170,8 @@ def MAST_collate_fn(  # noqa N802
             print(f"X and Y tensors memory={size:.2f} MB")
 
     return flattened_batch
+
+    # ..............................................................................................................
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -205,21 +201,25 @@ def persistence_evaluation_loop(
     None
 
     """
-    
+
+    # ..................................................................................................................
+    def contains_nans(data: Any) -> bool:
+        """Check if given data contains NaN values."""
+        return any(np.isnan(x_).any() for x_ in data)
+
+    # ..................................................................................................................
+
     # ..................................................................................................................
     # Evaluation loop
     # ..................................................................................................................
 
-    for batch_idx, batch_ in tqdm(enumerate(test_dataloader)):
+    for batch_idx, batch_ in enumerate(test_dataloader):
         if batch_ is None:
             warning_print(f"Empty batch {batch_idx} skipped.")
             continue
 
         shot_ids, window_indices, x_test, y_test = batch_  # noqa (right number of values to unpack)
 
-        # tqdm.write(
-        #     f"-> Processing batch {batch_idx} with {len(shot_id.unique())} shots and {len(shot_id)} elements."
-        # )
         print(f"\n-> Processing batch {batch_idx} with {len(shot_ids.unique())} shots and {len(shot_ids)} elements.")
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -230,12 +230,13 @@ def persistence_evaluation_loop(
         if model.startswith("persistence"):
             for key in x_test:
                 last = x_test[key][..., -1].unsqueeze(-1)
-                y_pred[key] = last.expand_as(other=y_test[key])
+                if not contains_nans(data=last):
+                    y_pred[key] = last.expand_as(other=y_test[key])
         elif model.startswith("mean"):
             signal_metadata = get_signals_metadata()
-            for key in y_test:                                # FIXME: Should the below use mean rather than std? [Mike]
-                std = signal_metadata[key]["std"]
-                y_pred[key] = ones_like(input=y_test[key]) * std
+            for key in y_test:
+                mean = signal_metadata[key]["mean"]
+                y_pred[key] = ones_like(input=y_test[key]) * mean
         else:
             warning_print(f"Persistence pipeline: model {model} is not known.")
 
@@ -263,13 +264,14 @@ def persistence_evaluation_loop(
                 accumulator.add_batch(
                     y_target=y_t,
                     y_pred=y_p,
-                    shot_id=shot_ids,  # TODO: This should be shot_ids=
-                    window_index=window_indices,  # TODO: This should be window_indices=
+                    shot_ids=shot_ids,
+                    window_indices=window_indices,
                     feature_name=feature_name
                 )
 
             except KeyError:
-                warning_print(f"Missing feature {feature_name} for batch {batch_idx}. Skipping.")
+                warning_print(
+                    f"Missing feature {feature_name} for batch {batch_idx}, or last elements are NaN values. Skipping.")
                 pass
 
     print(f"\n✅ Evaluation done. Window metrics accumulator is ready.")
@@ -309,30 +311,33 @@ def run_persistence_pipeline(
 
         # Pipeline for "persistence" model
 
-        # 1. Identify chosen signals
+        # 0. Set task type as markovian, so that collate function does not fail due to varying shapes.
+        config_task["task_type"] = "markovian"
+
+        # 1. Identify chosen signals.
         ins = [f"{source}-{signal}" for source, signal in config_task["sources_and_signals"]["input_name"]]
         outs = [f"{source}-{signal}" for source, signal in config_task["sources_and_signals"]["output_name"]]
         chosen_signals = [signal for signal in outs if signal in ins]
 
-        # 2. Update values of `input_name` field
+        # 2. Update values of `input_name` key.
         config_task["sources_and_signals"]["input_name"] = [
             [source, signal] for source, signal in config_task["sources_and_signals"]["input_name"]
             if f"{source}-{signal}" in chosen_signals
         ]
 
-        # 3. Re-assign `input_keys` values with updated `input_name` values
+        # 3. Re-assign `input_keys` values with updated `input_name` values.
         config_task["task_window_segmenter"]["input_keys"] = config_task["sources_and_signals"]["input_name"]
 
-        # 4. Update values of `output_name` field
+        # 4. Update values of `output_name` key.
         config_task["sources_and_signals"]["output_name"] = [
             [source, signal] for source, signal in config_task["sources_and_signals"]["output_name"]
             if f"{source}-{signal}" in chosen_signals
         ]
 
-        # 5. Re-assign `output_keys` values with updated `output_name` values
+        # 5. Re-assign `output_keys` values with updated `output_name` values.
         config_task["task_window_segmenter"]["output_keys"] = config_task["sources_and_signals"]["output_name"]
 
-        # 6. Set `actuator_name` and `actuator_keys` values to None
+        # 6. Set `actuator_name` and `actuator_keys` values to None.
         config_task["sources_and_signals"]["actuator_name"] = None
         config_task["task_window_segmenter"]["actuator_keys"] = None
 
@@ -343,15 +348,14 @@ def run_persistence_pipeline(
         # 1. Identify chosen signals
         chosen_signals = [f"{source}-{signal}" for source, signal in config_task["sources_and_signals"]["output_name"]]
 
-        # 2. Set values of `input_name` field
-        config_task["sources_and_signals"]["input_name"] = [["magnetics", "flux_loop_flux"]]  # FIXME: Why these? [Mike]
-        # TODO: Check if this should be `output_name` instead. [Rodrigo, Mike]
+        # 2. Set values of `input_name` key with a dummy signal.
+        # REMARK: A dummy signal is used as no inputs create errors (although inputs are not used in mean pipeline).
+        config_task["sources_and_signals"]["input_name"] = [["magnetics", "flux_loop_flux"]]
 
-        # 3. Re-assign `input_keys` values with updated `input_name` values
+        # 3. Re-assign `input_keys` values with updated `input_name` values.
         config_task["task_window_segmenter"]["input_keys"] = config_task["sources_and_signals"]["input_name"]
-        # TODO: Check if this should have `output_keys` and `output_name` instead. [Rodrigo, Mike]
 
-        # 4. Set `actuator_name` and `actuator_keys` values to None
+        # 4. Set `actuator_name` and `actuator_keys` values to None.
         config_task["sources_and_signals"]["actuator_name"] = None
         config_task["task_window_segmenter"]["actuator_keys"] = None
 
@@ -385,7 +389,7 @@ def run_persistence_pipeline(
             shots_list=test_shots_,
             local_flag=pipeline_config["local"],
             use_std_scaling=True,
-            return_incomplete_shots=False,  # TODO: Using False to try and fix error with Tasks 4.4. Remove after tests.
+            return_incomplete_shots=True,
             store_manager_settings=pipeline_config["store_manager_settings"]
         )
 
@@ -413,7 +417,7 @@ def run_persistence_pipeline(
             test_dataloader=test_dataloader,
             feature_names=chosen_signals,
             accumulator=accumulator,
-            model=pipeline_config["persistence_settings"]["model"],
+            model=pipeline_config["persistence_settings"]["model"]
         )
 
         if accumulator.is_empty():
@@ -446,7 +450,7 @@ if __name__ == "__main__":
         "--persistence_model",
         type=str,
         choices=["persistence", "mean"],
-        default="persistence",  # FIXME: Pipeline is broken for (persistence, task_4-4/4-5) (see error info). [Rodrigo]
+        default="persistence",
         help="Target model for the persistence pipeline."
     )
     parser.add_argument(
@@ -472,7 +476,7 @@ if __name__ == "__main__":
     config = get_config_from_yaml(file_path=config_filepath)
 
     # REMARK: Demo mode could be enforced for testing purposes by uncommenting the following line.
-    # args.demo_mode = True  # TODO: Re-run and check for full mode. Also, comment out after tests. [Rodrigo]
+    # args.demo_mode = True
 
     # If required, override values with settings for demo mode
     if args.demo_mode:
@@ -484,7 +488,7 @@ if __name__ == "__main__":
         config["persistence_settings"]["output_dir"] += args.demo_suffix
         config["persistence_settings"]["ar_tasks"] = [config["persistence_settings"]["ar_tasks"][0]]
 
-    # REMARK: Default values for `store_manager_settings` can be overridden as follows:
+    # REMARK: Default values for `store_manager_settings` can be overridden here as follows:
     # config["store_manager_settings"]["base_local_zarr_path"] = "/path/to/local/zarr/dataset"
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -509,3 +513,5 @@ if __name__ == "__main__":
         print("=========================================================\n\n")
 
     print(f'\nAll done. Results saved under the target directory `{output_dir}`.')
+
+    # ------------------------------------------------------------------------------------------------------------------

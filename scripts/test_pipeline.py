@@ -6,9 +6,10 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import time
 import argparse
 from pathlib import Path
-from typing import Any, Sequence, Optional
 from collections.abc import Mapping
+from typing import Any, Sequence, Optional
 from multiprocessing import cpu_count
+
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
@@ -56,7 +57,7 @@ class ModelSpecificTransform:  # TEMPLATE
             verbose=False
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
@@ -65,7 +66,7 @@ class ModelSpecificTransform:  # TEMPLATE
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     pipeline_config = get_config_from_yaml(file_path=args.pipeline_config_file_path)
 
     # REMARK: Demo mode could be enforced (e.g., for testing) by uncommenting the following line.
-    args.demo_mode = True  # TODO: Re-run and check for both modes. Also, comment out after tests. [Rodrigo]
+    # args.demo_mode = True
 
     if args.demo_mode:
         warning_print("Running in demo mode.")
@@ -202,7 +203,7 @@ if __name__ == "__main__":
         pipeline_config["dataloader_settings"]["batch_size"] = 4
         pipeline_config["dataloader_settings"]["num_workers"] = 0
 
-        pipeline_config["paths"]["data_output_directory"] += args.demo_suffix
+        pipeline_config["paths"]["output_dir"] += args.demo_suffix
 
     if args.task == "test_task":
         # Instead of loading benchmark task, here we load the configuration for a test task
@@ -278,7 +279,7 @@ if __name__ == "__main__":
         pin_memory=True
     )
 
-    # Similarly, DataLoader instances can be created for val and test, i.e. val_dataloader and test_dataloader.
+    # Similarly, DataLoader instances can be created for val and test, i.e., val_dataloader and test_dataloader.
 
     # ..................................................................................................................
     # Evaluation loop for train_dataloader
@@ -312,6 +313,7 @@ if __name__ == "__main__":
 
     # Similarly, evaluation loops can be put in place for val_dataloader and test_dataloader instances.
 
+    # ------------------------------------------------------------------------------------------------------------------
 
 end = time.perf_counter()
 

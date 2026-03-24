@@ -20,3 +20,6 @@ mast_dataset_init_settings:
 tokamark_dataset_init_settings:
   test_mode: true
   shuffle_windows: false
+
+paths:
+  output_dir: ../output/test_pipeline  # -> If results need to be saved, use this dir.

@@ -6,9 +6,10 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import yaml
 from pathlib import Path
 from filelock import FileLock
-import torch
 import pandas as pd
 from typing import Any, Union, LiteralString
+
+import torch
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -43,7 +44,7 @@ def get_config_from_yaml(
         file_path: Union[LiteralString, str, bytes, Path]
 ) -> dict[str, Any]:
     """
-    Get configuration from YAML file.
+    Get configuration dictionary from YAML file.
 
     Parameters
     ----------
@@ -52,14 +53,25 @@ def get_config_from_yaml(
 
     Returns
     -------
-    Any
-        Loaded YAML file.
+    dict[str, Any]
+        Loaded YAML file as dictionary.
+
+    Raises
+    ------
+    ValueError
+        If provided `file_path` resulted in loaded configuration that is not a mapping (dict).
 
     """
 
     # Load YAML config
     with open(file_path, "r") as f:
         config = yaml.safe_load(f)
+
+    if not isinstance(config, dict):
+        raise ValueError(
+            f"Provided `file_path` {file_path!r} resulted in loaded configuration of type {type(config).__name__}, "
+            f"expected dict."
+        )
 
     return config
 
@@ -72,7 +84,7 @@ class AutoAppendingDataFrame:
     Attributes
     ----------
     path : str
-        Path to the Parquet file.  # FIXME: Is this really a Parquet file? [Mike]
+        Path to the target CSV file.
     buffer_size : int
         Number of rows to buffer before saving.
     lock : BaseFileLock
@@ -107,14 +119,14 @@ class AutoAppendingDataFrame:
         Parameters
         ----------
         path : Union[Path, str]
-            Path to the Parquet file.  # FIXME: Is this really a Parquet file? [Mike]
+            Path to the target CSV file.
         buffer_size : int
             Number of rows to buffer before saving.
             Optional. Default: 1.
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         """
 
@@ -168,7 +180,7 @@ class AutoAppendingDataFrame:
 
         # Concurrent appending
         with self.lock:
-            file_exists = self.path.exists() and self.path.stat().st_size > 0
+            file_exists = self.path.exists() and (self.path.stat().st_size > 0)
             # If file does not exist or is empty, write header once
             df_new_data.to_csv(
                 path_or_buf=self.path,
@@ -184,6 +196,3 @@ class AutoAppendingDataFrame:
         self._commit()
 
     # ------------------------------------------------------------------------------------------------------------------
-    def view(self) -> pd.DataFrame:
-        """Return a copy of the current DataFrame."""
-        return self.df.copy()  # FIXME: Unknown intended behavior. [Mike]

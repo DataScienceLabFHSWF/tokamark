@@ -9,14 +9,9 @@ import argparse
 import numpy as np
 from typing import Any
 from multiprocessing import cpu_count
+
 import torch.multiprocessing as mp
 from torch.utils.data import Dataset, DataLoader
-
-from preproc_paths import (
-    DEFAULT_SHOTS_STATS_VAL_FILE,
-    DEFAULT_SHOTS_STATS_TEST_FILE,
-    DEFAULT_SHOTS_STATS_TRAIN_FILE
-)
 
 from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_tools.utils.general_utils import warning_print
@@ -24,6 +19,11 @@ from MAST_tools.MAST_dataset import MastDataset
 from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
 
+from preproc_paths import (
+    DEFAULT_SHOTS_STATS_VAL_FILE,
+    DEFAULT_SHOTS_STATS_TEST_FILE,
+    DEFAULT_SHOTS_STATS_TRAIN_FILE
+)
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ class ShotStatsDataset(Dataset):
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         """
 

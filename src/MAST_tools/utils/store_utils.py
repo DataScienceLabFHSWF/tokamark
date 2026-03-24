@@ -28,12 +28,15 @@ from MAST_tools.utils.path_utils import (
     DEFAULT_SIGNAL_AVAILABILITY_FILE
 )
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Default values
 
-DEFAULT_BASE_FSSPEC_PROTOCOL = "simplecache"  # TODO: Perhaps move all these to class __init__? [Rodrigo]
+DEFAULT_BASE_FSSPEC_PROTOCOL = "simplecache"
 DEFAULT_TARGET_FSSPEC_PROTOCOL = "s3"
 DEFAULT_S3_ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
 DEFAULT_S3_MAST_DATASET_PATH = "/mast/tokamark/v1"  # Other options: "mast/leve2/shots", "mast/test/level2/shots"
@@ -101,13 +104,6 @@ class MASTStorageManager:
     make_shot_group(data_origin, verbose)
         Make a shot group from data origin (either a Zarr store or shot info).
 
-    # Pending methods  # TODO: Check if needed. [Rodrigo]
-    # ---------------
-    #
-    # print_store(...)
-    # is_signal_in_store(...)
-    # print_signals_in_group(...)
-
     """
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -155,7 +151,7 @@ class MASTStorageManager:
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors.
 
         Raises
         ------
@@ -811,6 +807,110 @@ class MASTStorageManager:
 
         return group
 
+    # ------------------------------------------------------------------------------------------------------------------
+    @staticmethod
+    def get_all_signals_in_group(
+            group: zarr.Group
+    ) -> list[str]:
+        """
+        Get list of all signals in a given group.
+
+        Parameters
+        ----------
+        group : zarr.Group
+            Zarr group to be inspected for signals.
+
+        Returns
+        -------
+        list[str]
+            List of signals in group using the format [<source>-<signal>].
+
+        """
+
+        full_metadata_dict = group.metadata.to_dict()
+        all_metadata_keys = list(full_metadata_dict['consolidated_metadata']['metadata'].keys())
+        found_signals = [kk.replace("/", "-") for kk in all_metadata_keys if "/" in kk]
+
+        return found_signals
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def get_all_signals_in_store(
+            self,
+            store: ZarrStoreType
+    ) -> list[str]:
+        """
+        Get list of all signals in a given group.
+
+        Parameters
+        ----------
+        store : ZarrStoreType
+            Zarr store to be inspected for signals.
+
+        Returns
+        -------
+        list[str]
+            List of signals in store using the format [<source>-<signal>].
+
+        """
+
+        found_signals = self.get_all_signals_in_group(group=self.make_shot_group(data_origin=store))
+
+        return found_signals
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def are_signals_in_group(
+            self,
+            group: zarr.Group,
+            signals: list[str]
+    ) -> dict[str, bool]:
+        """
+        Evaluate if a given signal is in a target group.
+
+        group :  zarr.Group
+            Target group.
+        signals: list[str]
+            List of signals to be searched within the target group. It expects the format [<source>-<signal>].
+
+        Returns
+        -------
+        dict[str, bool]
+            Dictionary with check results per signal.
+
+        """
+
+        all_signals_in_group = self.get_all_signals_in_group(group=group)
+        check_results = {signal_: (signal_ in all_signals_in_group) for signal_ in signals}
+
+        return check_results
+
+    # ------------------------------------------------------------------------------------------------------------------
+    def are_signals_in_store(
+            self,
+            store: ZarrStoreType,
+            signals: list[str]
+    ) -> dict[str, bool]:
+        """
+        Evaluate if a given signal is in a target store.
+
+        store : ZarrStoreType
+            Target store.
+        signals: list[str]
+            List of signals to be searched within the target store. It expects the format [<source>-<signal>].
+
+        Returns
+        -------
+        dict[str, bool]
+            Dictionary with check results per signal.
+
+        """
+
+        return self.are_signals_in_group(
+            group=self.make_shot_group(data_origin=store),
+            signals=signals
+        )
+
+    # ------------------------------------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 def tests() -> None:
@@ -844,16 +944,18 @@ def tests() -> None:
         target_fsspec_protocol="s3",
         s3_endpoint_url="https://s3.echo.stfc.ac.uk",
         s3_mast_dataset_path="/mast/tokamark/v1",
-        base_local_zarr_path="/mast/tokamark/v1",
+        base_local_zarr_path="/mast/tokamark/v1"
     )
 
     TESTS_TO_RUN = {  # noqa
         "get_all_shot_ids": False,
         "get_all_sources": False,
         "get_all_signals": False,
-        "make_group_from_store": False,  # TODO: Update dict_sources_with_signals.yaml and others to match this. [Rodrigo]
-        "make_group_from_shot_info": False,  # TODO: Update dict_sources_with_signals.yaml and others to match this. [Rodrigo]
-        "check_signal_availability": True
+        "make_group_from_store": False,
+        "make_group_from_shot_info": False,
+        "check_signal_in_store": True,
+        "get_all_signals_in_store": True,
+        "check_signal_availability": False
     }
 
     # ..................................................................................................................
@@ -903,6 +1005,11 @@ def tests() -> None:
             shot_info=shot_info
         )
         group_from_store = store_manager.make_shot_group(data_origin=store_)
+
+        # Print group metadata:
+        # print(f"group_from_store.metadata.to_dict() (group from store): {group_from_store.metadata.to_dict()}")
+
+        # Print group tree:
         print(f"group_from_store.tree() (group from store): {group_from_store.tree()}\n")
 
     # ..................................................................................................................
@@ -913,7 +1020,35 @@ def tests() -> None:
         group_from_shot_id = store_manager.make_shot_group(
             data_origin=shot_info
         )
+
+        # Print group tree:
         print(f"group_from_shot_id.tree() (group from shot ID): {group_from_shot_id.tree()}\n")
+
+    # ..................................................................................................................
+    # Get all the signals available for a given store
+
+    if TESTS_TO_RUN["get_all_signals_in_store"]:
+        store_ = store_manager.make_shot_store(
+            shot_info=shot_info
+        )
+
+        all_signals = store_manager.get_all_signals_in_store(store=store_)
+        print(f"All signals in store:")
+        pprint(all_signals)
+
+    # ..................................................................................................................
+    # Check if signal is in store
+
+    if TESTS_TO_RUN["check_signal_in_store"]:
+        store_ = store_manager.make_shot_store(
+            shot_info=shot_info
+        )
+
+        signals_ = ["abc", "summary-power_radiated"]
+
+        check_results = store_manager.are_signals_in_store(store=store_, signals=signals_)
+        print(f"\nCheck results for signals in store:")
+        pprint(check_results)
 
     # ..................................................................................................................
     # List all shots IDs for given signal availability

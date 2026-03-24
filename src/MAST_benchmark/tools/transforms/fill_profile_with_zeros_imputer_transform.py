@@ -4,8 +4,8 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import numpy as np
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 
 # ======================================================================================================================
@@ -21,7 +21,7 @@ class FillProfileWithZerosTransform:
     -------
 
     __call__(dict_)
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
     """
 
@@ -31,7 +31,7 @@ class FillProfileWithZerosTransform:
             dict_: Mapping[str, Any]
     ) -> dict[str, Any]:
         """
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
         Parameters
         ----------

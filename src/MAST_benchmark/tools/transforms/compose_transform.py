@@ -3,14 +3,14 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Any, Optional
 from collections.abc import Callable
+from typing import Any, Optional
 
 
 # ======================================================================================================================
 class ComposeTransforms(object):
     """
-    Compose transforms and apply them in series checking for None return values
+    Compose transforms and apply them in series checking for None return values.
 
     Attributes
     ----------
@@ -20,7 +20,7 @@ class ComposeTransforms(object):
     Methods
     -------
     __call__(sample)
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
     """
 
@@ -39,7 +39,7 @@ class ComposeTransforms(object):
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
@@ -51,7 +51,7 @@ class ComposeTransforms(object):
             sample: Optional[Any]
     ) -> Optional[Any]:
         """
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
         Parameters
         ----------

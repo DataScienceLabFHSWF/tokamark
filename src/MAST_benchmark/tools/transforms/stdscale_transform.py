@@ -3,8 +3,8 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 
 # ======================================================================================================================
@@ -15,8 +15,8 @@ class StdScalingTransform:
     Methods
     -------
     __call__(dict_)
-        Call method for the class to behave like a function. It normalizes each sample individually: subtract mean,
-        divide by STD.
+        Call method for the class instances to behave like a function. It normalizes each sample individually: subtract
+        mean, divide by STD.
 
     """
 
@@ -38,7 +38,7 @@ class StdScalingTransform:
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
@@ -51,8 +51,8 @@ class StdScalingTransform:
             dict_: Mapping[str, Any]
     ) -> dict[str, Any]:
         """
-        Call method for the class to behave like a function. It normalizes each sample individually: subtract mean,
-        divide by STD.
+        Call method for the class instances to behave like a function. It normalizes each sample individually: subtract
+        mean, divide by STD.
 
         Parameters
         ----------
