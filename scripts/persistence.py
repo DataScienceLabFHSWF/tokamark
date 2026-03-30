@@ -175,7 +175,7 @@ def MAST_collate_fn(  # noqa N802
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def persistence_evaluation_loop(
+def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
     test_dataloader: DataLoader,
     feature_names: list[str],
     accumulator: WindowMetricsAccumulator,
@@ -272,10 +272,9 @@ def persistence_evaluation_loop(
             except KeyError:
                 warning_print(
                     f"Missing feature {feature_name} for batch {batch_idx}, or last elements are NaN values. Skipping.")
-                pass
 
-    print(f"\n✅ Evaluation done. Window metrics accumulator is ready.")
-    print(f"---------------------------------------------------------\n")
+    print("\n✅ Evaluation done. Window metrics accumulator is ready.")
+    print("---------------------------------------------------------\n")
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -381,7 +380,7 @@ def run_persistence_pipeline(
         # Initialize MAST datasets
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(**pipeline_config["get_shots_settings"])
+        _, test_shots_, _ = get_train_test_val_shots(**pipeline_config["get_shots_settings"])
         print(f"Number of test shots: {len(test_shots_)}")
 
         test_mast_dataset = initialize_MAST_dataset(

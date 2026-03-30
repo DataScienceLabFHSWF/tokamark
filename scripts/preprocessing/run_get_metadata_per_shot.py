@@ -99,7 +99,7 @@ class ShotStatsDataset(Dataset):
         return len(self.dataset)
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __getitem__(
+    def __getitem__(  # NOSONAR - Ignore cognitive complexity
             self,
             idx: int
     ) -> dict[str, Any]:

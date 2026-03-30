@@ -246,7 +246,7 @@ class MASTSignalManager:
             return None, None
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_signal_profile(
+    def get_signal_profile(  # NOSONAR - Ignore cognitive complexity
             self,
             signal_name: str,
             data_origin: ExtendedDataSourceType,

@@ -671,7 +671,7 @@ def compute_metrics(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def compute_summary_metrics(
+def compute_summary_metrics(  # NOSONAR - Ignore cognitive complexity
         output_dir: Union[Path, str] = ".",
         source: Literal["task_metrics", "windows_metrics", "shots_metrics"] = "task_metrics",
         save_locally: bool = True

@@ -39,8 +39,8 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 DEFAULT_BASE_FSSPEC_PROTOCOL = "simplecache"
 DEFAULT_TARGET_FSSPEC_PROTOCOL = "s3"
 DEFAULT_S3_ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
-DEFAULT_S3_MAST_DATASET_PATH = "/mast/tokamark/v1"  # Other options: "mast/leve2/shots", "mast/test/level2/shots"
-DEFAULT_BASE_LOCAL_ZARR_PATH = "/mast/tokamark/v1"
+DEFAULT_S3_MAST_DATASET_PATH = "/mast/tokamark/v1"
+DEFAULT_BASE_LOCAL_ZARR_PATH = "/mast/tokamark/v1"  # <- Replace this default value for a user-defined installation dir.
 
 DEFAULT_LOCAL_FLAG_VALUE = False
 
@@ -180,7 +180,7 @@ class MASTStorageManager:
         warning_message = ""
         if self.base_local_zarr_path is None:
             warning_message = (
-                f"No path for local Zarr database was set during the creation of the MASTStorageManager instance."
+                "No path for local Zarr database was set during the creation of the MASTStorageManager instance."
             )
         else:
             # Warn about inexistent path
@@ -429,7 +429,7 @@ class MASTStorageManager:
             return fsspec.filesystem(
                 protocol=self.base_fsspec_protocol,
                 target_protocol=self.target_fsspec_protocol,
-                target_options=dict(anon=True, endpoint_url=self.s3_endpoint_url),
+                target_options={"anon": True, "endpoint_url": self.s3_endpoint_url},
                 # cache_storage='.cache',  # Uncomment and define cache folder, if required.
                 # asynchronous=True  # REMARK: This is allowed, but it does not make the instance asynchronous.
             )
@@ -556,7 +556,7 @@ class MASTStorageManager:
         """
 
         if len(required_signals) == 0:
-            raise ValueError(f"Empty `required_signals` was provided.")
+            raise ValueError("Empty `required_signals` was provided.")
 
         try:
             availability_data = pd.read_csv(availability_data_file_path)
@@ -678,7 +678,6 @@ class MASTStorageManager:
                 except ValueError:
                     if verbose:
                         print(f"Skipped item: {item[0]}")
-                    pass
 
         return signal_info
 
@@ -1033,7 +1032,7 @@ def tests() -> None:
         )
 
         all_signals = store_manager.get_all_signals_in_store(store=store_)
-        print(f"All signals in store:")
+        print("All signals in store:")
         pprint(all_signals)
 
     # ..................................................................................................................
@@ -1047,7 +1046,7 @@ def tests() -> None:
         signals_ = ["abc", "summary-power_radiated"]
 
         check_results = store_manager.are_signals_in_store(store=store_, signals=signals_)
-        print(f"\nCheck results for signals in store:")
+        print("\nCheck results for signals in store:")
         pprint(check_results)
 
     # ..................................................................................................................

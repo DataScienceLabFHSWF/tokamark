@@ -136,9 +136,8 @@ class MASTPlottingManager:
         if not isinstance(fig_size, Union[list, tuple, NoneType]):
             raise TypeError("Invalid fig_size type: it must be list or tuple.")
 
-        if fig_size is not None:
-            if not len(fig_size) == 2:
-                raise ValueError("Invalid fig_size value: it must be a list/tuple of length 2.")
+        if (fig_size is not None) and (len(fig_size) != 2):
+            raise ValueError("Invalid fig_size value: it must be a list/tuple of length 2.")
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_1d_profiles(
@@ -177,14 +176,14 @@ class MASTPlottingManager:
         if isinstance(profiles, xarrayDataset):
             # Group of profiles from Dataset
             n_rows = int(np.ceil(len(profiles.data_vars) / 2))
-            fig, axes = plt.subplots(nrows=n_rows, ncols=2, figsize=(8, 2 * n_rows) if fig_size is None else fig_size)
+            _, axes = plt.subplots(nrows=n_rows, ncols=2, figsize=(8, 2 * n_rows) if fig_size is None else fig_size)
             axes = axes.flatten()
 
             for ii, name in enumerate(profiles.data_vars.keys()):
                 self._plot_single_1d_profile(profiles[name], ax=axes[ii])
         else:
             # Single profile from DataArray
-            fig, axes = plt.subplots(nrows=1, figsize=(8, 4) if fig_size is None else fig_size)
+            _, axes = plt.subplots(nrows=1, figsize=(8, 4) if fig_size is None else fig_size)
             self._plot_single_1d_profile(profile=profiles, ax=axes)
 
         plt.show()
@@ -269,7 +268,7 @@ class MASTPlottingManager:
             raise KeyError(f"Group `{source_name}` not found in consolidated metadata.")
 
         n_rows = int(np.ceil(len(profiles.data_vars) / 2))
-        fig, axes = plt.subplots(nrows=n_rows, ncols=2, figsize=(8, 2 * n_rows) if fig_size is None else fig_size)
+        _, axes = plt.subplots(nrows=n_rows, ncols=2, figsize=(8, 2 * n_rows) if fig_size is None else fig_size)
         axes = axes.flatten()
 
         for ii, name in enumerate(profiles.data_vars.keys()):

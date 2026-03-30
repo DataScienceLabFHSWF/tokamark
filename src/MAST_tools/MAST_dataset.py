@@ -239,7 +239,7 @@ class MastDataset(Dataset):
         return len(self.shots_list)
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __getitem__(
+    def __getitem__(  # NOSONAR - Ignore cognitive complexity
             self,
             idx: int
     ) -> Union[list, dict]:
@@ -351,7 +351,7 @@ class MastDataset(Dataset):
             else:
                 # Legacy behavior: drop shots with any missing variable
                 if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
-                    item = self.shot_level_transform(shot)
+                    item = self.shot_level_transform(shot)  # NOSONAR - Ignore merge advice
                     return item if isinstance(item, list) else [item]
                 else:
                     return []

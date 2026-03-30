@@ -35,7 +35,7 @@ def _all_vars_have_nans(
 
     """
 
-    return all([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+    return all(np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys())
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ def _any_vars_have_nans(
 
     """
 
-    return any([np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys()])
+    return any(np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys())
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -289,7 +289,7 @@ class TokaMarkDataset(IterableDataset):
             yield from self._process_shot(shot_idx=shot_idx)
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _process_shot(
+    def _process_shot(  # NOSONAR - Ignore cognitive complexity
             self,
             shot_idx: int
     ) -> Generator:
@@ -436,7 +436,7 @@ class TokaMarkDataset(IterableDataset):
             }
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _build_window(
+    def _build_window(  # NOSONAR - Ignore cognitive complexity
             self,
             sample: Mapping[str, Any],
             global_start_time: float,

@@ -10,7 +10,7 @@ from typing import Optional, Union
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def run_test_scripts(
+def run_test_scripts(  # NOSONAR - Ignore cognitive complexity
         test_dir: Optional[Union[str, Path]] = None,
         timeout: int = 300
 ) -> bool:

@@ -95,7 +95,7 @@ def get_signals_metadata(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_task_metadata(
+def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
     config_task: Mapping[str, Any],
     verbose: bool = False
 ) -> dict[str, Any]:
