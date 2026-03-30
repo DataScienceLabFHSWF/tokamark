@@ -963,7 +963,7 @@ def tests() -> None:
     if TESTS_TO_RUN["get_all_shot_ids"]:
 
         pipeline_tag = "ffspec"
-        local_tag = "local" if local else "remote"
+        local_tag = "local" if local else "remote"  # NOSONAR - Ignore weak warning
         print(f"Getting available shot IDs ({pipeline_tag} pipeline, {local_tag} bucket)...\n")
         t0 = time.time()
         all_shots_ids = store_manager.list_all_shots(local=local)

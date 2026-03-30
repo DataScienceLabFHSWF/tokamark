@@ -168,7 +168,8 @@ class MASTPlottingManager:
         """
 
         warnings.warn(
-            "WARNING: This method may misbehave if not run in a notebook with `%matplotlib notebook` header."
+            "WARNING: This method may misbehave if not run in a notebook with `%matplotlib inline` or "
+            "`%matplotlib notebook`header."
         )
 
         self._check_fig_size(fig_size)
@@ -256,7 +257,9 @@ class MASTPlottingManager:
         """
 
         warnings.warn(
-            "WARNING: This method misbehaves if not run in a notebook with `%matplotlib notebook` header.")
+            "WARNING: This method may misbehave if not run in a notebook with `%matplotlib inline` or "
+            "`%matplotlib notebook`header."
+        )
 
         store = store_utils.MASTStorageManager()._get_store_from_data_origin(data_origin=data_origin)  # noqa.
 

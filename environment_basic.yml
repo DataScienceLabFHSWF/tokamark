@@ -1,4 +1,4 @@
-name: fairmast-baseline
+name: tokamark-env
 channels:
   - conda-forge
 dependencies:

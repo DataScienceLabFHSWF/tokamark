@@ -15,12 +15,20 @@ to the 32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026).
 
 Companion resources:
 
-* <ins>**[TokaMark Dataset](https://huggingface.co/datasets/UKAEA-IBM-STFC/tokamark-dataset):**</ins> The curated dataset the TokaMark 
-benchmark.
+* <ins>**TokaMark Dataset:**</ins> A curated dataset for use with TokaMark, available via the following configuration 
+settings:
+```python
+{
+    "s3_endpoint_url": "https://s3.echo.stfc.ac.uk",
+    "s3_mast_dataset_path": "/mast/tokamark/v1",
+    "base_fsspec_protocol":"simplecache",
+    "target_fsspec_protocol"="s3"
+ }
+```
 
-* <ins>**TokaMark Baseline:**</ins> A baseline model for the TokaMark benchmark.
+* <ins>**TokaMark Baseline:**</ins> A baseline CNN model for the TokaMark benchmark.
 
-* <ins>**TokaMind:**</ins> a Python-based system implementing the multi-modal, token-based Transformer pipeline for scientific and 
+* <ins>**TokaMind:**</ins> A Python-based system implementing the multi-modal, token-based Transformer pipeline for scientific and 
 industrial signals, introduced in the paper [TokaMind: A Multi-Modal Transformer Foundation Model for Tokamak Plasma 
 Dynamics](https://arxiv.org/abs/2602.15084)  (submitted to the 32nd SIGKDD Conference on Knowledge Discovery and Data 
 Mining, 2026).
@@ -33,7 +41,7 @@ Mining, 2026).
 2. Use conda to set up and activate a virtual environment with basic dependencies: 
    ```bash
    conda env create -f environment_basic.yml
-   conda activate fairmast-baseline
+   conda activate tomamark-env
    ```
 3. Run the command for the package-like installation of the project following [PEP 518](https://peps.python.org/pep-0518/)
    requirements (which makes use of the provided `pyproject.toml` file):
@@ -41,7 +49,7 @@ Mining, 2026).
    pip install -e .
    ```
 4. **[OPTIONAL]** For experiments using a local Zarr database, download and install 
-[TokaMark Dataset](https://huggingface.co/datasets/UKAEA-IBM-STFC/tokamark-dataset) under `/mast/tokamark/v1`. 
+the dataset under `/mast/tokamark/v1`. 
 
 * **REMARK:** Installation of the local dataset under a different directory is possible, but requires setting 
 variable `DEFAULT_BASE_LOCAL_ZARR_PATH` in module `./src/MAST_tools/utils/store_utils.py` with the appropriate path. 

@@ -38,7 +38,6 @@ from typing import Union, Any, Optional, Literal
 
 from torch import Tensor as TorchTensor
 
-from MAST_benchmark.tools.path import PROJECT_ROOT_DIR
 from MAST_benchmark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
 
 
@@ -806,23 +805,43 @@ def compute_summary_metrics(  # NOSONAR - Ignore cognitive complexity
 # ======================================================================================================================
 if __name__ == "__main__":
 
-    # NOTE: Change the path to the outputs dir here:
-    output_dir_ = Path(PROJECT_ROOT_DIR) / "output" / "evaluator_demo"
+    print("Example use of this module is described below.\n")
 
-    target_task = "task_2-1"  # "task_2-1", "task_4-4"
+    print("First, some preliminary steps:\n")
 
-    wma = WindowMetricsAccumulator(
-        task=target_task
+    print(
+        "    output_dir = <output dir>\n"
+        "    target_task = <target_task>\n"
+        "    wma = WindowMetricsAccumulator(\n"
+        "        task=<target_task>\n"
+        "    )\n"
     )
 
-    # TODO [Rodrigo]: Code below does not work as wma needs to be populated. Use MMT's benchmark_eval.py as reference.
+    print(
+        "From here, the WindowMetricsAccumulator instance needs to be populated for its use to compute metrics."
+        "This involves a loop as follows:\n")
 
-    compute_metrics(
-        task=target_task,
-        window_metrics_accumulator=wma,
-        output_dir=output_dir_
+    print(
+        "    dataloader = <DataLoader instance>\n"
+        "    for batch in <dataloader>:\n"
+        "        y_true, y_pred, y_mask, shot_ids, window_indices  = <function(batch)>\n"
+        "        for <feature_name> in <features>:\n"
+        "            wma.add_batch(\n"
+        "                y_target=<function(y_true)>,\n"
+        "                y_pred=<function(y_pred)>,\n"
+        "                shot_ids=<shot_ids[idx]>,\n"
+        "                window_indices=<window_indices[idx]>,\n"
+        "                feature_name=<feature_name>,\n"
+        "            )\n"
     )
 
-    compute_summary_metrics(output_dir=output_dir_)
+    print("After this, the metrics computation can be done as follows:\n")
 
-    print("DONE")
+    print(
+        "    compute_metrics(\n"
+        "        task=target_task,\n"
+        "        window_metrics_accumulator=wma,\n"
+        "        output_dir=<output_dir>\n"
+        "    )\n"
+        "    compute_summary_metrics(output_dir=output_dir_)\n"
+    )

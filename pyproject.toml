@@ -3,12 +3,12 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fairmast-data-preprocessing"
-version = "0.1.0"  # TODO: Perhaps use date-based release segments such as 2026.01
-description = "Data preprocessing and baseline models for FAIRMAST"
+name = "tokamark"
+version = "0.1.0"
+description = "Data preprocessing and benchmarking tools for FAIRMAST"
 readme = "README.md"
 requires-python = ">=3.10"
-license-files = ["LICENSE.md"]  # TODO: Update LICENSE.md with the appropiate license
+license-files = ["LICENSE.md"]
 
 dependencies = [
   "zarr==3.1.5",
