@@ -1,15 +1,29 @@
-# FAIRMAST Data Preprocessing - Application Architecture
+# TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models
 
 ## Overview
 
-**FAIRMAST Data Preprocessing** is a Python-based system for preprocessing fusion plasma data from the MAST (Mega Ampere Spherical Tokamak) facility and providing benchmark tasks for machine learning models. The architecture follows a modular design with two main packages:
+**TokaMark** is a Python-based system for preprocessing fusion plasma data from the MAST (Mega Ampere Spherical 
+Tokamak) facility and providing benchmark tasks for machine learning models. The architecture follows a modular design 
+with two main packages:
 
 1. **`MAST_tools`** - Core data access and utilities
 2. **`MAST_benchmark`** - Benchmark tasks, datasets, and evaluation framework
 
 The code in this repository corresponds to the official implementation of the **TokaMark benchmark** introduced in the 
-paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](ttps://arxiv.org/abs/2602.10132) (submitted
+paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132) (submitted
 to the 32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026).
+
+Companion resources:
+
+* <ins>**[TokaMark Dataset](https://huggingface.co/datasets/UKAEA-IBM-STFC/tokamark-dataset):**</ins> The curated dataset the TokaMark 
+benchmark.
+
+* <ins>**TokaMark Baseline:**</ins> A baseline model for the TokaMark benchmark.
+
+* <ins>**TokaMind:**</ins> a Python-based system implementing the multi-modal, token-based Transformer pipeline for scientific and 
+industrial signals, introduced in the paper [TokaMind: A Multi-Modal Transformer Foundation Model for Tokamak Plasma 
+Dynamics](https://arxiv.org/abs/2602.15084)  (submitted to the 32nd SIGKDD Conference on Knowledge Discovery and Data 
+Mining, 2026).
 
 ---
 
