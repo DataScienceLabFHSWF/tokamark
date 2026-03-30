@@ -48,11 +48,18 @@ ID_COLUMNS = ["shot_id", "window_index", "feature_name"]
 METRIC_COLUMNS = ["RMSE", "MAE"]
 COLUMNS = ID_COLUMNS + METRIC_COLUMNS
 TASK_METRICS = ("NRMSE", "NMAE", "RMSE", "MAE")
+
+METRIC_MEAN_COLUMNS = tuple(f"{m}_mean" for m in TASK_METRICS)
+METRIC_STD_COLUMNS = tuple(f"{m}_std_pop" for m in TASK_METRICS)
+RAW_TO_MEAN = dict(zip(TASK_METRICS, METRIC_MEAN_COLUMNS))
+MEAN_TO_RAW = dict(zip(METRIC_MEAN_COLUMNS, TASK_METRICS))
+
 TASK_SUMMARY_COLUMNS = ("n_shots",) + tuple(
-    f"{metric}_{suffix}" for metric in TASK_METRICS for suffix in ("mean", "std_pop")
+    c for pair in zip(METRIC_MEAN_COLUMNS, METRIC_STD_COLUMNS) for c in pair
 )
-SIGNAL_STD_COLUMNS = tuple(f"{metric}_std_pop" for metric in TASK_METRICS)
-SIGNAL_VALUE_COLUMNS = TASK_METRICS
+SIGNAL_STD_COLUMNS = METRIC_STD_COLUMNS
+SIGNAL_VALUE_COLUMNS = METRIC_MEAN_COLUMNS
+SHOT_SIGNAL_COLUMNS = ("shot_id", "feature_name", "n_windows") + METRIC_MEAN_COLUMNS
 
 WINDOW_METRICS_FILENAME = "windows_metrics.csv"
 SHOT_METRICS_FILENAME = "shots_metrics.csv"
@@ -431,13 +438,18 @@ def _extract_task_summary_from_shots_metrics(
         print(f"Warning: data loaded from {file_path} has no shot_id column. Skipping task {task}.")
         return None
 
-    df_task_shots = df.copy()
+    # Rename _mean columns back to bare names, then average across signals per shot.
+    df_renamed = df.rename(columns=MEAN_TO_RAW)
     for metric in TASK_METRICS:
-        if metric not in df_task_shots.columns:
-            df_task_shots[metric] = np.nan
-        df_task_shots[metric] = pd.to_numeric(df_task_shots[metric], errors="coerce")
+        if metric not in df_renamed.columns:
+            df_renamed[metric] = np.nan
+        df_renamed[metric] = pd.to_numeric(df_renamed[metric], errors="coerce")
 
-    df_task_shots = df_task_shots.set_index("shot_id")
+    df_task_shots = (
+        df_renamed
+        .groupby("shot_id")[list(TASK_METRICS)]
+        .mean()
+    )
 
     return {
         "task": task,
@@ -474,7 +486,7 @@ def _extract_task_summary_from_windows_metrics(
         return None, None
 
     df = pd.read_csv(file_path)
-    df_signals, df_task_shots = aggregate_windows_metrics(df=df)
+    df_signals, df_task_shots, _ = aggregate_windows_metrics(df=df)
     summary = {
         "task": task,
         **_build_task_summary_row_from_shots(df_task_shots=df_task_shots)
@@ -487,7 +499,7 @@ def _extract_task_summary_from_windows_metrics(
 # ----------------------------------------------------------------------------------------------------------------------
 def aggregate_windows_metrics(
         df: pd.DataFrame
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Aggregate window rows into signal-level and shot-level dataframes.
 
@@ -498,8 +510,8 @@ def aggregate_windows_metrics(
 
     Returns
     -------
-    tuple[pd.DataFrame, pd.DataFrame]
-        Tuple of aggregated metrics in pd.DataFrame format.
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+        Tuple of (df_signals, df_task_shots, df_signals_shots) aggregated metrics in pd.DataFrame format.
 
     """
 
@@ -512,7 +524,8 @@ def aggregate_windows_metrics(
 
     # Compute signal level score within each shot.
     if "RMSE" in df.columns:
-        df["RMSE"] = df["RMSE"] ** 2  # TODO [Tobia/Rodrigo]: Check if this is correct (see below).
+        # Convert RMSE -> MSE so the mean across windows is a valid mean-squared-error.
+        df["RMSE"] = df["RMSE"] ** 2
     df_signals_shots = (
         df
         .drop(columns="window_index")
@@ -521,7 +534,8 @@ def aggregate_windows_metrics(
         .reset_index()
     )
     if "RMSE" in df_signals_shots.columns:
-        df_signals_shots["RMSE"] = df_signals_shots["RMSE"] ** 0.5  # TODO [Tobia/Rodrigo]: Check if this is correct.
+        # Back to RMSE: sqrt(mean(MSE_w)) gives the correct aggregated RMSE.
+        df_signals_shots["RMSE"] = df_signals_shots["RMSE"] ** 0.5
 
     # Normalize signals per shot.
     signal_std = get_signals_metadata()
@@ -530,11 +544,18 @@ def aggregate_windows_metrics(
     df_signals_shots["NMAE"] = df_signals_shots["MAE"] / std
 
     # Average signals scores across shots.
+    n_shots_per_signal = (
+        df_signals_shots
+        .groupby("feature_name")["shot_id"]
+        .nunique()
+        .rename("n_shots")
+    )
     df_signals_mean = (
         df_signals_shots
         .drop(columns="shot_id")
         .groupby(by=["feature_name"])
         .mean()
+        .rename(columns=lambda c: f"{c}_mean")
     )
     df_signals_std = (
         df_signals_shots
@@ -544,7 +565,7 @@ def aggregate_windows_metrics(
         .fillna(0.0)
         .rename(columns=lambda c: f"{c}_std_pop")
     )
-    df_signals = df_signals_mean.join(df_signals_std)
+    df_signals = df_signals_mean.join(df_signals_std).join(n_shots_per_signal)
 
     # Compute task-level score within each shot.
     df_task_shots = (
@@ -554,7 +575,7 @@ def aggregate_windows_metrics(
         .mean()
     )
 
-    return df_signals, df_task_shots
+    return df_signals, df_task_shots, df_signals_shots
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -640,7 +661,7 @@ def compute_metrics(
     df = windows_df[COLUMNS].copy()
 
     # Compute signal and task level score within each shot.
-    df_signals, df_task_shots = aggregate_windows_metrics(df=df)
+    df_signals, df_task_shots, df_signals_shots = aggregate_windows_metrics(df=df)
     df_task_metrics = _build_task_metrics_df(
         task=task,
         df_signals=df_signals,
@@ -651,17 +672,17 @@ def compute_metrics(
         df.to_csv(task_output_dir / WINDOW_METRICS_FILENAME, index=False)
 
     if save_shot_metrics:
-        df_shots = df_task_shots.reset_index()
         n_windows = (
-            df.groupby("shot_id", as_index=False)["window_index"]
+            df.groupby(["shot_id", "feature_name"], as_index=False)["window_index"]
             .nunique()
             .rename(columns={"window_index": "n_windows"})
         )
-        df_shots = df_shots.merge(n_windows, on="shot_id", how="left")
-        ordered_cols = ["shot_id", "n_windows"] + [
-            c for c in df_shots.columns if c not in {"shot_id", "n_windows"}
-        ]
-        df_shots = df_shots[ordered_cols]
+        df_shots = (
+            df_signals_shots
+            .rename(columns=RAW_TO_MEAN)
+            .merge(n_windows, on=["shot_id", "feature_name"], how="left")
+        )
+        df_shots = df_shots[list(SHOT_SIGNAL_COLUMNS)]
         df_shots.to_csv(task_output_dir / SHOT_METRICS_FILENAME, index=False)
 
     if save_task_metrics:
