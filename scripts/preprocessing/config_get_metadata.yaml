@@ -13,7 +13,7 @@ dataloader_settings:
   batch_size: 20
   num_workers: 20
 
-task_name: get_metadata  # FIXME: What is the relevance of this field? If nothing, remove. [Cecile]
+task_name: get_metadata
 
 task_configuration:
   sources_and_signals:
