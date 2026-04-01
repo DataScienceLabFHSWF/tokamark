@@ -10,7 +10,7 @@ from typing import Optional, Union
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def run_test_scripts(
+def run_test_scripts(  # NOSONAR - Ignore cognitive complexity
         test_dir: Optional[Union[str, Path]] = None,
         timeout: int = 300
 ) -> bool:
@@ -40,7 +40,7 @@ def run_test_scripts(
     test_path = Path(test_dir)
     
     if not test_path.exists():
-        print(f"Test directory '{test_dir}' not found")
+        print(f"Test directory '{test_dir}' not found.")
         return False
     
     test_files = list(test_path.glob("*.py"))
@@ -49,7 +49,7 @@ def run_test_scripts(
     test_files = [f for f in test_files if f.name != current_script]
     
     if not test_files:
-        print(f"No Python files found in '{test_dir}'")
+        print(f"No Python files found in '{test_dir}'.")
         return True
     
     print(f"Running {len(test_files)} test scripts...\n")
@@ -62,7 +62,7 @@ def run_test_scripts(
         
         try:
             result = subprocess.run(
-                [sys.executable, str(test_file)],
+                args=[sys.executable, str(test_file)],
                 capture_output=True,
                 text=True,
                 timeout=timeout
@@ -86,13 +86,13 @@ def run_test_scripts(
     
     # Summary
     print(f"\n{'-' * 40}")
-    print(f"Results: {len(passed_tests)} passed, {len(failed_tests)} failed")
+    print(f"Results: {len(passed_tests)} passed, {len(failed_tests)} failed.")
     
     if failed_tests:
         print(f"Failed: {', '.join(failed_tests)}")
         return False
     else:
-        print("All tests passed")
+        print("All tests passed.")
         return True
 
 

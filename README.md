@@ -1,159 +1,658 @@
-# FAIR-MAST Data Preprocessing
+# TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models
 
-Data preprocessing of the FAIR-MAST data for foundation modelling.
+## Overview
 
-Initialised as part of HNCDI project Fusion Plasma Modelling HT07632.
+**TokaMark** is a Python-based system for preprocessing fusion plasma data from the MAST (Mega Ampere Spherical 
+Tokamak) facility and providing benchmark tasks for machine learning models. The architecture follows a modular design 
+with two main packages:
 
-For usage on [CSD3](https://docs.hpc.cam.ac.uk/hpc/index.html).
+1. **`MAST_tools`** - Core data access and utilities
+2. **`MAST_benchmark`** - Benchmark tasks, datasets, and evaluation framework
 
-## Initial setup
+The code in this repository corresponds to the official implementation of the **TokaMark benchmark** introduced in the 
+paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132) (submitted
+to the 32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026).
 
-1. Connect to CSD3 following the instructions in the [user guide](https://docs.hpc.cam.ac.uk/hpc/user-guide/quickstart.html).
-2. Install Miniforge by following the instructions [here](https://github.com/conda-forge/miniforge). In brief:  
-   1. Find the latest [release](https://github.com/conda-forge/miniforge/releases/).
-   2. Download and run the installer. For example:
-      ```bash
-      cd ~
-      wget https://github.com/conda-forge/miniforge/releases/download/24.11.3-2/Miniforge3-24.11.3-2-Linux-x86_64.sh
-      chmod +x Miniforge3-24.11.3-2-Linux-x86_64.sh
-      ./Miniforge3-24.11.3-2-Linux-x86_64.sh
-      ```
-   3. Source the base environment:
-      ```bash
-      source ~/miniforge3/bin/activate
-      ```
-3. Move to the directory containing this repository. For example:
-   ```bash
-   cd ~/hncdi-fusion-plasma/fairmast-data-preprocessing
-   ```
-4. Use conda to set up and activate a virtual environment with basic dependencies: 
+Companion resources:
+
+* <ins>**TokaMark Dataset:**</ins> A curated dataset for use with TokaMark, available via the following configuration 
+settings:
+```python
+{
+    "s3_endpoint_url": "https://s3.echo.stfc.ac.uk",
+    "s3_mast_dataset_path": "/mast/tokamark/v1",
+    "base_fsspec_protocol":"simplecache",
+    "target_fsspec_protocol"="s3"
+ }
+```
+
+* <ins>**TokaMark Baseline:**</ins> A baseline CNN model for the TokaMark benchmark.
+
+* <ins>**TokaMind:**</ins> A Python-based system implementing the multi-modal, token-based Transformer pipeline for scientific and 
+industrial signals, introduced in the paper [TokaMind: A Multi-Modal Transformer Foundation Model for Tokamak Plasma 
+Dynamics](https://arxiv.org/abs/2602.15084)  (submitted to the 32nd SIGKDD Conference on Knowledge Discovery and Data 
+Mining, 2026).
+
+---
+
+## 📦 Initial setup
+
+1. Clone the repository and move to the installation directory.
+2. Use conda to set up and activate a virtual environment with basic dependencies: 
    ```bash
    conda env create -f environment_basic.yml
-   conda activate fairmast-baseline
+   conda activate tomamark-env
    ```
-5. Run the command for the package-like installation of the project following [PEP 518](https://peps.python.org/pep-0518/)
+3. Run the command for the package-like installation of the project following [PEP 518](https://peps.python.org/pep-0518/)
    requirements (which makes use of the provided `pyproject.toml` file):
    ```bash
    pip install -e .
    ```
+4. **[OPTIONAL]** For experiments using a local Zarr database, download and install 
+the dataset under `/mast/tokamark/v1`. 
 
-## CSD3 instructions
+* **REMARK:** Installation of the local dataset under a different directory is possible, but requires setting 
+variable `DEFAULT_BASE_LOCAL_ZARR_PATH` in module `./src/MAST_tools/utils/store_utils.py` with the appropriate path. 
 
-Running computational workloads on CSD3 (including Jupyter Notebooks) should be done using the worker nodes.
+---
 
-Start interactive job with 32 CPUs per task, 1 Node for 1 hour:
+## High-Level Architecture
 
-```bash
-sintr -A ukaea-ap002-cpu -p ukaea-icl -N1 --ntasks=1 --cpus-per-task=32 -t 1:00:00
-```
-
-Start interactive job with 4 GPUs, 1 Node, 1 task (n) for 2 hours:
-```bash
-sintr --gres=gpu:4 -A ukaea-ap002-gpu -p ukaea-amp -N1 -n1 -t 2:0:0
-```
-
-Check accounts and partitions that I am allowed to use, (example for my acount ir-lore2):
-```bash
-sacctmgr show associations user=$USER format=Cluster,User,Account,Partition
-
-
- Cluster       User    Account  Partition 
----------- ---------- ---------- ---------- 
-      csd3   ir-lore2 ukaea-ap0+    desktop 
-      csd3   ir-lore2 ukaea-ap0+ ukaea-icl+ 
-      csd3   ir-lore2 ukaea-ap0+  ukaea-icl 
-      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
-      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
-      csd3   ir-lore2 ukaea-ap0+  ukaea-spr 
-      csd3   ir-lore2 ukaea-ap0+    desktop 
-      csd3   ir-lore2 ukaea-ap0+ ukaea-icl+ 
-      csd3   ir-lore2 ukaea-ap0+  ukaea-icl 
-      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
-      csd3   ir-lore2 ukaea-ap0+ ukaea-spr+ 
-      csd3   ir-lore2 ukaea-ap0+  ukaea-spr 
-      csd3   ir-lore2 ukaea-ap0+  ukaea-amp 
-```
-
-Show partitions, example for ukaea-icl:
-```bash
-scontrol show partition ukaea-amp
-```
-
-```
-AllowGroups=ALL AllowAccounts=ALL AllowQos=sys0,sys1,support-gpu,covid0,intr,ukaea-gpu1,gpu0,gpul,gpu1,gpu2,gpu3,dirac-gpu1,dirac-gpu3
-AllocNodes=ALL Default=NO QoS=N/A
-DefaultTime=00:10:00 DisableRootJobs=NO ExclusiveUser=NO GraceTime=0 Hidden=NO
-MaxNodes=UNLIMITED MaxTime=7-00:00:00 MinNodes=0 LLN=NO MaxCPUsPerNode=UNLIMITED MaxCPUsPerSocket=UNLIMITED
-Nodes=gpu-q-[48-60,64,73-80]
-PriorityJobFactor=1 PriorityTier=1 RootOnly=NO ReqResv=NO OverSubscribe=NO
-OverTimeLimit=NONE PreemptMode=OFF
-State=UP TotalCPUs=2816 TotalNodes=22 SelectTypeParameters=NONE
-JobDefaults=(null)
-DefMemPerCPU=8000 MaxMemPerCPU=8000
-TRES=cpu=2816,mem=22000G,node=22,billing=2816,gres/gpu=88
-ResumeTimeout=GLOBAL SuspendTimeout=GLOBAL SuspendTime=1800 PowerDownOnIdle=NO
-```
-
-Show nodes list of a specific partition, for instance 
-```
-sinfo -p ukaea-amp -N
-```
-
-```
-NODELIST   NODES PARTITION STATE 
-gpu-q-48       1 ukaea-amp idle~ 
-gpu-q-49       1 ukaea-amp alloc 
-gpu-q-50       1 ukaea-amp alloc 
-gpu-q-51       1 ukaea-amp alloc 
-gpu-q-52       1 ukaea-amp alloc 
-gpu-q-53       1 ukaea-amp alloc 
-gpu-q-54       1 ukaea-amp alloc 
-gpu-q-55       1 ukaea-amp alloc 
-gpu-q-56       1 ukaea-amp alloc 
-gpu-q-57       1 ukaea-amp alloc 
-gpu-q-58       1 ukaea-amp alloc 
-gpu-q-59       1 ukaea-amp idle~ 
-gpu-q-60       1 ukaea-amp idle~ 
-gpu-q-64       1 ukaea-amp idle~ 
-gpu-q-73       1 ukaea-amp alloc 
-gpu-q-74       1 ukaea-amp alloc 
-gpu-q-75       1 ukaea-amp alloc 
-gpu-q-76       1 ukaea-amp alloc 
-gpu-q-77       1 ukaea-amp alloc 
-gpu-q-78       1 ukaea-amp alloc 
-gpu-q-79       1 ukaea-amp alloc 
-gpu-q-80       1 ukaea-amp alloc 
-```
+```mermaid
+graph TB
+    subgraph "Data Sources"
+        S3[S3 Remote Storage<br/>MAST Dataset]
+        LOCAL[Local Zarr Files<br/>Cached Data]
+    end
     
+    subgraph "MAST_tools Package"
+        SM[MASTStorageManager<br/>Data Access Layer]
+        SIG[MASTSignalManager<br/>Signal Processing]
+        MD[MastDataset<br/>PyTorch Dataset]
+        UTILS[Utilities<br/>data/plotting/signal]
+    end
+    
+    subgraph "MAST_benchmark Package"
+        TASKS[Task Definitions<br/>14 Benchmark Tasks]
+        TM[TokaMarkDataset<br/>Windowed Dataset]
+        TRANS[Transform Pipeline<br/>Preprocessing]
+        EVAL[Evaluator<br/>Metrics & Analysis]
+        SPLIT[Data Split<br/>Train/Val/Test]
+    end
+    
+    subgraph "User Interface"
+        SCRIPTS[Scripts<br/>test_pipeline.py]
+        NOTEBOOKS[Jupyter Notebooks<br/>Analysis & Demo]
+    end
+    
+    S3 --> SM
+    LOCAL --> SM
+    SM --> SIG
+    SIG --> MD
+    MD --> TM
+    TASKS --> TM
+    TRANS --> TM
+    TM --> SCRIPTS
+    TM --> NOTEBOOKS
+    EVAL --> SCRIPTS
+    SPLIT --> SCRIPTS
+```
+---
 
-To run a Jupyter notebook on a worker node using VSCode:
+## Core Components
 
-1. On the local machine, add an entry to `~/.ssh/config`:
-   ```
-   Host csd3
-     User <user-name>
-     HostName login-cpu.hpc.cam.ac.uk
-     IdentityFile </path/to/id_rsa>
-   ```
-2. In VSCode, install the "Remote Development" extension pack (if not already installed).
-3. In VSCode, run the command "Remote-SSH: Connect to Host" and select "csd3" from the dropdown menu. VSCode will now connect to a VSCode server running on a CSD3 login node.
-4. In the VSCode terminal, start an interactive session using the command above. Note down the node address, which appears as part of the terminal prompt prefix with the format `[<user-name>@<node-address>]` and will be something like `cpu-q-123`.
-5. In the interactive session, start a Jupyter notebook server:
-   ```bash
-   jupyter notebook --no-browser --ip=* --port=8081
-   ```
-   Wait for the server to start then copy the address, which should have the format:
-   ```
-   http://localhost:8081/tree?token=<token>
-   ```
-6. In another VSCode terminal (i.e., not the interactive one), tunnel to the worker node and forward the Jupyter server port:
-   ```bash
-   ssh -L 8081:localhost:8081 <user-name>@<node-address>
-   ```
-7. In VSCode, open up a `.ipynb` file and connect to the server running on the worker node:
-   1. Run the command `Notebook: Select Notebook Kernel`.
-   2. Click "Select Another Kernel".
-   3. Select "Existing Jupyter Server".
-   4. Paste in the server address noted down before and hit enter. Hit enter on the subsequent input boxes to accept the default values, or modify them if needed.
+### 1. Data Access Layer (`MAST_tools`)
 
-Any cells executed in the notebook will now execute on the kernel running on the reserved cores of the worker node.
+#### **MASTStorageManager** (`src/MAST_tools/utils/store_utils.py`)
+- **Purpose**: Manages access to MAST data stored in Zarr format
+- **Key Features**:
+  - Supports both local and remote (S3) data sources
+  - Uses `fsspec` for filesystem abstraction
+  - Implements caching with `simplecache` protocol
+  - Provides shot-level data access
+- **Configuration**:
+  - S3 endpoint: `https://s3.echo.stfc.ac.uk`
+  - Dataset path: `/mast/tokamark/v1`
+  - Local cache path: `/mast/tokamark/v1`
+- **Key Methods**:
+  - `list_all_shots()`: List available shot IDs
+  - `list_shots_by_signal_availability()`: Filter shots by signal availability
+  - `make_shot_store()`: Create Zarr store for a shot
+  - `make_shot_group()`: Create Zarr group for a shot
+  - `get_all_signals_in_store()`: List all signals in a store
+
+#### **MASTSignalManager** (`src/MAST_tools/utils/signal_utils.py`)
+- **Purpose**: High-level interface for retrieving signals from shots
+- **Key Methods**:
+  - `get_signal_values()`: Extract signal data
+  - `get_signal_times_and_time_type()`: Get temporal information
+  - `get_signal_profile()`: Retrieve profile data
+  - `get_channel_names()`: List available channels
+  - `get_source_profiles()`: Get all profiles from a source
+
+#### **MastDataset** (`src/MAST_tools/MAST_dataset.py`)
+- **Purpose**: PyTorch Dataset wrapper for MAST data
+- **Features**:
+  - Lazy loading of shot data
+  - Signal-level transforms
+  - Shot-level transforms
+  - Handles incomplete shots
+  - Outlier removal support
+- **Key Methods**:
+  - `__getitem__(idx)`: Return samples by shot index
+  - `get_shot_id(idx)`: Return shot ID from index
+  - `get_windows_for_shot(idx)`: Return windows for a shot
+- **Includes**: `CachedDataset` for in-memory caching
+
+---
+
+### 2. Benchmark Framework (`MAST_benchmark`)
+
+#### **Task System** (`src/MAST_benchmark/tasks.py`)
+- **14 Benchmark Tasks** organized in 4 groups:
+  - **Group 1**: Reconstruction (tasks 1-1, 1-2, 1-3)
+  - **Group 2**: Magnetics Dynamics (tasks 2-1, 2-2, 2-3)
+  - **Group 3**: Profiles Dynamics (tasks 3-1, 3-2, 3-3)
+  - **Group 4**: MHD Activity (tasks 4-1 through 4-5)
+- **Configuration**: YAML files in `src/MAST_benchmark/tasks_configs/`
+- **Key Functions**:
+  - `get_task_config(task_name)`: Load task configuration
+  - `get_signals_metadata(file_path)`: Load signal statistics
+  - `get_task_metadata(config_task)`: Extract task metadata
+
+#### **TokaMarkDataset** (`src/MAST_benchmark/tools/TokaMark_dataset.py`)
+- **Purpose**: Iterable dataset for windowed time-series data
+- **Features**:
+  - Sliding window generation
+  - Streaming shuffle buffer
+  - Multi-worker support
+  - NaN handling
+  - Input/actuator/output separation
+- **Key Methods**:
+  - `__iter__()`: Generate windowed samples
+  - `_shuffle_buffer()`: Streaming shuffle implementation
+
+#### **Transform Pipeline** (`src/MAST_benchmark/tools/MAST_composite_transform.py`)
+- **Purpose**: Composable data transformations
+- **Available Transforms**:
+  - `StdScalingTransform`: Standardization using mean/std
+  - `ReshapeLcfsTransform`: LCFS (Last Closed Flux Surface) reshaping
+  - `FillProfileWithZerosTransform`: Zero imputation for missing values
+  - `STFTTransform`: Short-time Fourier transform
+  - `ComposeTransforms`: Transform composition
+- **Key Function**:
+  - `build_common_signal_transform_map()`: Build transform map for signals
+
+#### **Evaluation System** (`src/MAST_benchmark/evaluator.py`)
+- **Purpose**: Comprehensive metrics computation and aggregation
+- **Metrics Hierarchy**:
+  1. **Window-level**: RMSE, MAE per window
+  2. **Shot-level**: Aggregated per shot
+  3. **Signal-level**: Aggregated per signal
+  4. **Task-level**: NRMSE, NMAE, RMSE, MAE
+  5. **Group-level**: Aggregated across tasks
+- **Key Functions**:
+  - `compute_windows_metrics()`: Per-window metrics
+  - `compute_metrics()`: Full evaluation pipeline
+  - `compute_summary_metrics()`: Cross-task aggregation
+- **Output Files**:
+  - `windows_metrics.csv`: Per-window results
+  - `shots_metrics.csv`: Per-shot aggregation
+  - `task_metrics.csv`: Per-task summary
+  - `signals_metrics.csv`: Per-signal summary
+  - `groups_metrics.csv`: Per-group summary
+
+#### **Data Splitting** (`src/MAST_benchmark/data_split.py`)
+- **Purpose**: Manage train/validation/test splits
+- **Features**:
+  - Predefined splits in `src/MAST_benchmark/metadata/TokaMark_data_splits.csv`
+  - Subset selection support
+  - Shuffle capability with seed control
+- **Key Function**: `get_train_test_val_shots()`: Generate shot lists for each split
+
+---
+
+## Data Flow
+
+
+Data flow explained through the use of `testp_pipeline.py`:
+
+```
+User Request
+    │
+    ▼
+test_pipeline.py (Script)
+    │
+    ├─► get_task_config() ──► Load task YAML
+    │
+    ├─► get_train_test_val_shots() ──► Load data splits
+    │
+    ├─► initialize_MAST_dataset()
+    │       │
+    │       ├─► MastDataset.__init__()
+    │       │       │
+    │       │       └─► MASTSignalManager.__init__()
+    │       │               │
+    │       │               └─► MASTStorageManager.__init__()
+    │       │                       │
+    │       │                       └─► Connect to S3/Local Storage
+    │       │
+    │       └─► build_common_signal_transform_map()
+    │
+    ├─► initialize_TokaMark_dataset()
+    │       │
+    │       └─► TokaMarkDataset.__init__()
+    │
+    ├─► DataLoader (PyTorch)
+    │       │
+    │       └─► TokaMarkDataset.__iter__()
+    │               │
+    │               ├─► MastDataset.__getitem__()
+    │               │       │
+    │               │       ├─► MASTSignalManager.get_signal_values()
+    │               │       │       │
+    │               │       │       └─► MASTStorageManager.make_shot_store()
+    │               │       │               │
+    │               │       │               └─► Read from Zarr (S3/Local)
+    │               │       │
+    │               │       └─► Apply signal transforms
+    │               │
+    │               └─► Generate windows
+    │
+    ├─► Model Training/Inference
+    │       │
+    │       └─► Generate predictions
+    │
+    └─► Evaluator
+            │
+            ├─► compute_windows_metrics()
+            ├─► compute_metrics()
+            └─► compute_summary_metrics()
+                    │
+                    └─► Save CSV reports
+```
+
+Corresponding flow diagram:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Pipeline as test_pipeline.py
+    participant DataInit as initialize_MAST_dataset
+    participant MastDS as MastDataset
+    participant SigMgr as MASTSignalManager
+    participant StoreMgr as MASTStorageManager
+    participant Storage as S3/Local Storage
+    participant TokaMark as TokaMarkDataset
+    participant Model as ML Model
+    participant Eval as Evaluator
+
+    User->>Pipeline: Run benchmark task
+    Pipeline->>DataInit: Initialize with task config
+    DataInit->>MastDS: Create dataset
+    MastDS->>SigMgr: Initialize signal manager
+    SigMgr->>StoreMgr: Setup storage access
+    StoreMgr->>Storage: Connect to data source
+    
+    Pipeline->>TokaMark: Create windowed dataset
+    TokaMark->>MastDS: Request shot data
+    MastDS->>SigMgr: Get signals
+    SigMgr->>StoreMgr: Fetch from storage
+    StoreMgr->>Storage: Read Zarr data
+    Storage-->>StoreMgr: Return data
+    StoreMgr-->>SigMgr: Return data
+    SigMgr-->>MastDS: Apply transforms
+    MastDS-->>TokaMark: Return processed shot
+    TokaMark-->>Pipeline: Yield windows
+    
+    Pipeline->>Model: Train/Inference
+    Model-->>Pipeline: Predictions
+    Pipeline->>Eval: Compute metrics
+    Eval-->>User: Results & Reports
+```
+
+---
+
+## Key Design Patterns
+
+### 1. **Layered Architecture**
+- **Storage Layer**: `MASTStorageManager` - Handles Zarr data access
+- **Signal Layer**: `MASTSignalManager` - Processes signals
+- **Dataset Layer**: `MastDataset`, `TokaMarkDataset` - PyTorch integration
+- **Application Layer**: Scripts and notebooks - User interface
+
+### 2. **Transform Pipeline Pattern**
+- Composable transforms using `ComposeTransforms`
+- Signal-level and shot-level transforms
+- Configurable via `build_common_signal_transform_map()`
+- Each transform is a callable class with `__call__()` method
+
+### 3. **Configuration-Driven**
+- Task definitions in YAML files (`tasks_configs/`)
+- Signal statistics in `dict_signals_stats.yaml`
+- Outlier metadata in `dict_outlier_metadata.yaml`
+- Data splits in `TokaMark_data_splits.csv`
+
+### 4. **Lazy Loading & Caching**
+- `CachedDataset` for memory caching
+- `fsspec` simplecache for disk caching
+- On-demand data loading from Zarr stores
+- Reduces memory footprint and I/O operations
+
+### 5. **Iterator Pattern**
+- `TokaMarkDataset` implements `IterableDataset`
+- Streaming data generation
+- Shuffle buffer for randomization
+- Multi-worker support for parallel loading
+
+---
+
+## Technology Stack
+
+### Core Dependencies
+- **Data Storage**: `zarr`, `fsspec`, `s3fs`, `xarray`
+- **ML Framework**: `torch`, `torchvision`, `tensordict`
+- **Scientific Computing**: `numpy`, `scikit-learn`
+- **Visualization**: `matplotlib`, `seaborn`, `opencv-python`
+- **Optimization**: `optuna`
+- **Development**: `jupyter`, `black`, `pytest`
+
+### Data Format
+- **Primary**: Zarr (chunked, compressed array storage)
+- **Metadata**: YAML, CSV
+- **Artifacts**: CSV (statistics, metrics)
+
+---
+
+## 🗂️ Directory Structure
+
+```
+fairmast-data-preprocessing/
+├── src/
+│   ├── MAST_tools/                             # Core data access
+│   │   ├── MAST_dataset.py                     # PyTorch dataset
+│   │   ├── metadata/                           # Outliers, signals
+│   │   │   ├── dict_outlier_metadata.yaml
+│   │   │   ├── dict_sources_with_signals.yaml
+│   │   │   └── signal_availability.csv
+│   │   └── utils/                              # Storage, signals, plotting
+│   │       ├── data_utils.py                   # Type definitions
+│   │       ├── store_utils.py                  # MASTStorageManager
+│   │       ├── signal_utils.py                 # MASTSignalManager
+│   │       ├── plotting_utils.py               # Visualization
+│   │       ├── general_utils.py                # Utilities
+│   │       └── path_utils.py                   # Path constants
+│   │
+│   └── MAST_benchmark/                         # Benchmark framework
+│       ├── data.py                             # Dataset initialization
+│       ├── tasks.py                            # Task definitions
+│       ├── evaluator.py                        # Metrics computation
+│       ├── data_split.py                       # Train/val/test splits
+│       ├── metadata/                           # Task configs, splits
+│       │   ├── dict_signals_stats.yaml
+│       │   └── TokaMark_data_splits.csv
+│       ├── tasks_configs/                      # 14 task YAML files
+│       │   ├── group_1_reconstruction/
+│       │   ├── group_2_magnetics_dynamics/
+│       │   ├── group_3_profiles_dynamics/
+│       │   └── group_4_mhd_activity/
+│       └── tools/                              # Transforms, utilities
+│           ├── TokaMark_dataset.py
+│           ├── MAST_composite_transform.py
+│           ├── path.py
+│           ├── utils.py
+│           └── transforms/
+│               ├── compose_transform.py
+│               ├── stdscale_transform.py
+│               ├── reshape_lcfs_transform.py
+│               ├── fill_profile_with_zeros_imputer_transform.py
+│               └── stft_transform.py
+│
+├── scripts/                                    # Execution scripts
+│   ├── test_pipeline.py                        # Main benchmark runner
+│   ├── persistence.py                          # Persistence model
+│   └── preprocessing/                          # Data preprocessing
+│       ├── run_get_metadata_per_shot.py
+│       └── run_get_dict_stat_metadata.py
+│
+├── notebooks/                                  # Analysis notebooks
+│   ├── Workshop demo of MAST_tools.ipynb
+│   ├── Validation Tests for MAST_tools.ipynb
+│   ├── evaluation.ipynb
+│   └── data_stratification.ipynb
+│
+├── artifacts/                                  # Generated outputs
+│   ├── shots_stats/                            # Shot statistics
+│   └── signals_stats/                          # Signal statistics
+│
+├── tests/                                      # Unit tests
+│   ├── run_tests.py
+│   └── README.md
+│
+├── pyproject.toml                              # Project configuration
+├── environment.yml                             # Conda environment
+└── README.md                                   # Project documentation
+```
+
+---
+
+## Usage Workflow
+
+### 1. **Data Initialization**
+```python
+from MAST_benchmark.data import initialize_MAST_dataset
+from MAST_benchmark.tasks import get_task_config
+from MAST_benchmark.data_split import get_train_test_val_shots
+
+# Load task configuration
+config = get_task_config("task_1-1")
+
+# Get data splits
+train_shots, test_shots, val_shots = get_train_test_val_shots()
+
+# Initialize dataset
+dataset = initialize_MAST_dataset(
+    config_task=config,
+    shots_list=train_shots,
+    local_flag=True,
+    use_std_scaling=True,
+    remove_outliers=True
+)
+```
+
+### 2. **Create Windowed Dataset**
+```python
+from MAST_benchmark.data import initialize_TokaMark_dataset
+from MAST_benchmark.tasks import get_task_metadata, get_signals_metadata
+
+# Get metadata
+task_metadata = get_task_metadata(config, verbose=False)
+signals_metadata = get_signals_metadata()
+
+# Create windowed dataset
+tokamark_ds = initialize_TokaMark_dataset(
+    dataset=dataset,
+    task_metadata=task_metadata,
+    config_metadata=signals_metadata,
+    custom_transform=None
+)
+```
+
+### 3. **Training/Evaluation**
+```python
+from torch.utils.data import DataLoader
+from MAST_benchmark.evaluator import WindowMetricsAccumulator
+
+# Create data loader
+dataloader = DataLoader(
+    tokamark_ds,
+    batch_size=32,
+    num_workers=4
+)
+
+# Initialize metrics accumulator
+accumulator = WindowMetricsAccumulator(task="task_1-1")
+
+# Training loop
+for batch in dataloader:
+    # Train model
+    predictions = model(batch['x'])
+    
+    # Accumulate metrics
+    accumulator.add_batch(
+        y_target=batch['y'],
+        y_pred=predictions,
+        shot_ids=batch['shot_id'],
+        window_indices=batch['window_index'],
+        feature_names=batch['feature_names']
+    )
+```
+
+### 4. **Compute Metrics**
+```python
+from MAST_benchmark.evaluator import compute_metrics, compute_summary_metrics
+
+# Compute task-level metrics
+compute_metrics(
+    task="task_1-1",
+    output_dir="results/",
+    window_metrics_accumulator=accumulator,
+    save_windows_metrics=True,
+    save_shot_metrics=True,
+    save_task_metrics=True
+)
+
+# After all tasks, compute summary
+compute_summary_metrics(
+    output_dir="results/",
+    source="task_metrics"
+)
+```
+
+---
+
+## Potential Extension Points
+
+### 1. **Adding New Tasks**
+1. Create YAML config in `src/MAST_benchmark/tasks_configs/`
+2. Define input/actuator/output signals
+3. Specify window parameters
+4. Add task to `TASKS_CONFIGS_MAP` in `tasks.py`
+
+### 2. **Custom Transforms**
+1. Create new transform class in `src/MAST_benchmark/tools/transforms/`
+2. Implement `__init__()` and `__call__()` methods
+3. Add to transform map in `MAST_composite_transform.py`
+
+### 3. **New Metrics**
+1. Extend `WindowMetricsAccumulator` in `evaluator.py`
+2. Add metric computation in `compute_windows_metrics()`
+3. Update aggregation logic in `compute_metrics()`
+
+### 4. **Storage Backends**
+1. Modify `MASTStorageManager` in `store_utils.py`
+2. Add new filesystem protocol support
+3. Update `_get_store_from_data_origin()` method
+
+### 5. **Custom Models**
+1. Create model-specific transform class
+2. Implement in `scripts/test_pipeline.py`
+3. Use with `initialize_TokaMark_dataset(custom_transform=...)`
+
+---
+
+## Performance Considerations
+
+### 1. **Data Loading**
+- Use multi-worker DataLoader for parallel loading
+- Enable caching with `CachedDataset` for repeated access
+- Use `fsspec` simplecache for disk caching of remote data
+
+### 2. **Memory Management**
+- Lazy loading prevents loading entire dataset into memory
+- Windowed dataset generates samples on-the-fly
+- Configurable buffer size for shuffle operations
+
+### 3. **I/O Optimization**
+- Zarr format provides chunked, compressed storage
+- S3 access optimized with fsspec caching
+- Local mode bypasses network I/O
+
+### 4. **Scalability**
+- Iterable dataset supports streaming for large datasets
+- Multi-worker support for parallel processing
+- Configurable batch sizes and window parameters
+
+---
+## Component Interactions
+
+### Data Loading Pipeline
+1. **User Request** → `test_pipeline.py` specifies task and shots
+2. **Task Configuration** → Load YAML config with input/output signals
+3. **Dataset Creation** → `initialize_MAST_dataset()` creates `MastDataset`
+4. **Storage Setup** → `MASTStorageManager` connects to S3 or local Zarr
+5. **Signal Retrieval** → `MASTSignalManager` fetches and processes signals
+6. **Transform Application** → Apply standardization, reshaping, etc.
+7. **Window Generation** → `TokaMarkDataset` creates sliding windows
+8. **Batch Creation** → PyTorch DataLoader collates batches
+
+### Evaluation Pipeline
+1. **Model Inference** → Generate predictions for test set
+2. **Window Metrics** → Compute RMSE/MAE per window
+3. **Shot Aggregation** → Average metrics across windows per shot
+4. **Signal Aggregation** → Average across shots per signal
+5. **Task Metrics** → Compute normalized metrics (NRMSE, NMAE)
+6. **Group Aggregation** → Average task metrics per group
+7. **Report Generation** → Save CSV files with hierarchical metrics
+
+---
+
+## Testing
+
+### Unit Tests
+- Located in `tests/` directory
+- Run with `python tests/run_tests.py`
+- Cover core functionality of MAST_tools and MAST_benchmark
+
+### Validation Notebooks
+- `notebooks/Validation Tests for MAST_tools.ipynb`
+- `notebooks/Workshop demo of MAST_tools.ipynb`
+- Interactive testing and demonstration
+
+---
+
+## Error Handling
+
+### Data Quality
+- **Incomplete Shots**: Optional handling via `return_incomplete_shots`
+- **Outlier Detection**: Configurable outlier removal
+- **NaN Handling**: Checks for missing values in windows
+- **Signal Availability**: Pre-filtering based on signal presence
+
+### Validation
+- **Shot ID Validation**: Type and format checking
+- **Signal Existence**: Verify signals exist in storage
+- **Configuration Validation**: YAML schema validation
+- **Transform Compatibility**: Check transform applicability
+
+---
+
+## 📄 License
+See [License file](LICENSE.md).
+
+---
+
+## References
+
+### Project Highlights
+- **Project Repository**: `fairmast-data-preprocessing`
+- **Data Source**: MAST Tokamak (Mega Ampere Spherical Tokamak)
+- **Storage Format**: Zarr v3.1.5
+- **ML Framework**: PyTorch
+- **Documentation Standards**: NumPy docstring format, Google Python style guide
+
+### External Documentation
+- **Zarr Documentation**: https://zarr.readthedocs.io/
+- **fsspec Documentation**: https://filesystem-spec.readthedocs.io/
+- **PyTorch Dataset**: https://pytorch.org/docs/stable/data.html
+- **MAST Facility**: https://www.ccfe.ac.uk/mast.aspx
