@@ -3,13 +3,14 @@ Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Optional
 
 
 # ======================================================================================================================
 class ComposeTransforms(object):
     """
-    Compose transforms and apply them in series checking for None return values
+    Compose transforms and apply them in series checking for None return values.
 
     Attributes
     ----------
@@ -18,23 +19,27 @@ class ComposeTransforms(object):
 
     Methods
     -------
-    __call__
-        Call method for the class to behave like a function.
+    __call__(sample)
+        Call method for the class instances to behave like a function.
 
     """
 
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(
             self,
-            transforms: Any
+            transforms: list[Callable]
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
-        transforms : list[callable[tuple]]
-            List containing the names of the transforms
+        transforms : list[Callable]
+            List containing the names of the transforms.
+
+        Returns
+        -------
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
@@ -43,19 +48,19 @@ class ComposeTransforms(object):
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(
             self,
-            sample: Any
-    ) -> Any:
+            sample: Optional[Any]
+    ) -> Optional[Any]:
         """
-        Call method for the class to behave like a function.
+        Call method for the class instances to behave like a function.
 
         Parameters
         ----------
-        sample : Any
-            Target sample.
+        sample : Optional[Any]
+            Input sample.
 
         Returns
         -------
-        Any
+        Optional[Any]
             Transformed sample.
 
         """
@@ -65,3 +70,5 @@ class ComposeTransforms(object):
                 return None
             sample = transform(sample)
         return sample
+
+    # ------------------------------------------------------------------------------------------------------------------

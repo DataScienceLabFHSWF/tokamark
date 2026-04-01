@@ -2,32 +2,37 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
+
 import time
+import argparse
+from pathlib import Path
+from collections.abc import Mapping
+from typing import Any, Sequence, Optional
+from multiprocessing import cpu_count
+
+import torch.multiprocessing as mp
+from torch.utils.data import DataLoader
+from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
+
+from MAST_tools.utils.general_utils import warning_print
+from MAST_benchmark.tools.utils import get_device, get_config_from_yaml
+from MAST_benchmark.data_split import get_train_test_val_shots
+from MAST_benchmark.tasks import get_task_metadata, get_task_config
+from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+CONFIG_FILES_DIR = Path("config_files")
+
+# ------------------------------------------------------------------------------------------------------------------
+# Preliminaries
 
 start = time.perf_counter()
 
-import torch 
-import numpy as np
-import argparse
-from typing import Dict, Any, Sequence, Optional
-from multiprocessing import cpu_count
-import torch.multiprocessing as mp
-from torch.utils.data import DataLoader
-from torch.utils.data._utils.collate import default_collate
-
-from MAST_benchmark.tools.utils import get_device
-from MAST_benchmark.tools.utils import get_config_from_yaml
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.tasks import get_task_metadata
-from MAST_benchmark.data import (
-    initialize_MAST_dataset, 
-    initialize_TokaMark_dataset
-)
-
-
-# Set device
 device = get_device()
 # print(f"Using device: {device}\n")
+
 
 # ======================================================================================================================
 class ModelSpecificTransform:  # TEMPLATE
@@ -52,7 +57,7 @@ class ModelSpecificTransform:  # TEMPLATE
             verbose=False
     ) -> None:
         """
-        Initialise class attributes.
+        Initialize class attributes.
 
         Parameters
         ----------
@@ -61,18 +66,17 @@ class ModelSpecificTransform:  # TEMPLATE
 
         Returns
         -------
-        None
+        # None  # REMARK: Commented out to avoid type checking errors, as this is a callable class.
 
         """
 
-        # dictionary that persists across calls
         self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
     def __call__(
             self,
-            shot: Dict[str, Any]
-    ) -> Dict[str, Any]:
+            shot: Mapping[str, Any]
+    ) -> dict[str, Any]:
         """
         Call method.
 
@@ -83,8 +87,9 @@ class ModelSpecificTransform:  # TEMPLATE
 
         Returns
         -------
-        Dict[str, Any]
-            Mapping with x and y values.
+        dict[str, Any]
+            Dictionary with "x" and "y" keys and values from `shot["input"] + shot["actuator"]` and `shot["output"]`
+            items, respectively.
 
         """
 
@@ -111,6 +116,7 @@ def model_collate_fn(
         Input batch.
     verbose : bool
         If True, activate verbose mode.
+        Optional. Default: False.
 
     Returns
     -------
@@ -143,69 +149,101 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # Argument parsing
     # ------------------------------------------------------------------------------------------------------------------
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--task",
         type=str,
-        default="task_1-1",
-        help="The name of the task available in the benchmark",
+        choices=[
+            "test_task",
+            "task_1-1", "task_1-2", "task_1-3",
+            "task_2-1", "task_2-2", "task_2-3",
+            "task_3-1", "task_3-2", "task_3-3",
+            "task_4-1", "task_4-2", "task_4-3", "task_4-4", "task_4-5"
+        ],
+        default="test_task",
+        help="The name of the task available in the benchmark."
     )
     parser.add_argument(
-        "--config_model",
+        "--pipeline_config_file_path",
         type=str,
-        # default="fairmast-data-preprocessing/scripts/config_model_test.yaml",
-        default="config_model_test.yaml",
-
-        help="Path to the model YAML config file",
+        default=CONFIG_FILES_DIR / "config_test_pipeline.yaml",
+        help="Path to the model YAML config file."
     )
+    parser.add_argument(
+        "--demo_mode",
+        action="store_true",
+        help="Activate demo mode."
+    )
+    parser.add_argument(
+        "--demo_suffix",
+        type=str,
+        default="_DEMO",
+        help="Suffix used in demo mode when saving results."
+    )
+
     args, _ = parser.parse_known_args()
 
-    # Note: instead of loading benchmark task, here we load a simple task from external file
-    # config_task = get_config_from_yaml("fairmast-data-preprocessing/scripts/config_task_test.yaml")
-    config_task = get_config_from_yaml("config_task_test.yaml")
+    # ------------------------------------------------------------------------------------------------------------------
+    # Experiment configuration
+    # ------------------------------------------------------------------------------------------------------------------
 
-    # Note: Uncomment the next 2 lines to use benchmark tasks
-    # from MAST_benchmark.tasks import get_task_config
-    # config_task = get_task_config(args.task)
+    # Load the config YAML file
+    pipeline_config = get_config_from_yaml(file_path=args.pipeline_config_file_path)
 
-    # Load CNN YAML config
-    config_model = get_config_from_yaml(args.config_model)
+    # REMARK: Demo mode could be enforced (e.g., for testing) by uncommenting the following line.
+    # args.demo_mode = True
+
+    if args.demo_mode:
+        warning_print("Running in demo mode.")
+
+        pipeline_config["get_shots_settings"]["max_index"] = 2
+        pipeline_config["get_shots_settings"]["shuffle"] = True
+
+        pipeline_config["dataloader_settings"]["batch_size"] = 4
+        pipeline_config["dataloader_settings"]["num_workers"] = 0
+
+        pipeline_config["paths"]["output_dir"] += args.demo_suffix
+
+    if args.task == "test_task":
+        # Instead of loading benchmark task, here we load the configuration for a test task
+        config_task = get_config_from_yaml(file_path="config_files/config_test_task.yaml")
+    else:
+        # Otherwise, use the provided benchmark task
+        config_task = get_task_config(task_name=args.task)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Initialize datasets and metadata
     # ------------------------------------------------------------------------------------------------------------------
 
-    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(
-        max_index=config_model["subset_of_shots"]
-    )
+    train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(**pipeline_config["get_shots_settings"])
 
-    local_flag = config_model["local"]
+    local_flag = pipeline_config["local"]
 
     train_MAST_dataset = initialize_MAST_dataset(
         config_task=config_task,
-        shots_list=train_shots_[0:100],
+        shots_list=train_shots_,
         local_flag=local_flag,
-        use_std_scaling=True,
-        return_incomplete_shots=True,
-        remove_outliers=True,
+        **pipeline_config["mast_dataset_init_settings"],
+        store_manager_settings=pipeline_config["store_manager_settings"],
         verbose=True
     )
+
     val_MAST_dataset = initialize_MAST_dataset(
         config_task=config_task,
-        shots_list=val_shots_[0:100],
+        shots_list=val_shots_,
         local_flag=local_flag,
-        use_std_scaling=True,
-        return_incomplete_shots=True,
-        remove_outliers=True,
+        **pipeline_config["mast_dataset_init_settings"],
+        store_manager_settings=pipeline_config["store_manager_settings"],
         verbose=True
     )
+
     test_MAST_dataset = initialize_MAST_dataset(
         config_task=config_task,
-        shots_list=test_shots_[0:100],
+        shots_list=test_shots_,
         local_flag=local_flag,
-        use_std_scaling=True,
-        return_incomplete_shots=True,
-        remove_outliers=True,
+        **pipeline_config["mast_dataset_init_settings"],
+        store_manager_settings=pipeline_config["store_manager_settings"],
         verbose=True
     )
 
@@ -214,7 +252,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
 
     dict_task_metadata = get_task_metadata(
-        config_task,
+        config_task=config_task,
         verbose=False
     )
 
@@ -222,34 +260,38 @@ if __name__ == "__main__":
     # EXAMPLE WITH MODEL SPECIFIC PIPELINE
     # ------------------------------------------------------------------------------------------------------------------
 
-    model_specific_transform = ModelSpecificTransform()  # likely depends on dict_task_metadata
+    model_specific_transform = ModelSpecificTransform()  # <- Likely depends on dict_task_metadata
 
     train_model_dataset = initialize_TokaMark_dataset(
         dataset=train_MAST_dataset,
         task_metadata=dict_task_metadata,
         config_metadata=config_task,
         custom_transform=model_specific_transform,
-        test_mode=True,
-        shuffle_windows = False,
+        **pipeline_config["tokamark_dataset_init_settings"],
         verbose=False
     )
 
     train_dataloader = DataLoader(
-            dataset=train_model_dataset,
-            collate_fn=model_collate_fn,
-            **config_model["dataloader_setting"],
-            pin_memory=True,
-            # drop_last=True,
-        )
+        dataset=train_model_dataset,
+        collate_fn=model_collate_fn,
+        # drop_last=True,
+        **pipeline_config["dataloader_settings"],
+        pin_memory=True
+    )
+
+    # Similarly, DataLoader instances can be created for val and test, i.e., val_dataloader and test_dataloader.
+
+    # ..................................................................................................................
+    # Evaluation loop for train_dataloader
+    # ..................................................................................................................
 
     for batch_idx, batch_ in enumerate(train_dataloader):
 
         print(f"\nBatch {batch_idx}")
-        # print(batch_)
-        shot_id, window_index, x_train, y_train = batch_
+        shot_id, window_index, x_train, y_train = batch_  # noqa (right number of values to unpack)
 
-        print("The list of shot ID is ", shot_id)
-        print("The list of window Index is ", window_index)
+        print(f"The list of shot ID is {shot_id}")
+        print(f"The list of window index is {window_index}")
 
         print("The x_train has been collated to shape (B, ..., T), ", [arr.shape for arr in x_train])
         # print("Mean x_train", [torch.nanmean(arr) for arr in x_train])
@@ -259,11 +301,21 @@ if __name__ == "__main__":
         # print("Mean y_train", [torch.nanmean(arr) for arr in y_train])
         # print("Std y_train", [np.nanstd(arr) for arr in y_train])
 
+        print("____________________________________________________\n")
+
     # print(x_train[0][0:10])
     # print("\n\n\n")
     # print(y_train[0][0:10])
 
+    # ..................................................................................................................
+    # Evaluation loop for val and test
+    # ..................................................................................................................
+
+    # Similarly, evaluation loops can be put in place for val_dataloader and test_dataloader instances.
+
+    # ------------------------------------------------------------------------------------------------------------------
 
 end = time.perf_counter()
 
+print("\n-----------------------------")
 print(f"Elapsed time: {end - start:.4f} seconds")
