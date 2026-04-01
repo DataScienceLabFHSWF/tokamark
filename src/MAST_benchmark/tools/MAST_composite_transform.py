@@ -11,6 +11,7 @@ from MAST_benchmark.tools.transforms.stdscale_transform import StdScalingTransfo
 from MAST_benchmark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
 from MAST_benchmark.tools.transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
 from MAST_benchmark.tools.transforms.stft_transform import STFTTransform
+from MAST_benchmark.tools.transforms.clip_non_physical_x_point_transform import ClipXPointTransform
 from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 
 
@@ -105,7 +106,15 @@ def build_common_signal_transform_map(
             ]
         )
 
-    # Specific case of profiles with NaNs in full channel
+    # Specific case of x point clipping of non-physical values
+    for var in ["equilibrium-x_point_r", "equilibrium-x_point_z"]:
+        signal_transform_map[var] = ComposeTransforms(
+            transforms=[
+                ClipXPointTransform(),
+            ] + maybe_std(var=var)
+        )
+
+    # Specific case where we apply the FFT transform
     for var in [
         "magnetics-b_field_tor_probe_cc_field",
         "magnetics-b_field_pol_probe_omv_voltage"
