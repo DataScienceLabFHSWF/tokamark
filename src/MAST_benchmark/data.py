@@ -20,6 +20,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         use_std_scaling: bool = True,
         return_incomplete_shots: bool = True,
         remove_outliers: bool = True,
+        remove_bad_efit_rating: bool = True,
         *,
         store_manager_settings: Optional[StoreManagerParametersType] = None,
         verbose: bool = False
@@ -85,6 +86,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         shot_level_transform=None,
         return_incomplete_shots=return_incomplete_shots,
         remove_outliers=remove_outliers,
+        remove_bad_efit_rating=remove_bad_efit_rating,
         store_manager_settings=store_manager_settings,
         verbose=verbose
     )
