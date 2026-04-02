@@ -300,13 +300,13 @@ class MastDataset(Dataset):
                 data_origin=store,
                 source_name=source
             )
-
-            list_sig_in_source =  list(source_store.data_vars)
+            
             load_signals = True
-
-            if (source =='equilibrium' and self.remove_bad_efit_rating):
+            if (source_store is not None 
+                and source =='equilibrium' 
+                and self.remove_bad_efit_rating):
                 
-                if 'ip_rating' in list_sig_in_source:
+                if 'ip_rating' in list(source_store.data_vars):
                     mask_efit_rating = ( self.sig.get_signal_profile(
                         data_origin=source_store,
                         signal_name='ip_rating',
@@ -314,7 +314,8 @@ class MastDataset(Dataset):
                     ) == 0 ).values
 
                 else:
-                    print('ip_rating not available for shot ', self.get_shot_id(idx))
+                    if self.verbose:
+                        print(f"ip_rating not available for shot {self.get_shot_id(idx)}")
                     load_signals = False
             
             for signal in source_signals[source]:
@@ -355,8 +356,6 @@ class MastDataset(Dataset):
                                     mask_expanded = mask_efit_rating.reshape(expand_shape)
                                     # Apply mask
                                     shot_vals = np.where(mask_expanded, np.nan, shot_vals)
-                                    print(sum(mask_efit_rating))
-                                    print(shot_vals.shape)
 
                         except AttributeError:
                             shot_vals = None
