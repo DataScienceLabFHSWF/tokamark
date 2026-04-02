@@ -121,6 +121,7 @@ def build_common_signal_transform_map(
     ]:
         signal_transform_map[var] = ComposeTransforms(
             transforms=maybe_std(var=var) + [
+                FillProfileWithZerosTransform(), #?????? do we want this here too
                 STFTTransform(support_n=512),
             ]
         )
