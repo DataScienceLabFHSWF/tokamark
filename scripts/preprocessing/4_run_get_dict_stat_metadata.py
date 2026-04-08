@@ -17,7 +17,7 @@ from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
 from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 
-from scripts.preprocessing.preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
+from preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -113,8 +113,6 @@ if __name__ == "__main__":
         config["get_shots_settings"]["max_index"] = 2
         config["get_shots_settings"]["shuffle"] = True
 
-        config["max_data_samples"] = 2
-
         args.signals_stats_saving_file_path = Path(OUTPUT_DIR) / f"dict_signals_stats{args.demo_suffix}.yaml"
 
     # REMARK: Default values for `store_manager_settings` can be overridden as follows:
@@ -159,9 +157,6 @@ if __name__ == "__main__":
 
     for i, sample in enumerate(preprocessing_train_dataset):  # noqa (type check)
         # print(i)
-
-        if i >= config["max_data_samples"]:
-            break  # Stop after limit, but keep what we collected
 
         for var, signal in sample.items():
 

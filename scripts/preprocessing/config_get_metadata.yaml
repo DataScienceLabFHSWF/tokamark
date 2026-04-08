@@ -1,5 +1,4 @@
 local: false
-max_data_samples: 100
 
 get_shots_settings:
   max_index:      # If empty, all the available shot IDs are used.
@@ -7,11 +6,12 @@ get_shots_settings:
   seed: 42
 
 store_manager_settings:  # To override default values in `src.MAST_tools.store_utils.MASTStorageManager.__init__`:
-  base_local_zarr_path: /mast/tokamark/v1  # REMARK: Only relevant when `local` above is true.
+  # base_local_zarr_path: /mast/tokamark/v1  # REMARK: Only relevant when `local` above is true.
+  base_local_zarr_path: /rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2  # REMARK: Only relevant when `local` above is true.
 
 dataloader_settings:
-  batch_size: 20
-  num_workers: 20
+  batch_size: 256
+  num_workers: 16
 
 task_name: get_metadata
 

@@ -28,7 +28,8 @@ from preproc_paths import (
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-CSV_HEADER = ["shot_idx", "shot_id", "variable", "n_dim_shot", "mean", "variance"]
+CSV_HEADER = ["shot_idx", "shot_id", "variable", "n_dim_shot", "n_nans_shot", "mean", 
+              "variance", "min", "max", "median"]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -130,8 +131,12 @@ class ShotStatsDataset(Dataset):
             # Initialize nested dict
             stats[var] = {
                 "n_dim_shot": None,
+                "n_nans_shot": None,
                 "mean": None,
-                "variance": None
+                "variance": None,
+                "min": None,
+                "max": None,
+                "median": None,
             }
 
             if len(values) > 0:
@@ -146,8 +151,12 @@ class ShotStatsDataset(Dataset):
                     variance_sample = None
 
                 stats[var]["n_dim_shot"] = values.size if hasattr(values, "size") else None
+                stats[var]["n_nans_shot"] = np.isnan(values).sum() if hasattr(values, "size") else None
                 stats[var]["mean"] = float(mean_sample) if mean_sample is not None else None
                 stats[var]["variance"] = float(variance_sample) if variance_sample is not None else None
+                stats[var]["min"] = float(np.nanmin(values)) if values.size else None
+                stats[var]["max"] = float(np.nanmax(values)) if values.size else None
+                stats[var]["median"] = float(np.nanmedian(values)) if values.size else None
 
         return stats
 
@@ -219,8 +228,12 @@ def compute_mean_std_per_shot_to_csv(
                         shot_stats["shot_id"],
                         var,
                         shot_stats[var].get("n_dim_shot", None),    # Safe fallback
+                        shot_stats[var].get("n_nans_shot", None),   # Safe fallback
                         shot_stats[var].get("mean", None),          # Safe fallback
-                        shot_stats[var].get("variance", None)       # Safe fallback
+                        shot_stats[var].get("variance", None),      # Safe fallback
+                        shot_stats[var].get("min", None),           # Safe fallback
+                        shot_stats[var].get("max", None),           # Safe fallback
+                        shot_stats[var].get("median", None),        # Safe fallback
                     ]
                     writer.writerow(row)
 
@@ -312,8 +325,6 @@ if __name__ == "__main__":
         config["dataloader_settings"]["batch_size"] = 10
         config["dataloader_settings"]["num_workers"] = 10
 
-        config["max_data_samples"] = 2
-
     # ------------------------------------------------------------------------------------------------------------------
     # Specific Data Preprocessing for LCFS profiles
     # ------------------------------------------------------------------------------------------------------------------
@@ -324,57 +335,59 @@ if __name__ == "__main__":
     # Create unstandardized train dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    print("\nProcessing training dataset...")
+    # print("\nProcessing training dataset...")
 
-    unstandardized_train_dataset = initialize_MAST_dataset(
-        config_task=config["task_configuration"],
-        shots_list=train_shots_,
-        local_flag=config["local"],
-        use_std_scaling=False,          # <- To get unstandardized dataset
-        return_incomplete_shots=True,   # <- To include all available shots
-        remove_outliers=True,          # <- To remove manually found outliers
-        outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
-        remove_bad_efit_rating=True,
-        store_manager_settings=config["store_manager_settings"]
-    )
+    # unstandardized_train_dataset = initialize_MAST_dataset(
+    #     config_task=config["task_configuration"],
+    #     shots_list=train_shots_,
+    #     local_flag=config["local"],
+    #     use_std_scaling=False,          # <- To get unstandardized dataset
+    #     use_nan_filling=False, 
+    #     return_incomplete_shots=True,   # <- To include all available shots
+    #     remove_outliers=True,          # <- To remove manually found outliers
+    #     outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
+    #     remove_bad_efit_rating=True,
+    #     store_manager_settings=config["store_manager_settings"]
+    # )
 
-    print("Computing Mean/STD values per shot in training dataset...")
+    # print("Computing Mean/STD values per shot in training dataset...")
 
-    compute_mean_std_per_shot_to_csv(
-        dataset=unstandardized_train_dataset,
-        csv_path=args.shots_stats_train_saving_file_path,
-        **config["dataloader_settings"]
-    )
+    # compute_mean_std_per_shot_to_csv(
+    #     dataset=unstandardized_train_dataset,
+    #     csv_path=args.shots_stats_train_saving_file_path,
+    #     **config["dataloader_settings"]
+    # )
 
-    print(f"Mean/STD results saved at {args.shots_stats_train_saving_file_path}")
+    # print(f"Mean/STD results saved at {args.shots_stats_train_saving_file_path}")
 
     # ------------------------------------------------------------------------------------------------------------------
     # Create unstandardized val dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    print("\nProcessing validation dataset...")
+    # print("\nProcessing validation dataset...")
 
-    unstandardized_val_dataset = initialize_MAST_dataset(
-        config_task=config["task_configuration"],
-        shots_list=val_shots_,
-        local_flag=config["local"],
-        use_std_scaling=False,          # <- To get unstandardized dataset
-        return_incomplete_shots=True,   # <- To include all available shots
-        remove_outliers=True,          # <- To remove manually found outliers
-        outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
-        remove_bad_efit_rating=True,
-        store_manager_settings=config["store_manager_settings"]
-    )
+    # unstandardized_val_dataset = initialize_MAST_dataset(
+    #     config_task=config["task_configuration"],
+    #     shots_list=val_shots_,
+    #     local_flag=config["local"],
+    #     use_std_scaling=False,          # <- To get unstandardized dataset
+    #     use_nan_filling=False, 
+    #     return_incomplete_shots=True,   # <- To include all available shots
+    #     remove_outliers=True,          # <- To remove manually found outliers
+    #     outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
+    #     remove_bad_efit_rating=True,
+    #     store_manager_settings=config["store_manager_settings"]
+    # )
 
-    print("Computing Mean/STD values per shot in validation dataset dataset...")
+    # print("Computing Mean/STD values per shot in validation dataset dataset...")
 
-    compute_mean_std_per_shot_to_csv(
-        dataset=unstandardized_val_dataset,
-        csv_path=args.shots_stats_val_saving_file_path,
-        **config["dataloader_settings"]
-    )
+    # compute_mean_std_per_shot_to_csv(
+    #     dataset=unstandardized_val_dataset,
+    #     csv_path=args.shots_stats_val_saving_file_path,
+    #     **config["dataloader_settings"]
+    # )
 
-    print(f"Mean/STD results saved at {args.shots_stats_val_saving_file_path}")
+    # print(f"Mean/STD results saved at {args.shots_stats_val_saving_file_path}")
 
     # ------------------------------------------------------------------------------------------------------------------
     # Create unstandardized test dataset
@@ -387,6 +400,7 @@ if __name__ == "__main__":
         shots_list=test_shots_,
         local_flag=config["local"],
         use_std_scaling=False,          # <- To get unstandardized dataset
+        use_nan_filling=False, 
         return_incomplete_shots=True,   # <- To include all available shots
         remove_outliers=True,          # <- To remove manually found outliers
         outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
