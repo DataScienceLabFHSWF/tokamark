@@ -18,7 +18,8 @@ from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 # ----------------------------------------------------------------------------------------------------------------------
 def build_common_signal_transform_map(
     source_signal_list: list[tuple],
-    use_std_scaling: bool = True
+    use_std_scaling: bool = True,
+    use_nan_filling: bool = True,
 ) -> dict[str, ComposeTransforms]:
     """
     Build the signal transform map for each variable.
@@ -72,6 +73,17 @@ def build_common_signal_transform_map(
         return []
 
     # ..................................................................................................................
+    def maybe_nan_filling(
+    ) -> Union[list, list[StdScalingTransform]]:
+
+        if use_nan_filling:
+            return [
+                FillProfileWithZerosTransform()
+            ]
+
+        return []
+
+    # ..................................................................................................................
 
     # Define base signal_transform_map
 
@@ -93,9 +105,8 @@ def build_common_signal_transform_map(
         "thomson_scattering-n_e",
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var=var) + [
-                FillProfileWithZerosTransform(),
-            ]
+            transforms=maybe_std(var=var) 
+            + maybe_nan_filling()
         )
 
     # Specific case of reformating LCFS
@@ -121,7 +132,6 @@ def build_common_signal_transform_map(
     ]:
         signal_transform_map[var] = ComposeTransforms(
             transforms=maybe_std(var=var) + [
-                FillProfileWithZerosTransform(), #?????? do we want this here too
                 STFTTransform(support_n=512),
             ]
         )

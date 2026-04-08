@@ -19,6 +19,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         shots_list: list[int],
         local_flag: bool = True,
         use_std_scaling: bool = True,
+        use_nan_filling: bool = True,
         return_incomplete_shots: bool = True,
         remove_outliers: bool = True,
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
@@ -77,7 +78,8 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
 
     signal_transform_map = build_common_signal_transform_map(
         source_signal_list=source_signal_list,
-        use_std_scaling=use_std_scaling
+        use_std_scaling=use_std_scaling,
+        use_nan_filling=use_nan_filling,
     )
 
     mast_dataset = MastDataset(
