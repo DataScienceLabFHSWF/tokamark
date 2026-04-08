@@ -23,7 +23,8 @@ from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dat
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-CONFIG_FILES_DIR = Path("config_files")
+CONFIG_FILES_DIR = Path("fairmast-data-preprocessing/scripts/config_files") 
+print(CONFIG_FILES_DIR)
 
 # ------------------------------------------------------------------------------------------------------------------
 # Preliminaries
@@ -207,7 +208,7 @@ if __name__ == "__main__":
 
     if args.task == "test_task":
         # Instead of loading benchmark task, here we load the configuration for a test task
-        config_task = get_config_from_yaml(file_path="config_files/config_test_task.yaml")
+        config_task = get_config_from_yaml(file_path=CONFIG_FILES_DIR / "config_test_task.yaml")
     else:
         # Otherwise, use the provided benchmark task
         config_task = get_task_config(task_name=args.task)
