@@ -387,7 +387,7 @@ def run_persistence_pipeline(
             config_task=config_task,
             shots_list=test_shots_,
             local_flag=pipeline_config["local"],
-            use_std_scaling=True,
+            use_std_scaling=False,
             return_incomplete_shots=True,
             store_manager_settings=pipeline_config["store_manager_settings"]
         )
