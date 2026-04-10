@@ -111,9 +111,9 @@ def build_common_signal_transform_map(
         "magnetics-b_field_pol_probe_omv_voltage"
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var=var) + [
+            transforms = [
                 STFTTransform(support_n=512),
-            ]
+            ] + maybe_std(var=var)
         )
 
     return signal_transform_map
