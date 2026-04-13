@@ -15,9 +15,24 @@ import torch.multiprocessing as mp
 from MAST_tools.utils.general_utils import warning_print
 from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 
-from preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
+from preproc_paths import OUTPUT_DIR
+
+# ----------------------------------------------------------------------------------------------------------------------
+splitting_mode = 'random'
+# splitting_mode = 'temporal'
+
+if splitting_mode == 'random':
+    from preproc_paths import RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
+    from MAST_benchmark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
+    IN_SIGNALS_STATS_TRAIN_FILE = RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
+    OUT_SIGNALS_STATS_FILE = RANDOM_SPLIT_SIGNALS_STATS_FILE
+    
+if splitting_mode == 'temporal':
+    from preproc_paths import TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
+    from MAST_benchmark.tools.path import TEMPORAL_SPLIT_SIGNALS_STATS_FILE
+    IN_SIGNALS_STATS_TRAIN_FILE = TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
+    OUT_SIGNALS_STATS_FILE = TEMPORAL_SPLIT_SIGNALS_STATS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -66,19 +81,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file_path",
         type=str,
-        default="config_get_metadata.yaml",
+        default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
         help="Path to the YAML file with configuration to get metadata."
     )
     parser.add_argument(
         "--signals_mean_std_train_file_path",
         type=str,
-        default=DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
+        default=IN_SIGNALS_STATS_TRAIN_FILE,
         help="Path to the `dict_signals_mean_std_train.yaml` file."
     )
     parser.add_argument(
         "--signals_stats_saving_file_path",
         type=str,
-        default=DEFAULT_SIGNALS_STATS_FILE,
+        default=OUT_SIGNALS_STATS_FILE,
         help="Path to the YAML file where signals statistics will be saved."
     )
     parser.add_argument(
@@ -137,7 +152,7 @@ if __name__ == "__main__":
 
     preprocessing_train_dataset = initialize_MAST_dataset( 
         config_task=config["task_configuration"],
-        shots_list=train_shots_,
+        shots_list=train_shots_[::-1],
         local_flag=config["local"],
         use_std_scaling=False,          # <- To get an unstandardized dataset
         return_incomplete_shots=True,   # <- To include all available shots
