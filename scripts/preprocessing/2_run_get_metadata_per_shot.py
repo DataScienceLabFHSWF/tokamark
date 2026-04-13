@@ -21,9 +21,7 @@ from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
 
 from preproc_paths import (
-    DEFAULT_SHOTS_STATS_VAL_FILE,
-    DEFAULT_SHOTS_STATS_TEST_FILE,
-    DEFAULT_SHOTS_STATS_TRAIN_FILE
+    DEFAULT_SHOTS_STATS_ALL_FILE,
 )
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -256,26 +254,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file",
         type=str,
-        default="config_get_metadata.yaml",
+        default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
         help="Path to the YAML file with configuration to get metadata.",
     )
     parser.add_argument(
-        "--shots_stats_train_saving_file_path",
+        "--shots_stats_saving_file_path",
         type=str,
-        default=DEFAULT_SHOTS_STATS_TRAIN_FILE,
-        help="Path to the CSV file where shots statistics for training will be saved."
-    )
-    parser.add_argument(
-        "--shots_stats_val_saving_file_path",
-        type=str,
-        default=DEFAULT_SHOTS_STATS_VAL_FILE,
-        help="Path to the CSV file where shots statistics for validation will be saved."
-    )
-    parser.add_argument(
-        "--shots_stats_test_saving_file_path",
-        type=str,
-        default=DEFAULT_SHOTS_STATS_TEST_FILE,
-        help="Path to the CSV file where shots statistics for testing will be saved."
+        default=DEFAULT_SHOTS_STATS_ALL_FILE,
+        help="Path to the CSV file where shots statistics will be saved."
     )
     parser.add_argument(
         "--demo_mode",
@@ -306,15 +292,7 @@ if __name__ == "__main__":
         warning_print("Running in demo mode.")
 
         filename_demo_suffix = f"{args.demo_suffix}.csv"
-        args.shots_stats_train_saving_file_path = str(args.shots_stats_train_saving_file_path).replace(
-            ".csv",
-            filename_demo_suffix
-        )
-        args.shots_stats_val_saving_file_path = str(args.shots_stats_val_saving_file_path).replace(
-            ".csv",
-            filename_demo_suffix
-        )
-        args.shots_stats_test_saving_file_path = str(args.shots_stats_test_saving_file_path).replace(
+        args.shots_stats_saving_file_path = str(args.shots_stats_saving_file_path).replace(
             ".csv",
             filename_demo_suffix
         )
@@ -332,72 +310,14 @@ if __name__ == "__main__":
     train_shots_, test_shots_, val_shots_ = get_train_test_val_shots(**config["get_shots_settings"])
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Create unstandardized train dataset
+    # Create unstandardized dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    # print("\nProcessing training dataset...")
+    print("\nProcessing dataset...")
 
-    # unstandardized_train_dataset = initialize_MAST_dataset(
-    #     config_task=config["task_configuration"],
-    #     shots_list=train_shots_,
-    #     local_flag=config["local"],
-    #     use_std_scaling=False,          # <- To get unstandardized dataset
-    #     use_nan_filling=False, 
-    #     return_incomplete_shots=True,   # <- To include all available shots
-    #     remove_outliers=True,          # <- To remove manually found outliers
-    #     outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
-    #     remove_bad_efit_rating=True,
-    #     store_manager_settings=config["store_manager_settings"]
-    # )
-
-    # print("Computing Mean/STD values per shot in training dataset...")
-
-    # compute_mean_std_per_shot_to_csv(
-    #     dataset=unstandardized_train_dataset,
-    #     csv_path=args.shots_stats_train_saving_file_path,
-    #     **config["dataloader_settings"]
-    # )
-
-    # print(f"Mean/STD results saved at {args.shots_stats_train_saving_file_path}")
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Create unstandardized val dataset
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # print("\nProcessing validation dataset...")
-
-    # unstandardized_val_dataset = initialize_MAST_dataset(
-    #     config_task=config["task_configuration"],
-    #     shots_list=val_shots_,
-    #     local_flag=config["local"],
-    #     use_std_scaling=False,          # <- To get unstandardized dataset
-    #     use_nan_filling=False, 
-    #     return_incomplete_shots=True,   # <- To include all available shots
-    #     remove_outliers=True,          # <- To remove manually found outliers
-    #     outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
-    #     remove_bad_efit_rating=True,
-    #     store_manager_settings=config["store_manager_settings"]
-    # )
-
-    # print("Computing Mean/STD values per shot in validation dataset dataset...")
-
-    # compute_mean_std_per_shot_to_csv(
-    #     dataset=unstandardized_val_dataset,
-    #     csv_path=args.shots_stats_val_saving_file_path,
-    #     **config["dataloader_settings"]
-    # )
-
-    # print(f"Mean/STD results saved at {args.shots_stats_val_saving_file_path}")
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Create unstandardized test dataset
-    # ------------------------------------------------------------------------------------------------------------------
-
-    print("\nProcessing testing dataset...")
-
-    unstandardized_test_dataset = initialize_MAST_dataset(
+    unstandardized_all_dataset = initialize_MAST_dataset(
         config_task=config["task_configuration"],
-        shots_list=test_shots_,
+        shots_list=train_shots_ + test_shots_ + val_shots_,
         local_flag=config["local"],
         use_std_scaling=False,          # <- To get unstandardized dataset
         use_nan_filling=False, 
@@ -408,14 +328,15 @@ if __name__ == "__main__":
         store_manager_settings=config["store_manager_settings"]
     )
 
-    print("Computing Mean/STD values per shot in testing dataset dataset...")
+    print("Computing Mean/STD values for all shots in dataset...")
+
     compute_mean_std_per_shot_to_csv(
-        dataset=unstandardized_test_dataset,
-        csv_path=args.shots_stats_test_saving_file_path,
+        dataset=unstandardized_all_dataset,
+        csv_path=args.shots_stats_saving_file_path,
         **config["dataloader_settings"]
     )
 
-    print(f"Mean/STD results saved at {args.shots_stats_test_saving_file_path}")
+    print(f"Mean/STD results saved at {args.shots_stats_saving_file_path}")
 
     # ------------------------------------------------------------------------------------------------------------------
     # Ending
