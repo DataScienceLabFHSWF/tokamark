@@ -15,9 +15,12 @@ PACKAGE_ROOT_DIR = Path(__file__).parent.parent                 # Dynamically fi
 
 TASKS_CONFIGS_DIR = os.path.join(PACKAGE_ROOT_DIR, "tasks_configs")
 PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
-DEFAULT_SIGNALS_STATS_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_signals_stats.yaml")
 
-DEFAULT_TOKAMARK_DATA_SPLITS_FILE = os.path.join(PACKAGE_METADATA_DIR, "TokaMark_data_splits.csv")
+RANDOM_SPLIT_SIGNALS_STATS_FILE = os.path.join(PACKAGE_METADATA_DIR, "random_split_signals_stats.yaml")
+TEMPORAL_SPLIT_SIGNALS_STATS_FILE = os.path.join(PACKAGE_METADATA_DIR, "temporal_split_signals_stats.yaml")
+
+RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE = os.path.join(PACKAGE_METADATA_DIR, "TokaMark_data_splits.csv")
+TEMPORAL_SPLIT_TOKAMARK_DATA_SPLITS_FILE = os.path.join(PACKAGE_METADATA_DIR, "TokaMark_temporal_data_splits.csv")
 
 
 # ======================================================================================================================

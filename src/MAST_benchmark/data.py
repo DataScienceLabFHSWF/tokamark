@@ -10,7 +10,7 @@ from MAST_tools.MAST_dataset import MastDataset
 from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
 from MAST_benchmark.tools.MAST_composite_transform import build_common_signal_transform_map
 from MAST_tools.utils.data_utils import StoreManagerParametersType
-from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
+from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         use_nan_filling: bool = False,
         return_incomplete_shots: bool = True,
         remove_outliers: bool = True,
-        outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
+        outlier_metadata_file: str = RANDOM_SPLIT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = True,
         *,
         store_manager_settings: Optional[StoreManagerParametersType] = None,

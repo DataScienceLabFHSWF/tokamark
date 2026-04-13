@@ -13,14 +13,17 @@ PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent   # Dynamically fi
 PACKAGE_ROOT_DIR = Path(__file__).parent.parent                 # Dynamically find the repo root (no hardcoding!)
 
 PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
+os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml")
 
 # ======================================================================================================================
 # Default file paths
 
 DEFAULT_SIGNAL_AVAILABILITY_FILE = os.path.join(PACKAGE_METADATA_DIR, "signal_availability.csv")
 DEFAULT_SOURCES_WITH_SIGNALS_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_sources_with_signals.yaml")
-DEFAULT_OUTLIER_METADATA_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_outlier_metadata.yaml")
 
+MANUAL_DICT_OUTLIER_METADATA_FILE = os.path.join(PACKAGE_METADATA_DIR, "manual_outlier_metadata.yaml")
+RANDOM_SPLIT_OUTLIER_METADATA_FILE = os.path.join(PACKAGE_METADATA_DIR, "random_split_outlier_metadata.yaml")
+TEMPORAL_SPLIT_OUTLIER_METADATA_FILE = os.path.join(PACKAGE_METADATA_DIR, "temporal_split_outlier_metadata.yaml")
 
 # ======================================================================================================================
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from typing import Any
 from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_benchmark.tools.path import (
     TASKS_CONFIGS_DIR,
-    DEFAULT_SIGNALS_STATS_FILE
+    RANDOM_SPLIT_SIGNALS_STATS_FILE
 )
 
 
@@ -70,7 +70,7 @@ def get_task_config(
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_signals_metadata(
-        file_path: str = DEFAULT_SIGNALS_STATS_FILE
+        file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE
 ) -> dict[str, Any]:
     """
     Read signals metadata file and return content as a dictionary.
@@ -79,7 +79,7 @@ def get_signals_metadata(
     ----------
     file_path : str
         Target file path for signals metadata.
-        Optional. Default: DEFAULT_SIGNALS_STATS_FILE.
+        Optional. Default: RANDOM_SPLIT_SIGNALS_STATS_FILE.
 
     Returns
     -------
