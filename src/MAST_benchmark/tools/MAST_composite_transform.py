@@ -19,7 +19,7 @@ from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 def build_common_signal_transform_map(
     source_signal_list: list[tuple],
     use_std_scaling: bool = True,
-    use_nan_filling: bool = True,
+    use_nan_filling: bool = False,
 ) -> dict[str, ComposeTransforms]:
     """
     Build the signal transform map for each variable.
@@ -131,9 +131,9 @@ def build_common_signal_transform_map(
         "magnetics-b_field_pol_probe_omv_voltage"
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var=var) + [
+            transforms=[
                 STFTTransform(support_n=512),
-            ]
+            ] + maybe_std(var=var)
         )
 
     return signal_transform_map
