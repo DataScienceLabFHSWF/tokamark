@@ -19,7 +19,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         shots_list: list[int],
         local_flag: bool = True,
         use_std_scaling: bool = True,
-        use_nan_filling: bool = True,
+        use_nan_filling: bool = False,
         return_incomplete_shots: bool = True,
         remove_outliers: bool = True,
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
