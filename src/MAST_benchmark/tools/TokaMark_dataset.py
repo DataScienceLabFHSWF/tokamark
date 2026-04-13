@@ -17,11 +17,32 @@ from MAST_tools.MAST_dataset import MastDataset
 # HELPERS
 
 # ----------------------------------------------------------------------------------------------------------------------
-def _all_vars_have_nans(
+def _all_vars_have_all_nans(
         dict_obj: Mapping[str, Any]
 ) -> bool:
     """
-    Check if all variables in an input mapping have Nan values.
+    Check if all variables in an input mapping have all Nan values.
+
+    Parameters
+    ----------
+    dict_obj : Mapping[str, Any]
+        Input mapping to be checked.
+
+    Returns
+    -------
+    bool
+        If True, all variables in input mapping have all NaN values.
+
+    """
+
+    return all(np.isnan(np.asarray(dict_obj[var]['values'])).all() for var in dict_obj.keys())
+
+# ----------------------------------------------------------------------------------------------------------------------
+def _all_vars_have_any_nans(
+        dict_obj: Mapping[str, Any]
+) -> bool:
+    """
+    Check if all variables in an input mapping have any Nan values.
 
     Parameters
     ----------
@@ -37,13 +58,12 @@ def _all_vars_have_nans(
 
     return all(np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys())
 
-
 # ----------------------------------------------------------------------------------------------------------------------
-def _any_vars_have_nans(
+def _any_vars_have_all_nans(
         dict_obj: Mapping[str, Any]
 ) -> bool:
     """
-    Check if any variables in an input mapping have Nan values.
+    Check if at least one variable in an input mapping have all Nan values.
 
     Parameters
     ----------
@@ -53,12 +73,32 @@ def _any_vars_have_nans(
     Returns
     -------
     bool
-        If True, at least one variable in input mapping has NaN values.
+        If True, at least one variable in input mapping have all NaN values.
+
+    """
+
+    return any(np.isnan(np.asarray(dict_obj[var]['values'])).all() for var in dict_obj.keys())
+
+# ----------------------------------------------------------------------------------------------------------------------
+def _any_vars_have_any_nans(
+        dict_obj: Mapping[str, Any]
+) -> bool:
+    """
+    Check if any variables in an input mapping have any Nan values.
+
+    Parameters
+    ----------
+    dict_obj : Mapping[str, Any]
+        Input mapping to be checked.
+
+    Returns
+    -------
+    bool
+        If True, at least one variable in input mapping have at least one NaN values.
 
     """
 
     return any(np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys())
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 def _shuffle_buffer(
@@ -413,13 +453,22 @@ class TokaMarkDataset(IterableDataset):
             # Filtering
 
             if self.test_mode:
+                # Filled test_mode
                 window_valid = (
                     not (
-                        _all_vars_have_nans(obj["input"])
-                        and _all_vars_have_nans(obj["actuator"])
+                        _all_vars_have_any_nans(obj["input"])
+                        and _all_vars_have_any_nans(obj["actuator"])
                     )
-                    and (not _any_vars_have_nans(obj["output"]))
+                    and (not _any_vars_have_any_nans(obj["output"]))
                 )
+                # Sparse test_mode
+                # window_valid = (
+                #     not (
+                #         _all_vars_have_all_nans(obj["input"])
+                #         and _all_vars_have_all_nans(obj["actuator"])
+                #     )
+                #     and (not _any_vars_have_all_nans(obj["output"]))
+                # )
                 if not window_valid:
                     if self.verbose:
                         print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid.")
