@@ -19,7 +19,7 @@ from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 def build_common_signal_transform_map(
     source_signal_list: list[tuple],
     use_std_scaling: bool = True,
-    use_nan_filling: bool = False,
+    use_nan_filling: bool = True,
 ) -> dict[str, ComposeTransforms]:
     """
     Build the signal transform map for each variable.
