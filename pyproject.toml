@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tokamark"
 version = "0.1.0"
-description = "Data preprocessing and benchmarking tools for FAIRMAST"
+description = "Data preprocessing and benchmarking tools for FAIR-MAST"
 readme = "README.md"
 requires-python = ">=3.10"
 license-files = ["LICENSE.md"]
