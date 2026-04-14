@@ -778,4 +778,5 @@ The [`MAST_dataset.py`](../src/MAST_tools/MAST_dataset.py) module provides:
 ✅ **Error Resilience**: Graceful handling of missing data  
 ✅ **Scalability**: Works with datasets from tens to thousands of shots  
 
-This module serves as the foundation for all data access in the FAIRMAST benchmark framework, providing a clean and efficient interface between raw Zarr storage and PyTorch training pipelines.
+This module serves as the foundation for all data access in the FAIR-MAST benchmark framework, providing a clean and 
+efficient interface between raw Zarr storage and PyTorch training pipelines.

@@ -110,8 +110,8 @@ def build_common_signal_transform_map(
         "magnetics-b_field_tor_probe_cc_field",
         "magnetics-b_field_pol_probe_omv_voltage"
     ]:
-        # standardization must be done after the fourier transform:
-        # mean and std in the metadata have been computed for the FTT space
+        # Standardization must be done after the Fourier transform:
+        # Mean and STD in the metadata have been computed for the FTT space
         signal_transform_map[var] = ComposeTransforms(
             transforms = [
                 STFTTransform(support_n=512),
