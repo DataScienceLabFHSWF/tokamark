@@ -417,8 +417,6 @@ class TokaMarkDataset(IterableDataset):
 
         for idx_t, t_cut in enumerate(t_cuts):
 
-            t_cut = np.float32(t_cut)
-
             input_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
