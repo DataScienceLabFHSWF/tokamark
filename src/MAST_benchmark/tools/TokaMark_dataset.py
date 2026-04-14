@@ -454,21 +454,21 @@ class TokaMarkDataset(IterableDataset):
 
             if self.test_mode:
                 # Filled test_mode
-                window_valid = (
-                    not (
-                        _all_vars_have_any_nans(obj["input"])
-                        and _all_vars_have_any_nans(obj["actuator"])
-                    )
-                    and (not _any_vars_have_any_nans(obj["output"]))
-                )
-                # Sparse test_mode
                 # window_valid = (
                 #     not (
-                #         _all_vars_have_all_nans(obj["input"])
-                #         and _all_vars_have_all_nans(obj["actuator"])
+                #         _all_vars_have_any_nans(obj["input"])
+                #         and _all_vars_have_any_nans(obj["actuator"])
                 #     )
-                #     and (not _any_vars_have_all_nans(obj["output"]))
+                #     and (not _any_vars_have_any_nans(obj["output"]))
                 # )
+                # Sparse test_mode
+                window_valid = (
+                    not (
+                        _all_vars_have_all_nans(obj["input"])
+                        and _all_vars_have_all_nans(obj["actuator"])
+                    )
+                    and (not _any_vars_have_all_nans(obj["output"]))
+                )
                 if not window_valid:
                     if self.verbose:
                         print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid.")
