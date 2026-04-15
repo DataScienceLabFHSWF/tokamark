@@ -367,7 +367,7 @@ sequenceDiagram
 ## 🗂️ Directory Structure
 
 ```
-fairmast-data-preprocessing/
+tokamark/
 ├── src/
 │   ├── MAST_tools/                             # Core data access
 │   │   ├── MAST_dataset.py                     # PyTorch dataset
@@ -612,12 +612,13 @@ compute_summary_metrics(
 ### Unit Tests
 - Located in `tests/` directory
 - Run with `python tests/run_tests.py`
-- Cover core functionality of MAST_tools and MAST_benchmark
+- Cover core functionality of `MAST_tools` and `MAST_benchmark`
 
-### Validation Notebooks
-- `notebooks/Validation Tests for MAST_tools.ipynb`
-- `notebooks/Workshop demo of MAST_tools.ipynb`
-- Interactive testing and demonstration
+### Notebooks
+- `notebooks/Example usage of MAST_tools.ipynb`, for interactive testing and demonstration of the `MAST_tools` package
+- `notebooks/Data stratification.ipynb`, to demonstrate two stratification methods for FAIR-MAST data 
+- `notebooks/LCFS reshaping.ipynb`, for the reshaping of Last Closed Flux Surface profiles
+- `notebooks/PCA for magnetic flux loops.ipynb`, for Principal Component Analysis of magnetic flux loops
 
 ---
 
@@ -640,12 +641,19 @@ compute_summary_metrics(
 ## 📄 License
 See [License file](LICENSE.md).
 
+
 ---
 
-## References
+## 📚 Additional Documentation
+- [MAST_dataset](docs/MAST_dataset.md)
+- [Persistence](docs/Persistence.md)
+
+---
+
+## Some Relevant References
 
 ### Project Highlights
-- **Project Repository**: `fairmast-data-preprocessing`
+- **Project Repository**: `tokamark`
 - **Data Source**: MAST Tokamak (Mega Ampere Spherical Tokamak)
 - **Storage Format**: Zarr v3.1.5
 - **ML Framework**: PyTorch
@@ -656,3 +664,26 @@ See [License file](LICENSE.md).
 - **fsspec Documentation**: https://filesystem-spec.readthedocs.io/
 - **PyTorch Dataset**: https://pytorch.org/docs/stable/data.html
 - **MAST Facility**: https://www.ccfe.ac.uk/mast.aspx
+
+
+---
+
+## Citing TokaMark
+
+TokaMark has been submitted to the *32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026*, and it is
+currently being reviewed. A preprint version of the manuscript is available [here](https://arxiv.org/abs/2602.10132).
+
+If you use TokaMark, please cite our work as:
+
+    @article{rousseau2026tokamark,
+      title={TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models},
+      author={
+        Rousseau, C{\'e}cile and Jackson, Samuel and Ordonez-Hurtado, Rodrigo H. and
+        Amorisco, Nicola C. and Boschi, Tobia and Holt, George K and Loreti, Andrea and 
+        Sz{\'e}kely, Eszter and Whittle, Alexander and Agnello, Adriano and Pamela, Stanislas and 
+        Pascale, Alessandra and Akers, Robert and Bernabe Moreno, Juan and Thorne, Sue and 
+        Zayats, Mykhaylo
+      },
+      journal={arXiv preprint arXiv:2602.10132},
+      year={2026}
+    }

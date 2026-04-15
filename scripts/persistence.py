@@ -2,7 +2,6 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
-
 import argparse
 import os
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Any, Sequence
 import numpy as np
 from multiprocessing import cpu_count
 import psutil
+from datetime import datetime
 
 from torch import ones_like
 from torch import Tensor as TorchTensor
@@ -387,7 +387,7 @@ def run_persistence_pipeline(
             config_task=config_task,
             shots_list=test_shots_,
             local_flag=pipeline_config["local"],
-            use_std_scaling=True,
+            use_std_scaling=False,
             return_incomplete_shots=True,
             store_manager_settings=pipeline_config["store_manager_settings"]
         )
@@ -496,11 +496,13 @@ if __name__ == "__main__":
 
     output_dir = config["persistence_settings"]["output_dir"]
 
+    print(f"Start time: {datetime.now()}\n")
+
     for task_ in config["persistence_settings"]["ar_tasks"]:
         print("---------------------------------------------")
         print(f'Running persistence pipeline for {task_}, model `{args.persistence_model}`...\n')
         run_persistence_pipeline(task=task_, pipeline_config=config)
-        print(f'\nFinished `{args.persistence_model}` pipeline for {task_}.')
+        print(f'\nFinished `{args.persistence_model}` pipeline for {task_} [{datetime.now()}].')
         print("=========================================================\n")
 
     if config["persistence_settings"]["compute_summary_metrics"]:
@@ -508,9 +510,9 @@ if __name__ == "__main__":
         print("---------------------------------------------------------")
         print(f'Computing all metrics for `{args.persistence_model}` pipeline....\n')
         compute_summary_metrics(output_dir=output_dir)
-        print(f'\nFinished computation of all metrics for `{args.persistence_model}` pipeline.')
+        print(f'\nFinished computation of all metrics for `{args.persistence_model}` pipeline [{datetime.now()}].')
         print("=========================================================\n\n")
 
-    print(f'\nAll done. Results saved under the target directory `{output_dir}`.')
+    print(f'\nAll done. Results saved under the target directory `{output_dir}` [{datetime.now()}].')
 
     # ------------------------------------------------------------------------------------------------------------------

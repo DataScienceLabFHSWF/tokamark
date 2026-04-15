@@ -12,7 +12,7 @@ from typing import Any
 # ======================================================================================================================
 class ReshapeLcfsTransform:
     """
-    Transform to reshape LCFS profiles.
+    Transform to reshape LCFS (Last Closed Flux Surface) profiles.
 
     Attributes
     ----------
