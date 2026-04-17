@@ -456,7 +456,7 @@ class TokaMarkDataset(IterableDataset):
             # Filtering
 
             if self.test_mode:
-                if filled_test_mode:  # TODO [Cecile]: Added workaround to keep the "Sparse test_mode" code. Is this OK?
+                if filled_test_mode:
                     # Filled test_mode
                     window_valid = (
                         not (

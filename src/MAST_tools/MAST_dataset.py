@@ -302,7 +302,7 @@ class MastDataset(Dataset):
             )
             
             load_signals = True
-            # mask_efit_rating =  # <- TODO [Cecile]: Default value for mask_efit_rating should be defined here
+            mask_efit_rating = None
             if (source_store is not None) and (source == "equilibrium") and self.remove_bad_efit_rating:
                 if "ip_rating" in list(source_store.data_vars):
                     mask_efit_rating = (
@@ -350,12 +350,12 @@ class MastDataset(Dataset):
                                 else signal_profile.values
                             )
 
-                            if (source == "equilibrium") and self.remove_bad_efit_rating:
-                                    # Expand mask to match shot_vals dimensions
-                                    expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)  # TODO [Cecile]: Initialise mask_efit_rating
-                                    mask_expanded = mask_efit_rating.reshape(expand_shape)
-                                    # Apply mask
-                                    shot_vals = np.where(mask_expanded, np.nan, shot_vals)
+                            if mask_efit_rating is not None:
+                                # Expand mask to match shot_vals dimensions
+                                expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)
+                                mask_expanded = mask_efit_rating.reshape(expand_shape)
+                                # Apply mask
+                                shot_vals = np.where(mask_expanded, np.nan, shot_vals)
 
                         except AttributeError:
                             shot_vals = None
