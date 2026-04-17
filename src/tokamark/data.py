@@ -7,8 +7,8 @@ from collections.abc import Callable, Mapping
 from typing import Optional, Any
 
 from MAST_tools.MAST_dataset import MastDataset
-from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
-from MAST_benchmark.tools.MAST_composite_transform import build_common_signal_transform_map
+from tokamark.tools.TokaMark_dataset import TokaMarkDataset
+from tokamark.tools.MAST_composite_transform import build_common_signal_transform_map
 from MAST_tools.utils.data_utils import StoreManagerParametersType
 from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
 

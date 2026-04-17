@@ -41,4 +41,4 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["MAST_tools*", "MAST_benchmark*"]
+include = ["MAST_tools*", "tokamark*"]

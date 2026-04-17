@@ -19,11 +19,11 @@ from torch.utils.data._utils.collate import default_collate  # noqa - Ignore "ac
 import torch.multiprocessing as mp
 
 from MAST_tools.utils.general_utils import warning_print
-from MAST_benchmark.tools.utils import get_config_from_yaml
-from MAST_benchmark.tasks import get_task_config, get_task_metadata, get_signals_metadata
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
-from MAST_benchmark.evaluator import (
+from tokamark.tools.utils import get_config_from_yaml
+from tokamark.tasks import get_task_config, get_task_metadata, get_signals_metadata
+from tokamark.data_split import get_train_test_val_shots
+from tokamark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
+from tokamark.evaluator import (
     WindowMetricsAccumulator,
     compute_metrics,
     compute_summary_metrics

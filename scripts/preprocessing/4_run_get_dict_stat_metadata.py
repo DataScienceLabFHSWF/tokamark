@@ -13,9 +13,9 @@ from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
 from MAST_tools.utils.general_utils import warning_print
-from MAST_benchmark.data import initialize_MAST_dataset
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.tools.path import DEFAULT_SIGNALS_STATS_FILE
+from tokamark.data import initialize_MAST_dataset
+from tokamark.data_split import get_train_test_val_shots
+from tokamark.tools.path import DEFAULT_SIGNALS_STATS_FILE
 
 from preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
 

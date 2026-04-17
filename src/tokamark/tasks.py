@@ -9,8 +9,8 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Any
 
-from MAST_benchmark.tools.utils import get_config_from_yaml
-from MAST_benchmark.tools.path import (
+from tokamark.tools.utils import get_config_from_yaml
+from tokamark.tools.path import (
     TASKS_CONFIGS_DIR,
     DEFAULT_SIGNALS_STATS_FILE
 )

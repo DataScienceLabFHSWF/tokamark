@@ -347,7 +347,7 @@ Applied to individual signals before shot assembly. Common transforms include:
 
 **Standardization:**
 ```python
-from MAST_benchmark.tools.transforms.stdscale_transform import StdScalingTransform
+from tokamark.tools.transforms.stdscale_transform import StdScalingTransform
 
 signal_level_transform_map = {
     "summary-power_nbi": StdScalingTransform(mean=1.5e6, std=5e5),
@@ -357,7 +357,7 @@ signal_level_transform_map = {
 
 **Composition:**
 ```python
-from MAST_benchmark.tools.transforms.compose_transform import ComposeTransforms
+from tokamark.tools.transforms.compose_transform import ComposeTransforms
 
 signal_level_transform_map = {
     "lcfs-r": ComposeTransforms([
@@ -425,7 +425,7 @@ print(f"Power NBI shape: {shot['summary-power_nbi']['values'].shape}")
 
 ### With Transforms
 ```python
-from MAST_benchmark.tools.MAST_composite_transform import build_common_signal_transform_map
+from tokamark.tools.MAST_composite_transform import build_common_signal_transform_map
 
 # Build transform map with standardization
 transform_map = build_common_signal_transform_map(
@@ -611,9 +611,9 @@ dataset = MastDataset(
 The `MastDataset` is typically wrapped by `TokaMarkDataset` for benchmark tasks:
 
 ```python
-from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
-from MAST_benchmark.tasks import get_task_config, get_task_metadata
-from MAST_benchmark.data_split import get_train_test_val_shots
+from tokamark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
+from tokamark.tasks import get_task_config, get_task_metadata
+from tokamark.data_split import get_train_test_val_shots
 
 # Step 1: Get task configuration
 task_config = get_task_config("task_1-1")

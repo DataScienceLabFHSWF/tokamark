@@ -38,7 +38,7 @@ from typing import Union, Any, Optional, Literal
 
 from torch import Tensor as TorchTensor
 
-from MAST_benchmark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
+from tokamark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -633,7 +633,7 @@ def compute_metrics(
 
     if window_metrics_accumulator is None:
         raise ValueError(
-            "`window_metrics_accumulator` cannot be None in MAST_benchmark.evaluator.compute_metrics()."
+            "`window_metrics_accumulator` cannot be None in tokamark.evaluator.compute_metrics()."
         )
 
     if not isinstance(window_metrics_accumulator, WindowMetricsAccumulator):

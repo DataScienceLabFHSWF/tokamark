@@ -15,10 +15,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate  # noqa - Ignore "access to protected method" warning
 
 from MAST_tools.utils.general_utils import warning_print
-from MAST_benchmark.tools.utils import get_device, get_config_from_yaml
-from MAST_benchmark.data_split import get_train_test_val_shots
-from MAST_benchmark.tasks import get_task_metadata, get_task_config
-from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
+from tokamark.tools.utils import get_device, get_config_from_yaml
+from tokamark.data_split import get_train_test_val_shots
+from tokamark.tasks import get_task_metadata, get_task_config
+from tokamark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
 
 
 # ----------------------------------------------------------------------------------------------------------------------
