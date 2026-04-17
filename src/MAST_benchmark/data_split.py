@@ -61,7 +61,7 @@ def get_train_test_val_shots(
 
     if shuffle:
         if not isinstance(seed, int):
-            raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")  # noqa
+            raise ValueError(f"Seed must be integer, got {type(seed).__name__}")  # noqa - Ignore unreach code warning
 
         random.seed(seed)
         random.shuffle(train_set_full)
@@ -96,7 +96,7 @@ def read_data_split_csv(
         csv_path: str
 ) -> tuple[list, list, list]:
     """
-    Read the csv file containing the lists of shot IDs for training, testing, and validation.
+    Read the CSV file containing the lists of shot IDs for training, testing, and validation.
 
     Parameters
     ----------
@@ -115,9 +115,9 @@ def read_data_split_csv(
 
     df = pd.read_csv(csv_path)
 
-    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
-    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
-    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
+    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
+    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
+    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
 

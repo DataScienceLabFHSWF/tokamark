@@ -302,33 +302,33 @@ class MastDataset(Dataset):
             )
             
             load_signals = True
-            if (source_store is not None 
-                and source =='equilibrium' 
-                and self.remove_bad_efit_rating):
-                
-                if 'ip_rating' in list(source_store.data_vars):
-                    mask_efit_rating = ( self.sig.get_signal_profile(
-                        data_origin=source_store,
-                        signal_name='ip_rating',
-                        verbose=self.verbose
-                    ) == 0 ).values
+            # mask_efit_rating =  # <- TODO [Cecile]: Default value for mask_efit_rating should be defined here
+            if (source_store is not None) and (source == "equilibrium") and self.remove_bad_efit_rating:
+                if "ip_rating" in list(source_store.data_vars):
+                    mask_efit_rating = (
+                            self.sig.get_signal_profile(
+                                data_origin=source_store,
+                                signal_name="ip_rating",
+                                verbose=self.verbose
+                            ) == 0
+                    ).values
 
                 else:
                     if self.verbose:
-                        print(f"ip_rating not available for shot {self.get_shot_id(idx)}")
+                        print(f"ip_rating not available for shot {self.get_shot_id(idx)}.")
                     load_signals = False
             
             for signal in source_signals[source]:
                 shot_vals = None
                 shot_time = None
                         
-                if source_store is not None and load_signals:
+                if (source_store is not None) and load_signals:
 
                     signal_profile = self.sig.get_signal_profile(
                         data_origin=source_store,
                         signal_name=signal,
                         verbose=self.verbose
-                    )                     
+                    )
 
                     if signal_profile is not None:
                         try:
@@ -340,7 +340,7 @@ class MastDataset(Dataset):
                             )
                             
                         except Exception as e:
-                            print(f"Error getting time for shot {self.shots_list[idx]}: {e}")
+                            print(f"Error while getting time for shot {self.shots_list[idx]}: {e}.")
                             shot_time = None
 
                         try:
@@ -350,9 +350,9 @@ class MastDataset(Dataset):
                                 else signal_profile.values
                             )
 
-                            if (source =='equilibrium' and self.remove_bad_efit_rating):
+                            if (source == "equilibrium") and self.remove_bad_efit_rating:
                                     # Expand mask to match shot_vals dimensions
-                                    expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)
+                                    expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)  # TODO [Cecile]: Initialise mask_efit_rating
                                     mask_expanded = mask_efit_rating.reshape(expand_shape)
                                     # Apply mask
                                     shot_vals = np.where(mask_expanded, np.nan, shot_vals)

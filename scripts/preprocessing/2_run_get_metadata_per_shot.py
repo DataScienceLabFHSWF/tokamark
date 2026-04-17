@@ -26,8 +26,9 @@ from preproc_paths import (
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-CSV_HEADER = ["shot_idx", "shot_id", "variable", "n_dim_shot", "n_nans_shot", "mean", 
-              "variance", "min", "max", "median"]
+CSV_HEADER = [
+    "shot_idx", "shot_id", "variable", "n_dim_shot", "n_nans_shot", "mean", "variance", "min", "max", "median"
+]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -254,7 +255,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file",
         type=str,
-        default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
+        default="./config_get_metadata.yaml",
         help="Path to the YAML file with configuration to get metadata.",
     )
     parser.add_argument(

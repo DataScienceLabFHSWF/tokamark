@@ -637,7 +637,7 @@ def compute_metrics(
         )
 
     if not isinstance(window_metrics_accumulator, WindowMetricsAccumulator):
-        raise TypeError(  # noqa (omit unreached code warning)
+        raise TypeError(  # noqa - Ignore unreached code warning
             "`window_metrics_accumulator` must be a WindowMetricsAccumulator instance."
         )
 

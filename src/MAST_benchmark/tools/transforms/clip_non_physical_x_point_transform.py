@@ -12,7 +12,7 @@ from typing import Any
 # ======================================================================================================================
 class ClipXPointTransform:
     """
-    Transform to clip non physical x points.
+    Transform to clip non-physical x points.
 
     Attributes
     ----------
@@ -41,7 +41,7 @@ class ClipXPointTransform:
         Returns
         -------
         dict[str, Any]
-            Torch dict with "time" and "key" keys, where non physical timestamps have been replaced with nans.
+            Torch dict with "time" and "key" keys, where non-physical timestamps have been replaced with NaN values.
 
         """
 

@@ -63,7 +63,7 @@ def _any_vars_have_all_nans(
         dict_obj: Mapping[str, Any]
 ) -> bool:
     """
-    Check if at least one variable in an input mapping have all Nan values.
+    Check if at least one variable in an input mapping has all Nan values.
 
     Parameters
     ----------
@@ -73,7 +73,7 @@ def _any_vars_have_all_nans(
     Returns
     -------
     bool
-        If True, at least one variable in input mapping have all NaN values.
+        If True, at least one variable in input mapping has all NaN values.
 
     """
 
@@ -331,7 +331,8 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(  # NOSONAR - Ignore cognitive complexity
             self,
-            shot_idx: int
+            shot_idx: int,
+            filled_test_mode: bool = True
     ) -> Generator:
         """
         Shot-processing generator.
@@ -340,6 +341,10 @@ class TokaMarkDataset(IterableDataset):
         ----------
         shot_idx : int
             Shot index.
+        filled_test_mode : bool
+            If True and `self.test_mode` is True, use filled test mode. If False and `self.test_mode` is True, use
+            sparse test mode. Ignored if `self.test_mode` is False.
+            Optional. Default: True.
 
         Returns
         -------
@@ -420,21 +425,21 @@ class TokaMarkDataset(IterableDataset):
             input_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
-                t_cut=t_cut,
+                t_cut=t_cut,  # noqa - Ignore expected type warning
                 type_window="input"
             )
 
             actuator_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
-                t_cut=t_cut,
+                t_cut=t_cut,  # noqa - Ignore expected type warning
                 type_window="actuator"
             )
 
             output_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
-                t_cut=t_cut,
+                t_cut=t_cut,  # noqa - Ignore expected type warning
                 type_window="output"
             )
 
@@ -451,22 +456,25 @@ class TokaMarkDataset(IterableDataset):
             # Filtering
 
             if self.test_mode:
-                # Filled test_mode
-                window_valid = (
-                    not (
-                        _all_vars_have_any_nans(obj["input"])
-                        and _all_vars_have_any_nans(obj["actuator"])
+                if filled_test_mode:  # TODO [Cecile]: Added workaround to keep the "Sparse test_mode" code. Is this OK?
+                    # Filled test_mode
+                    window_valid = (
+                        not (
+                            _all_vars_have_any_nans(obj["input"])
+                            and _all_vars_have_any_nans(obj["actuator"])
+                        )
+                        and (not _any_vars_have_any_nans(obj["output"]))
                     )
-                    and (not _any_vars_have_any_nans(obj["output"]))
-                )
-                # Sparse test_mode
-                # window_valid = (
-                #     not (
-                #         _all_vars_have_all_nans(obj["input"])
-                #         and _all_vars_have_all_nans(obj["actuator"])
-                #     )
-                #     and (not _any_vars_have_all_nans(obj["output"]))
-                # )
+                else:
+                    # Sparse test_mode
+                    window_valid = (
+                        not (
+                            _all_vars_have_all_nans(obj["input"])
+                            and _all_vars_have_all_nans(obj["actuator"])
+                        )
+                        and (not _any_vars_have_all_nans(obj["output"]))
+                    )
+
                 if not window_valid:
                     if self.verbose:
                         print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid.")

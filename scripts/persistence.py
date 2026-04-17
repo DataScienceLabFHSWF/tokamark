@@ -15,7 +15,7 @@ from datetime import datetime
 from torch import ones_like
 from torch import Tensor as TorchTensor
 from torch.utils.data import DataLoader
-from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
+from torch.utils.data._utils.collate import default_collate  # noqa - Ignore "access to protected method" warning
 import torch.multiprocessing as mp
 
 from MAST_tools.utils.general_utils import warning_print
@@ -31,7 +31,7 @@ from MAST_benchmark.evaluator import (
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-CONFIG_FILES_DIR = Path("config_files")
+CONFIG_FILES_DIR = Path("/.config_files")
 
 
 # ======================================================================================================================
@@ -113,7 +113,7 @@ class PersistenceTransform:
         }
 
 # ----------------------------------------------------------------------------------------------------------------------
-def MAST_collate_fn(  # noqa N802
+def MAST_collate_fn(  # noqa - Ignore lowercase warning
         batch: Sequence,
         verbose: bool = True
 ) -> list[Any]:
@@ -218,7 +218,7 @@ def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
             warning_print(f"Empty batch {batch_idx} skipped.")
             continue
 
-        shot_ids, window_indices, x_test, y_test = batch_  # noqa (right number of values to unpack)
+        shot_ids, window_indices, x_test, y_test = batch_  # noqa - Right number of values to unpack
 
         print(f"\n-> Processing batch {batch_idx} with {len(shot_ids.unique())} shots and {len(shot_ids)} elements.")
 

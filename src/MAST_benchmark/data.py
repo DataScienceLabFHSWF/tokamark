@@ -14,7 +14,7 @@ from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_MAST_dataset(  # noqa (allow uppercase)
+def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
         config_task: Mapping[str, Any],
         shots_list: list[int],
         local_flag: bool = True,
@@ -40,6 +40,9 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
     local_flag : bool
         If True, local mode is used.
         Optional. Default: True.
+    use_nan_filling : bool
+        If True, NaN filling is used.
+        Optional. Default: True.
     use_std_scaling : bool
         If True, standard scaling is used.
         Optional. Default: True.
@@ -48,6 +51,11 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         Optional. Default: True.
     remove_outliers : bool
         If True, outliers are removed.
+        Optional. Default: True.
+    outlier_metadata_file : str
+        Path to suitable YAML file with outlier metadata.
+    remove_bad_efit_rating : bool
+        If True, bad EFIT ratings are removed.
         Optional. Default: True.
     store_manager_settings : Optional[StoreManagerParametersType]
         Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
@@ -100,7 +108,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_TokaMark_dataset(  # noqa (allow uppercase)
+def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
         dataset: Optional[MastDataset],
         task_metadata: Mapping[str, Any],
         config_metadata: Mapping[str, Any],

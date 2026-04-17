@@ -31,6 +31,9 @@ def build_common_signal_transform_map(
     use_std_scaling: bool
         If True, use STD scaling.
         Optional. Default: True.
+    use_nan_filling: bool
+        If True, use NaN filling.
+        Optional. Default: True.
 
     Returns
     -------
@@ -74,7 +77,16 @@ def build_common_signal_transform_map(
 
     # ..................................................................................................................
     def maybe_nan_filling(
-    ) -> Union[list, list[StdScalingTransform]]:
+    ) -> Union[list, list[FillProfileWithZerosTransform]]:
+        """
+        Return [FillProfileWithZerosTransform] if enabled, else empty list.
+
+        Returns
+        -------
+        Union[list, list[FillProfileWithZerosTransform]]
+            [<FillProfileWithZerosTransform instance>] if enabled, else empty list.
+
+        """
 
         if use_nan_filling:
             return [
@@ -105,8 +117,8 @@ def build_common_signal_transform_map(
         "thomson_scattering-n_e",
     ]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var=var) 
-            + maybe_nan_filling()
+            transforms=maybe_std(var=var)
+                       + maybe_nan_filling()
         )
 
     # Specific case of reformating LCFS

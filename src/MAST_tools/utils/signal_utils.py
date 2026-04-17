@@ -387,7 +387,7 @@ def tests() -> None:
     source_name = "magnetics"
     signal_name = "flux_loop_flux"
 
-    TESTS_TO_RUN = {  # noqa
+    TESTS_TO_RUN = {  # noqa - Ignore lowercase warning
         "source_from_store": False,
         "signal_values_from_store": False,
         "signal_values_from_shot_info": False,

@@ -12,7 +12,7 @@ from multiprocessing import cpu_count
 
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
-from torch.utils.data._utils.collate import default_collate  # noqa (access to protected method)
+from torch.utils.data._utils.collate import default_collate  # noqa - Ignore "access to protected method" warning
 
 from MAST_tools.utils.general_utils import warning_print
 from MAST_benchmark.tools.utils import get_device, get_config_from_yaml
@@ -23,8 +23,10 @@ from MAST_benchmark.data import initialize_MAST_dataset, initialize_TokaMark_dat
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-CONFIG_FILES_DIR = Path("fairmast-data-preprocessing/scripts/config_files") 
-print(CONFIG_FILES_DIR)
+CONFIG_FILES_DIR = Path("./config_files")
+BASE_CONFIG_TEST_PIPELINE_FILE = CONFIG_FILES_DIR / "config_test_pipeline.yaml"
+BASE_CONFIG_TEST_TASK_FILE = CONFIG_FILES_DIR / "config_test_task.yaml"
+
 
 # ------------------------------------------------------------------------------------------------------------------
 # Preliminaries
@@ -168,7 +170,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pipeline_config_file_path",
         type=str,
-        default=CONFIG_FILES_DIR / "config_test_pipeline.yaml",
+        default=BASE_CONFIG_TEST_PIPELINE_FILE,
         help="Path to the model YAML config file."
     )
     parser.add_argument(
@@ -208,7 +210,7 @@ if __name__ == "__main__":
 
     if args.task == "test_task":
         # Instead of loading benchmark task, here we load the configuration for a test task
-        config_task = get_config_from_yaml(file_path=CONFIG_FILES_DIR / "config_test_task.yaml")
+        config_task = get_config_from_yaml(file_path=BASE_CONFIG_TEST_TASK_FILE)
     else:
         # Otherwise, use the provided benchmark task
         config_task = get_task_config(task_name=args.task)
@@ -289,7 +291,7 @@ if __name__ == "__main__":
     for batch_idx, batch_ in enumerate(train_dataloader):
 
         print(f"\nBatch {batch_idx}")
-        shot_id, window_index, x_train, y_train = batch_  # noqa (right number of values to unpack)
+        shot_id, window_index, x_train, y_train = batch_  # noqa - Right number of values to unpack
 
         print(f"The list of shot ID is {shot_id}")
         print(f"The list of window index is {window_index}")

@@ -221,7 +221,7 @@ class MASTPlottingManager:
 
         self._check_fig_size(fig_size=fig_size)
 
-        store = store_utils.MASTStorageManager()._get_store_from_data_origin(data_origin=data_origin)  # noqa.
+        store = store_utils.MASTStorageManager()._get_store_from_data_origin(data_origin=data_origin)  # noqa
         profiles = xr.open_zarr(store, group=source_name)
         self.plot_1d_profiles(profiles=profiles[signal_name], fig_size=fig_size)
 
@@ -261,7 +261,7 @@ class MASTPlottingManager:
             "`%matplotlib notebook`header."
         )
 
-        store = store_utils.MASTStorageManager()._get_store_from_data_origin(data_origin=data_origin)  # noqa.
+        store = store_utils.MASTStorageManager()._get_store_from_data_origin(data_origin=data_origin)  # noqa
 
         self._check_fig_size(fig_size=fig_size)
 

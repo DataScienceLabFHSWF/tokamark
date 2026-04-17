@@ -538,7 +538,7 @@ class MASTStorageManager:
             Dictionary with required signal availability.
             Example: {"thomson_scattering": ["n_e"], "summary": ["power_nbi", "ip"]}
         availability_data_file_path : str
-            Path to suitable csv file with signal availability.
+            Path to suitable CSV file with signal availability.
             Optional. Default: MAST_tools.utils.path_utils.DEFAULT_SIGNAL_AVAILABILITY_FILE.
 
         Returns
@@ -567,9 +567,9 @@ class MASTStorageManager:
         for kk, vv in required_signals.items():
             source_signals_to_have += ([f"{kk}-{val}" for val in vv])
 
-        composite_condition = availability_data[source_signals_to_have[0]] == True  # noqa (is True misbehaves)
+        composite_condition = availability_data[source_signals_to_have[0]] == True  # noqa - "is" comparison misbehaves
         for signal in source_signals_to_have[1:]:
-            composite_condition = composite_condition & (availability_data[signal] == True)  # noqa (is True misbehaves)
+            composite_condition &= (availability_data[signal] == True)  # noqa - "is" comparison misbehaves
 
         return list(availability_data.loc[composite_condition]["shot_id"])
 
@@ -946,7 +946,7 @@ def tests() -> None:
         base_local_zarr_path="/mast/tokamark/v1"
     )
 
-    TESTS_TO_RUN = {  # noqa
+    TESTS_TO_RUN = {  # noqa - Ignore lowercase warning
         "get_all_shot_ids": False,
         "get_all_sources": False,
         "get_all_signals": False,

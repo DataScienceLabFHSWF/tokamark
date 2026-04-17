@@ -155,7 +155,7 @@ if __name__ == "__main__":
     first_sample = next(iter(preprocessing_train_dataset))
     target_vars = set(first_sample.keys())
 
-    for i, sample in enumerate(preprocessing_train_dataset):  # noqa (type check)
+    for i, sample in enumerate(preprocessing_train_dataset):  # noqa - Ignore type check warning
         # print(i)
 
         for var, signal in sample.items():

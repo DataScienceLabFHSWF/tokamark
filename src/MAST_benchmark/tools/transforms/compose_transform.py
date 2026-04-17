@@ -69,6 +69,7 @@ class ComposeTransforms(object):
             if sample is None:
                 return None
             sample = transform(sample)
+
         return sample
 
     # ------------------------------------------------------------------------------------------------------------------
