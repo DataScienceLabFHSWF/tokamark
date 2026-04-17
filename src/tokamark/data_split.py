@@ -13,13 +13,13 @@ from tokamark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(
-        max_index: Optional[int] = None,
-        max_index_for_train: Optional[int] = None,
-        max_index_for_val: Optional[int] = None,
-        max_index_for_test: Optional[int] = None,
-        shuffle: bool = False,
-        seed: int = 42,
-        data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE
+    max_index: Optional[int] = None,
+    max_index_for_train: Optional[int] = None,
+    max_index_for_val: Optional[int] = None,
+    max_index_for_test: Optional[int] = None,
+    shuffle: bool = False,
+    seed: int = 42,
+    data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE,
 ) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation. These lists can be subsets of the corresponding
@@ -67,11 +67,11 @@ def get_train_test_val_shots(
         random.shuffle(train_set_full)
         random.shuffle(test_set_full)
         random.shuffle(val_set_full)
-        
+
     train_set = train_set_full
     test_set = test_set_full
     val_set = val_set_full
-    
+
     # If max_index is provided, override all other limits
     if (max_index is not None) and (max_index > 0):
         train_set = train_set_full[:max_index]
@@ -87,14 +87,12 @@ def get_train_test_val_shots(
 
     if (max_index_for_test is not None) and (max_index_for_test > 0):
         test_set = test_set_full[:max_index_for_test]
-        
+
     return train_set, test_set, val_set
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def read_data_split_csv(
-        csv_path: str
-) -> tuple[list, list, list]:
+def read_data_split_csv(csv_path: str) -> tuple[list, list, list]:
     """
     Read the CSV file containing the lists of shot IDs for training, testing, and validation.
 
@@ -120,5 +118,6 @@ def read_data_split_csv(
     shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
+
 
 # ----------------------------------------------------------------------------------------------------------------------

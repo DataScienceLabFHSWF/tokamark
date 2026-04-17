@@ -27,14 +27,21 @@ from preproc_paths import (
 # ----------------------------------------------------------------------------------------------------------------------
 
 CSV_HEADER = [
-    "shot_idx", "shot_id", "variable", "n_dim_shot", "n_nans_shot", "mean", "variance", "min", "max", "median"
+    "shot_idx",
+    "shot_id",
+    "variable",
+    "n_dim_shot",
+    "n_nans_shot",
+    "mean",
+    "variance",
+    "min",
+    "max",
+    "median",
 ]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def identity_collate(
-        batch: Any
-) -> Any:
+def identity_collate(batch: Any) -> Any:
     """Identity collate function"""
 
     return batch
@@ -62,10 +69,7 @@ class ShotStatsDataset(Dataset):
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            dataset: MastDataset
-    ) -> None:
+    def __init__(self, dataset: MastDataset) -> None:
         """
         Initialize class attributes
 
@@ -84,9 +88,7 @@ class ShotStatsDataset(Dataset):
         self.sources_signals = list(dataset[0].keys())
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __len__(
-            self
-    ) -> int:
+    def __len__(self) -> int:
         """
         Return the size of the dataset.
 
@@ -101,8 +103,7 @@ class ShotStatsDataset(Dataset):
 
     # ------------------------------------------------------------------------------------------------------------------
     def __getitem__(  # NOSONAR - Ignore cognitive complexity
-            self,
-            idx: int
+        self, idx: int
     ) -> dict[str, Any]:
         """
         Return shot stats by shot index.
@@ -124,7 +125,6 @@ class ShotStatsDataset(Dataset):
         stats: dict[str, Any] = {"shot_idx": idx, "shot_id": shot_id}
 
         for var in self.sources_signals:
-
             values = shot[var].get("values", [])
 
             # Initialize nested dict
@@ -139,7 +139,6 @@ class ShotStatsDataset(Dataset):
             }
 
             if len(values) > 0:
-
                 mean_sample = np.nanmean(values)
                 variance_sample = np.nanvar(values, ddof=0)  # Unbiased variance
 
@@ -162,10 +161,7 @@ class ShotStatsDataset(Dataset):
 
 # ----------------------------------------------------------------------------------------------------------------------
 def compute_mean_std_per_shot_to_csv(
-        dataset: MastDataset,
-        csv_path: str,
-        num_workers: int = 32,
-        batch_size: int = 32
+    dataset: MastDataset, csv_path: str, num_workers: int = 32, batch_size: int = 32
 ) -> None:
     """
     Compute Mean and STD per shot in provided dataset, and save results to target CSV file.
@@ -201,10 +197,7 @@ def compute_mean_std_per_shot_to_csv(
     )
 
     # Ensure directory exists
-    os.makedirs(
-        name=os.path.dirname(p=csv_path),
-        exist_ok=True
-    )
+    os.makedirs(name=os.path.dirname(p=csv_path), exist_ok=True)
 
     # Overwrite CSV
     with open(csv_path, "w", newline="") as ff:
@@ -216,7 +209,6 @@ def compute_mean_std_per_shot_to_csv(
         counter = 0
         for batch in loader:
             for shot_stats in batch:
-
                 counter += 1
                 if counter % 10 == 0:
                     print(f"Processed {counter} shots")
@@ -226,13 +218,13 @@ def compute_mean_std_per_shot_to_csv(
                         shot_stats["shot_idx"],
                         shot_stats["shot_id"],
                         var,
-                        shot_stats[var].get("n_dim_shot", None),    # Safe fallback
-                        shot_stats[var].get("n_nans_shot", None),   # Safe fallback
-                        shot_stats[var].get("mean", None),          # Safe fallback
-                        shot_stats[var].get("variance", None),      # Safe fallback
-                        shot_stats[var].get("min", None),           # Safe fallback
-                        shot_stats[var].get("max", None),           # Safe fallback
-                        shot_stats[var].get("median", None),        # Safe fallback
+                        shot_stats[var].get("n_dim_shot", None),  # Safe fallback
+                        shot_stats[var].get("n_nans_shot", None),  # Safe fallback
+                        shot_stats[var].get("mean", None),  # Safe fallback
+                        shot_stats[var].get("variance", None),  # Safe fallback
+                        shot_stats[var].get("min", None),  # Safe fallback
+                        shot_stats[var].get("max", None),  # Safe fallback
+                        shot_stats[var].get("median", None),  # Safe fallback
                     ]
                     writer.writerow(row)
 
@@ -243,7 +235,6 @@ def compute_mean_std_per_shot_to_csv(
 
 # ======================================================================================================================
 if __name__ == "__main__":
-
     print(f"Number of available CPU cores: {cpu_count()}\n")
     mp.set_start_method(method="spawn", force=True)
 
@@ -262,18 +253,11 @@ if __name__ == "__main__":
         "--shots_stats_saving_file_path",
         type=str,
         default=DEFAULT_SHOTS_STATS_ALL_FILE,
-        help="Path to the CSV file where shots statistics will be saved."
+        help="Path to the CSV file where shots statistics will be saved.",
     )
+    parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
-        "--demo_mode",
-        action="store_true",
-        help="Activate demo mode."
-    )
-    parser.add_argument(
-        "--demo_suffix",
-        type=str,
-        default="_DEMO",
-        help="Suffix used in demo mode when saving results."
+        "--demo_suffix", type=str, default="_DEMO", help="Suffix used in demo mode when saving results."
     )
 
     args, _ = parser.parse_known_args()
@@ -293,10 +277,7 @@ if __name__ == "__main__":
         warning_print("Running in demo mode.")
 
         filename_demo_suffix = f"{args.demo_suffix}.csv"
-        args.shots_stats_saving_file_path = str(args.shots_stats_saving_file_path).replace(
-            ".csv",
-            filename_demo_suffix
-        )
+        args.shots_stats_saving_file_path = str(args.shots_stats_saving_file_path).replace(".csv", filename_demo_suffix)
 
         config["get_shots_settings"]["max_index"] = 2
         config["get_shots_settings"]["shuffle"] = True
@@ -320,21 +301,19 @@ if __name__ == "__main__":
         config_task=config["task_configuration"],
         shots_list=train_shots_ + test_shots_ + val_shots_,
         local_flag=config["local"],
-        use_std_scaling=False,          # <- To get unstandardized dataset
-        use_nan_filling=False, 
-        return_incomplete_shots=True,   # <- To include all available shots
-        remove_outliers=True,          # <- To remove manually found outliers
+        use_std_scaling=False,  # <- To get unstandardized dataset
+        use_nan_filling=False,
+        return_incomplete_shots=True,  # <- To include all available shots
+        remove_outliers=True,  # <- To remove manually found outliers
         outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
         remove_bad_efit_rating=True,
-        store_manager_settings=config["store_manager_settings"]
+        store_manager_settings=config["store_manager_settings"],
     )
 
     print("Computing Mean/STD values for all shots in dataset...")
 
     compute_mean_std_per_shot_to_csv(
-        dataset=unstandardized_all_dataset,
-        csv_path=args.shots_stats_saving_file_path,
-        **config["dataloader_settings"]
+        dataset=unstandardized_all_dataset, csv_path=args.shots_stats_saving_file_path, **config["dataloader_settings"]
     )
 
     print(f"Mean/STD results saved at {args.shots_stats_saving_file_path}")

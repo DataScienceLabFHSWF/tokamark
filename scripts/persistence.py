@@ -2,6 +2,7 @@
 Docstring reference: https://numpydoc.readthedocs.io/en/latest/format.html
 Python style reference: https://google.github.io/styleguide/pyguide.html
 """
+
 import argparse
 import os
 from pathlib import Path
@@ -23,11 +24,7 @@ from tokamark.tools.utils import get_config_from_yaml
 from tokamark.tasks import get_task_config, get_task_metadata, get_signals_metadata
 from tokamark.data_split import get_train_test_val_shots
 from tokamark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
-from tokamark.evaluator import (
-    WindowMetricsAccumulator,
-    compute_metrics,
-    compute_summary_metrics
-)
+from tokamark.evaluator import WindowMetricsAccumulator, compute_metrics, compute_summary_metrics
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -52,10 +49,7 @@ class PersistenceTransform:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            signals: list[str]
-    ) -> None:
+    def __init__(self, signals: list[str]) -> None:
         """
         Initialize class attributes.
 
@@ -73,10 +67,7 @@ class PersistenceTransform:
         self.signals = signals
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            segment: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def __call__(self, segment: Mapping[str, Any]) -> dict[str, Any]:
         """
         Call method for the class instances to behave like a function.
 
@@ -109,13 +100,13 @@ class PersistenceTransform:
             "shot_id": segment["shot_id"],
             "window_index": segment["window_index"],
             "x": get_signals_data("input"),
-            "y": get_signals_data("output")
+            "y": get_signals_data("output"),
         }
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 def MAST_collate_fn(  # noqa - Ignore lowercase warning
-        batch: Sequence,
-        verbose: bool = True
+    batch: Sequence, verbose: bool = True
 ) -> list[Any]:
     """
     MAST collate function.
@@ -138,16 +129,13 @@ def MAST_collate_fn(  # noqa - Ignore lowercase warning
     # ..............................................................................................................
     def tensor_size(t: TorchTensor) -> float:
         """Get size of given tensor."""
-        return t.nelement() * t.element_size() / 1024 ** 2
+        return t.nelement() * t.element_size() / 1024**2
 
     # ..............................................................................................................
     # Flatten the batch of lists into a single list, and return it
 
     # New (working) approach
-    flattened_batch = [
-        (item["shot_id"], item["window_index"], item["x"], item["y"])
-        for item in batch
-    ]
+    flattened_batch = [(item["shot_id"], item["window_index"], item["x"], item["y"]) for item in batch]
 
     flattened_batch = default_collate(batch=flattened_batch) if (len(flattened_batch) > 0) else None
 
@@ -159,9 +147,7 @@ def MAST_collate_fn(  # noqa - Ignore lowercase warning
         if flattened_batch is None:
             print("batch is None")
         else:
-            print(
-                f"The batch contains: {len(batch)} shots and {len(flattened_batch[0])} samples"
-            )
+            print(f"The batch contains: {len(batch)} shots and {len(flattened_batch[0])} samples")
 
             x = flattened_batch[2]
             y = flattened_batch[3]
@@ -179,7 +165,7 @@ def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
     test_dataloader: DataLoader,
     feature_names: list[str],
     accumulator: WindowMetricsAccumulator,
-    model: str = "persistence"
+    model: str = "persistence",
 ):
     """
     Evaluate persistence model per shot/window and populate an accumulator.
@@ -245,43 +231,29 @@ def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         for feature_name in feature_names:
-
             try:
-
-                y_t = (
-                    y_test[feature_name]
-                    .squeeze(1)
-                    .reshape(len(shot_ids), -1)
-                    .numpy()
-                )
-                y_p = (
-                    y_pred[feature_name]
-                    .squeeze(1)
-                    .reshape(len(shot_ids), -1)
-                    .numpy()
-                )
+                y_t = y_test[feature_name].squeeze(1).reshape(len(shot_ids), -1).numpy()
+                y_p = y_pred[feature_name].squeeze(1).reshape(len(shot_ids), -1).numpy()
 
                 accumulator.add_batch(
                     y_target=y_t,
                     y_pred=y_p,
                     shot_ids=shot_ids,
                     window_indices=window_indices,
-                    feature_name=feature_name
+                    feature_name=feature_name,
                 )
 
             except KeyError:
                 warning_print(
-                    f"Missing feature {feature_name} for batch {batch_idx}, or last elements are NaN values. Skipping.")
+                    f"Missing feature {feature_name} for batch {batch_idx}, or last elements are NaN values. Skipping."
+                )
 
     print("\n✅ Evaluation done. Window metrics accumulator is ready.")
     print("---------------------------------------------------------\n")
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def run_persistence_pipeline(
-        task: str,
-        pipeline_config: Mapping[str, Any]
-) -> None:
+def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> None:
     """
 
     Run persistence pipeline.
@@ -307,7 +279,6 @@ def run_persistence_pipeline(
     target_model = pipeline_config["persistence_settings"]["model"]
 
     if target_model == "persistence":
-
         # Pipeline for "persistence" model
 
         # 0. Set task type as markovian, so that collate function does not fail due to varying shapes.
@@ -320,7 +291,8 @@ def run_persistence_pipeline(
 
         # 2. Update values of `input_name` key.
         config_task["sources_and_signals"]["input_name"] = [
-            [source, signal] for source, signal in config_task["sources_and_signals"]["input_name"]
+            [source, signal]
+            for source, signal in config_task["sources_and_signals"]["input_name"]
             if f"{source}-{signal}" in chosen_signals
         ]
 
@@ -329,7 +301,8 @@ def run_persistence_pipeline(
 
         # 4. Update values of `output_name` key.
         config_task["sources_and_signals"]["output_name"] = [
-            [source, signal] for source, signal in config_task["sources_and_signals"]["output_name"]
+            [source, signal]
+            for source, signal in config_task["sources_and_signals"]["output_name"]
             if f"{source}-{signal}" in chosen_signals
         ]
 
@@ -341,7 +314,6 @@ def run_persistence_pipeline(
         config_task["task_window_segmenter"]["actuator_keys"] = None
 
     elif target_model == "mean":
-
         # Pipeline for "mean" model
 
         # 1. Identify chosen signals
@@ -359,22 +331,18 @@ def run_persistence_pipeline(
         config_task["task_window_segmenter"]["actuator_keys"] = None
 
     else:
-        raise ValueError(f'Unknown persistence model {target_model}.')
+        raise ValueError(f"Unknown persistence model {target_model}.")
 
     # ..................................................................................................................
     # Proceed if chosen signals are available
     # ..................................................................................................................
 
     if len(chosen_signals) > 0:
-
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize task-specific metadata
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dict_task_metadata = get_task_metadata(
-            config_task=config_task,
-            verbose=False
-        )
+        dict_task_metadata = get_task_metadata(config_task=config_task, verbose=False)
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize MAST datasets
@@ -389,7 +357,7 @@ def run_persistence_pipeline(
             local_flag=pipeline_config["local"],
             use_std_scaling=False,
             return_incomplete_shots=True,
-            store_manager_settings=pipeline_config["store_manager_settings"]
+            store_manager_settings=pipeline_config["store_manager_settings"],
         )
 
         test_dataset = initialize_TokaMark_dataset(
@@ -397,13 +365,11 @@ def run_persistence_pipeline(
             task_metadata=dict_task_metadata,
             config_metadata=config_task,
             custom_transform=PersistenceTransform(signals=chosen_signals),
-            test_mode=True
+            test_mode=True,
         )
 
         test_dataloader = DataLoader(
-            dataset=test_dataset,
-            collate_fn=MAST_collate_fn,
-            **pipeline_config["dataloader_settings"]
+            dataset=test_dataset, collate_fn=MAST_collate_fn, **pipeline_config["dataloader_settings"]
         )
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -416,7 +382,7 @@ def run_persistence_pipeline(
             test_dataloader=test_dataloader,
             feature_names=chosen_signals,
             accumulator=accumulator,
-            model=pipeline_config["persistence_settings"]["model"]
+            model=pipeline_config["persistence_settings"]["model"],
         )
 
         if accumulator.is_empty():
@@ -428,7 +394,7 @@ def run_persistence_pipeline(
             output_dir=pipeline_config["persistence_settings"]["output_dir"],
             window_metrics_accumulator=accumulator,
             save_windows_metrics=pipeline_config["persistence_settings"]["save_windows_metrics"],
-            save_task_metrics=pipeline_config["persistence_settings"]["save_task_metrics"]
+            save_task_metrics=pipeline_config["persistence_settings"]["save_task_metrics"],
         )
     else:
         print("No common signals between input and output - not possible to run persistence.")  # REMARK: Only case.
@@ -436,7 +402,6 @@ def run_persistence_pipeline(
 
 # ======================================================================================================================
 if __name__ == "__main__":
-
     print(f"Number of available CPU cores: {cpu_count()}\n")
     mp.set_start_method(method="spawn", force=True)
 
@@ -450,18 +415,11 @@ if __name__ == "__main__":
         type=str,
         choices=["persistence", "mean"],
         default="persistence",
-        help="Target model for the persistence pipeline."
+        help="Target model for the persistence pipeline.",
     )
+    parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
-        "--demo_mode",
-        action="store_true",
-        help="Activate demo mode."
-    )
-    parser.add_argument(
-        "--demo_suffix",
-        type=str,
-        default="_DEMO",
-        help="Suffix used in demo mode when saving results."
+        "--demo_suffix", type=str, default="_DEMO", help="Suffix used in demo mode when saving results."
     )
 
     args, _ = parser.parse_known_args()
@@ -500,19 +458,18 @@ if __name__ == "__main__":
 
     for task_ in config["persistence_settings"]["ar_tasks"]:
         print("---------------------------------------------")
-        print(f'Running persistence pipeline for {task_}, model `{args.persistence_model}`...\n')
+        print(f"Running persistence pipeline for {task_}, model `{args.persistence_model}`...\n")
         run_persistence_pipeline(task=task_, pipeline_config=config)
-        print(f'\nFinished `{args.persistence_model}` pipeline for {task_} [{datetime.now()}].')
+        print(f"\nFinished `{args.persistence_model}` pipeline for {task_} [{datetime.now()}].")
         print("=========================================================\n")
 
     if config["persistence_settings"]["compute_summary_metrics"]:
-
         print("---------------------------------------------------------")
-        print(f'Computing all metrics for `{args.persistence_model}` pipeline....\n')
+        print(f"Computing all metrics for `{args.persistence_model}` pipeline....\n")
         compute_summary_metrics(output_dir=output_dir)
-        print(f'\nFinished computation of all metrics for `{args.persistence_model}` pipeline [{datetime.now()}].')
+        print(f"\nFinished computation of all metrics for `{args.persistence_model}` pipeline [{datetime.now()}].")
         print("=========================================================\n\n")
 
-    print(f'\nAll done. Results saved under the target directory `{output_dir}` [{datetime.now()}].')
+    print(f"\nAll done. Results saved under the target directory `{output_dir}` [{datetime.now()}].")
 
     # ------------------------------------------------------------------------------------------------------------------

@@ -44,8 +44,7 @@ def build_common_signal_transform_map(
 
     # ..................................................................................................................
     def maybe_std(
-            var: str,
-            stats_metadata_file_path: str = DEFAULT_SIGNALS_STATS_FILE
+        var: str, stats_metadata_file_path: str = DEFAULT_SIGNALS_STATS_FILE
     ) -> Union[list, list[StdScalingTransform]]:
         """
         Return [StdScalingTransform] if enabled, else empty list.
@@ -69,15 +68,12 @@ def build_common_signal_transform_map(
             with open(stats_metadata_file_path, "r") as f:
                 dict_stats_metadata = yaml.safe_load(f)
 
-            return [
-                StdScalingTransform(mean=dict_stats_metadata[var]["mean"], std=dict_stats_metadata[var]["std"])
-            ]
+            return [StdScalingTransform(mean=dict_stats_metadata[var]["mean"], std=dict_stats_metadata[var]["std"])]
 
         return []
 
     # ..................................................................................................................
-    def maybe_nan_filling(
-    ) -> Union[list, list[FillProfileWithZerosTransform]]:
+    def maybe_nan_filling() -> Union[list, list[FillProfileWithZerosTransform]]:
         """
         Return [FillProfileWithZerosTransform] if enabled, else empty list.
 
@@ -89,9 +85,7 @@ def build_common_signal_transform_map(
         """
 
         if use_nan_filling:
-            return [
-                FillProfileWithZerosTransform()
-            ]
+            return [FillProfileWithZerosTransform()]
 
         return []
 
@@ -100,9 +94,7 @@ def build_common_signal_transform_map(
     # Define base signal_transform_map
 
     signal_transform_map = {
-        var: ComposeTransforms(
-            maybe_std(var=var)
-        )
+        var: ComposeTransforms(maybe_std(var=var))
         for var in [f"{source}-{signal}" for source, signal in source_signal_list]
     }
 
@@ -113,18 +105,16 @@ def build_common_signal_transform_map(
         "magnetics-b_field_pol_probe_obr_field",
         "magnetics-b_field_pol_probe_obv_field",
         "magnetics-b_field_tor_probe_saddle_voltage",
-        "thomson_scattering-t_e", 
+        "thomson_scattering-t_e",
         "thomson_scattering-n_e",
     ]:
-        signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var=var)
-                       + maybe_nan_filling()
-        )
+        signal_transform_map[var] = ComposeTransforms(transforms=maybe_std(var=var) + maybe_nan_filling())
 
     # Specific case of reformating LCFS
     for var in ["equilibrium-lcfs_r", "equilibrium-lcfs_z"]:
         signal_transform_map[var] = ComposeTransforms(
-            transforms=maybe_std(var=var) + [
+            transforms=maybe_std(var=var)
+            + [
                 ReshapeLcfsTransform(),
             ]
         )
@@ -134,20 +124,19 @@ def build_common_signal_transform_map(
         signal_transform_map[var] = ComposeTransforms(
             transforms=[
                 ClipXPointTransform(),
-            ] + maybe_std(var=var)
+            ]
+            + maybe_std(var=var)
         )
 
     # Specific case where we apply the FFT transform
-    for var in [
-        "magnetics-b_field_tor_probe_cc_field",
-        "magnetics-b_field_pol_probe_omv_voltage"
-    ]:
+    for var in ["magnetics-b_field_tor_probe_cc_field", "magnetics-b_field_pol_probe_omv_voltage"]:
         # Standardization must be done after the Fourier transform:
         # Mean and STD in the metadata have been computed for the FTT space
         signal_transform_map[var] = ComposeTransforms(
             transforms=[
                 STFTTransform(support_n=512),
-            ] + maybe_std(var=var)
+            ]
+            + maybe_std(var=var)
         )
 
     return signal_transform_map

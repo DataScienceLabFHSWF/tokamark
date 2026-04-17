@@ -56,10 +56,7 @@ class MASTPlottingManager:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            manager_id: str = ""
-    ) -> None:
+    def __init__(self, manager_id: str = "") -> None:
         """
         Initialize class attributes.
 
@@ -78,10 +75,7 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
-    def _plot_single_1d_profile(
-            profile: xr.DataArray,
-            ax: Optional[Union[np.ndarray, plt.Axes]] = None
-    ) -> None:
+    def _plot_single_1d_profile(profile: xr.DataArray, ax: Optional[Union[np.ndarray, plt.Axes]] = None) -> None:
         """
         Helper function for plotting single 1D profiles.
 
@@ -108,9 +102,7 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
-    def _check_fig_size(
-            fig_size: Optional[Union[list[int], set[int]]] = None
-    ) -> None:
+    def _check_fig_size(fig_size: Optional[Union[list[int], set[int]]] = None) -> None:
         """
         Helper function for checking `fig_size`.
 
@@ -141,9 +133,7 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_1d_profiles(
-            self,
-            profiles: Union[xarrayDataArray, xarrayDataset],
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, profiles: Union[xarrayDataArray, xarrayDataset], fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting 1D profiles, either from `xarrayDataArray` (single profile) or from `xarrayDataset`
@@ -192,11 +182,11 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_signal(
-            self,
-            data_origin: BaseDataSourceType,
-            source_name: str,
-            signal_name: str,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self,
+        data_origin: BaseDataSourceType,
+        source_name: str,
+        signal_name: str,
+        fig_size: Optional[Union[list[int], set[int]]] = None,
     ) -> None:
         """
         Helper function for plotting individual signals.
@@ -227,10 +217,7 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_group(
-            self,
-            data_origin: BaseDataSourceType,
-            source_name: str,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, source_name: str, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting entire group of signals.
@@ -285,16 +272,14 @@ class MASTPlottingManager:
             axes[ii].set_title(name)
 
         for ax in axes:
-            ax.grid('on', alpha=0.5)
+            ax.grid("on", alpha=0.5)
 
         plt.show()
         plt.tight_layout()
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_plasma_current(
-            self,
-            data_origin: BaseDataSourceType,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `summary__plasma_current` signal.
@@ -317,9 +302,7 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_power_nbi(
-            self,
-            data_origin: BaseDataSourceType,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `summary__power_nbi` signal.
@@ -342,9 +325,7 @@ class MASTPlottingManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_magnetics(
-            self,
-            data_origin: BaseDataSourceType,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `magnetics` group.
@@ -363,13 +344,11 @@ class MASTPlottingManager:
 
         """
 
-        self.plot_group(data_origin=data_origin, source_name='magnetics', fig_size=fig_size)
+        self.plot_group(data_origin=data_origin, source_name="magnetics", fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_spectrometer(
-            self,
-            data_origin: BaseDataSourceType,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `spectrometer_visible` group.
@@ -388,13 +367,11 @@ class MASTPlottingManager:
 
         """
 
-        self.plot_group(data_origin=data_origin, source_name='spectrometer_visible', fig_size=fig_size)
+        self.plot_group(data_origin=data_origin, source_name="spectrometer_visible", fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_charge_exchange(
-            self,
-            data_origin: BaseDataSourceType,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `charge_exchange` group.
@@ -416,13 +393,11 @@ class MASTPlottingManager:
         if fig_size is None:
             fig_size = [8, 4]
 
-        self.plot_group(data_origin=data_origin, source_name='charge_exchange', fig_size=fig_size)
+        self.plot_group(data_origin=data_origin, source_name="charge_exchange", fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
     def plot_thomson_scattering(
-            self,
-            data_origin: BaseDataSourceType,
-            fig_size: Optional[Union[list[int], set[int]]] = None
+        self, data_origin: BaseDataSourceType, fig_size: Optional[Union[list[int], set[int]]] = None
     ) -> None:
         """
         Helper function for plotting `thomson_scattering` group.
@@ -444,7 +419,7 @@ class MASTPlottingManager:
         if fig_size is None:
             fig_size = [8, 6]
 
-        self.plot_group(data_origin=data_origin, source_name='thomson_scattering', fig_size=fig_size)
+        self.plot_group(data_origin=data_origin, source_name="thomson_scattering", fig_size=fig_size)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -470,26 +445,15 @@ def tests() -> None:
     plotting_manager = MASTPlottingManager()
 
     # Create source from shot_info
-    store_from_shot_info = signal_manager.store_manager.make_shot_store(
-        shot_info=ShotInfo(
-            shot_id=30421,
-            local=False
-        )
-    )
+    store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=ShotInfo(shot_id=30421, local=False))
     # print(f"store_from_shot_id.tree() (store store_from_shot_id shot if): {store_from_shot_id.tree()}\n")
 
-    source_profiles = signal_manager.get_source_profiles(
-        data_origin=store_from_shot_info,
-        source_name="summary"
-    )
+    source_profiles = signal_manager.get_source_profiles(data_origin=store_from_shot_info, source_name="summary")
 
     # ..................................................................................................................
     # Plot 1d profiles
 
-    plotting_manager.plot_1d_profiles(
-        profiles=source_profiles,
-        fig_size=[8, 8]
-    )
+    plotting_manager.plot_1d_profiles(profiles=source_profiles, fig_size=[8, 8])
 
     # ..................................................................................................................
     # Plot specific group

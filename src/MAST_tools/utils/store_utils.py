@@ -19,14 +19,9 @@ import time
 from posixpath import join as posix_join
 from os.path import join as os_join
 
-from MAST_tools.utils.data_utils import (
-    ShotInfo,
-    BaseDataSourceType, ZarrStoreType, ZarrFSStoreType, ShotInfoType
-)
+from MAST_tools.utils.data_utils import ShotInfo, BaseDataSourceType, ZarrStoreType, ZarrFSStoreType, ShotInfoType
 from MAST_tools.utils.general_utils import get_random_string, warning_print
-from MAST_tools.utils.path_utils import (
-    DEFAULT_SIGNAL_AVAILABILITY_FILE
-)
+from MAST_tools.utils.path_utils import DEFAULT_SIGNAL_AVAILABILITY_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -109,12 +104,12 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(
-            self,
-            base_fsspec_protocol: str = DEFAULT_BASE_FSSPEC_PROTOCOL,
-            target_fsspec_protocol: str = DEFAULT_TARGET_FSSPEC_PROTOCOL,
-            s3_endpoint_url: str = DEFAULT_S3_ENDPOINT_URL,
-            s3_mast_dataset_path: str = DEFAULT_S3_MAST_DATASET_PATH,
-            base_local_zarr_path: Optional[str] = DEFAULT_BASE_LOCAL_ZARR_PATH,
+        self,
+        base_fsspec_protocol: str = DEFAULT_BASE_FSSPEC_PROTOCOL,
+        target_fsspec_protocol: str = DEFAULT_TARGET_FSSPEC_PROTOCOL,
+        s3_endpoint_url: str = DEFAULT_S3_ENDPOINT_URL,
+        s3_mast_dataset_path: str = DEFAULT_S3_MAST_DATASET_PATH,
+        base_local_zarr_path: Optional[str] = DEFAULT_BASE_LOCAL_ZARR_PATH,
     ) -> None:
         """
         Initialize class attributes.
@@ -213,9 +208,7 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
-    def _is_digit(
-            item: Any
-    ) -> bool:
+    def _is_digit(item: Any) -> bool:
         """
         Check if provided item is of type digit.
 
@@ -242,8 +235,8 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def _get_store_from_data_origin(
-            self,
-            data_origin: BaseDataSourceType,
+        self,
+        data_origin: BaseDataSourceType,
     ) -> ZarrFSStoreType:
         """
         Auxiliary function to get Zarr store instance from a given data origin.
@@ -271,8 +264,8 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def _parse_shot_info_dict(
-            self,
-            shot_info: ShotInfoType,
+        self,
+        shot_info: ShotInfoType,
     ) -> dict[str, Any]:
         """
         Parse dictionary with shot information.
@@ -317,7 +310,7 @@ class MASTStorageManager:
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def check_data_origin(
-            data_origin: BaseDataSourceType,
+        data_origin: BaseDataSourceType,
     ) -> None:
         """
         Check MAST data origin.
@@ -343,10 +336,7 @@ class MASTStorageManager:
             raise TypeError("Invalid parameter `data_origin`: it must be of type dict or ZarrStoreType.")
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _check_shot_id(
-            self,
-            shot_id: Any
-    ) -> None:
+    def _check_shot_id(self, shot_id: Any) -> None:
         """
         Check if provided shot ID has a valid type/value. Allowed types are int, or str with value being a digit.
 
@@ -369,13 +359,14 @@ class MASTStorageManager:
         """
 
         if not self._is_digit(item=shot_id):
-            raise ValueError("Invalid field/parameter 'shot_id': it must be of type int, or of type str representing a "
-                             "digit.")
+            raise ValueError(
+                "Invalid field/parameter 'shot_id': it must be of type int, or of type str representing a digit."
+            )
 
     # ------------------------------------------------------------------------------------------------------------------
     def _check_list_of_shot_ids(
-            self,
-            shot_ids: Union[list[int], tuple[int]],
+        self,
+        shot_ids: Union[list[int], tuple[int]],
     ) -> None:
         """
         Check list of shot IDs.
@@ -395,11 +386,7 @@ class MASTStorageManager:
             self._check_shot_id(shot_id=id_)
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _create_fs_remote(
-            self,
-            library: str,
-            warn: bool = False
-    ) -> Any:
+    def _create_fs_remote(self, library: str, warn: bool = False) -> Any:
         """
         Create a filesystem instance either using 'fsspec' or 's3fs' libraries for remote data request.
 
@@ -436,20 +423,12 @@ class MASTStorageManager:
             )
 
         elif library == "s3fs":
-            return s3fs.S3FileSystem(
-                anon=True,
-                endpoint_url=self.s3_endpoint_url,
-                asynchronous=True
-            )
+            return s3fs.S3FileSystem(anon=True, endpoint_url=self.s3_endpoint_url, asynchronous=True)
         else:
             raise NotImplementedError(f"Error: Library {library} not supported.")
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _read_fsspec_listdir(
-            self,
-            path: str,
-            local: bool = False
-    ) -> list:
+    def _read_fsspec_listdir(self, path: str, local: bool = False) -> list:
         """
         Evaluate the list dir method of 'fsspec' filesystem instance on the provided path.
 
@@ -484,8 +463,8 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def list_all_shots(
-            self,
-            local: bool = False,
+        self,
+        local: bool = False,
     ) -> list:
         """
         Get a list of available MAST shot IDs.
@@ -509,17 +488,14 @@ class MASTStorageManager:
             all_filenames = self._read_fsspec_listdir(path=self.base_local_zarr_path, local=True)
         else:
             all_filenames = [
-                item["Key"]
-                for item in self._read_fsspec_listdir(path=self.s3_mast_dataset_path, local=False)
+                item["Key"] for item in self._read_fsspec_listdir(path=self.s3_mast_dataset_path, local=False)
             ]
 
         raw_shot_ids = [
             filename.split("/")[-1].split(".zarr")[0] for filename in all_filenames if filename.endswith(".zarr")
         ]
 
-        shot_ids = [
-            int(raw_shot_id) for raw_shot_id in raw_shot_ids if self._is_digit(raw_shot_id)
-        ]
+        shot_ids = [int(raw_shot_id) for raw_shot_id in raw_shot_ids if self._is_digit(raw_shot_id)]
         shot_ids.sort()
 
         return shot_ids
@@ -527,8 +503,7 @@ class MASTStorageManager:
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def list_shots_by_signal_availability(
-            required_signals: Mapping[str, list[str]],
-            availability_data_file_path: str = DEFAULT_SIGNAL_AVAILABILITY_FILE
+        required_signals: Mapping[str, list[str]], availability_data_file_path: str = DEFAULT_SIGNAL_AVAILABILITY_FILE
     ) -> list:
         """
         List shot IDs following composite condition for signal availability and given availability file.
@@ -566,20 +541,16 @@ class MASTStorageManager:
 
         source_signals_to_have = []
         for kk, vv in required_signals.items():
-            source_signals_to_have += ([f"{kk}-{val}" for val in vv])
+            source_signals_to_have += [f"{kk}-{val}" for val in vv]
 
         composite_condition = availability_data[source_signals_to_have[0]] == True  # noqa - "is" comparison misbehaves
         for signal in source_signals_to_have[1:]:
-            composite_condition &= (availability_data[signal] == True)  # noqa - "is" comparison misbehaves
+            composite_condition &= availability_data[signal] == True  # noqa - "is" comparison misbehaves
 
         return list(availability_data.loc[composite_condition]["shot_id"])
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_all_sources(
-            self,
-            shot_ids: Optional[list[int]] = None,
-            local: bool = False
-    ) -> dict[int, list]:
+    def get_all_sources(self, shot_ids: Optional[list[int]] = None, local: bool = False) -> dict[int, list]:
         """
         Return a dictionary with all available sources per shot ID.
 
@@ -610,22 +581,14 @@ class MASTStorageManager:
 
         source_info = {}
         for id_ in shot_ids:
-            group = self.make_shot_group(
-                data_origin=ShotInfo(
-                    shot_id=id_,
-                    local=local
-                )
-            )
+            group = self.make_shot_group(data_origin=ShotInfo(shot_id=id_, local=local))
             source_info[id_] = list(group.keys())
 
         return source_info
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_all_signals(
-            self,
-            shot_ids: Optional[list[int]] = None,
-            local: bool = False,
-            verbose: bool = False
+        self, shot_ids: Optional[list[int]] = None, local: bool = False, verbose: bool = False
     ) -> dict[int, list[str]]:
         """
         Return a dictionary with all available signals per shot ID.
@@ -651,22 +614,14 @@ class MASTStorageManager:
         """
 
         if shot_ids is None:
-            shot_ids = self.list_all_shots(
-                local=local
-            )
+            shot_ids = self.list_all_shots(local=local)
         else:
             self._check_list_of_shot_ids(shot_ids=shot_ids)
-        
+
         # FSSpec pipeline
         signal_info = {}
         for shot_id in shot_ids:
-
-            group = self.make_shot_group(
-                data_origin=ShotInfo(
-                    shot_id=shot_id,
-                    local=local
-                )
-            )
+            group = self.make_shot_group(data_origin=ShotInfo(shot_id=shot_id, local=local))
 
             group_members = group.members(1)
             for item in group_members:
@@ -683,11 +638,7 @@ class MASTStorageManager:
         return signal_info
 
     # ------------------------------------------------------------------------------------------------------------------
-    def make_shot_store(
-            self,
-            shot_info: ShotInfoType,
-            verbose: bool = False
-    ) -> ZarrStoreType:
+    def make_shot_store(self, shot_info: ShotInfoType, verbose: bool = False) -> ZarrStoreType:
         """
         Make a Zarr store (either LocalStore or FsspecStore) for a given target shot.
 
@@ -711,37 +662,23 @@ class MASTStorageManager:
 
         parsed_shot_info = self._parse_shot_info_dict(shot_info=shot_info)
         if parsed_shot_info["local"]:
-            zarr_file_path = os_join(
-                self.base_local_zarr_path,
-                f"{parsed_shot_info['shot_id']}.zarr"
-            )
-            
+            zarr_file_path = os_join(self.base_local_zarr_path, f"{parsed_shot_info['shot_id']}.zarr")
+
             store = zarr.storage.LocalStore(root=zarr_file_path)
 
         else:
-            zarr_file_path = posix_join(
-                self.s3_mast_dataset_path,
-                f"{parsed_shot_info['shot_id']}.zarr"
-            )
-            
-            store = zarr.storage.FsspecStore(
-                fs=self.fs_remote_s3fs,
-                read_only=True,
-                path=zarr_file_path
-            )
+            zarr_file_path = posix_join(self.s3_mast_dataset_path, f"{parsed_shot_info['shot_id']}.zarr")
+
+            store = zarr.storage.FsspecStore(fs=self.fs_remote_s3fs, read_only=True, path=zarr_file_path)
 
         if verbose:
-            store_type = 'LocalStore' if parsed_shot_info["local"] else 'FsspecStore'
+            store_type = "LocalStore" if parsed_shot_info["local"] else "FsspecStore"
             print(f"{store_type} store for shot {parsed_shot_info['shot_id']} created.")
 
         return store
 
     # ------------------------------------------------------------------------------------------------------------------
-    def make_shot_group(
-            self,
-            data_origin: BaseDataSourceType,
-            verbose: bool = False
-    ) -> zarr.Group:
+    def make_shot_group(self, data_origin: BaseDataSourceType, verbose: bool = False) -> zarr.Group:
         """
         Make a shot group from data origin (either a Zarr store or shot info).
 
@@ -765,36 +702,28 @@ class MASTStorageManager:
         if isinstance(data_origin, ZarrStoreType):
             # Create group from store
             store = data_origin
-            group = zarr.open_group(store=store, mode='r')
+            group = zarr.open_group(store=store, mode="r")
             if verbose:
                 print(f"Group for store with path {store.path} created.")
         else:
             # Create group from shot info dictionary
 
             parsed_shot_info = self._parse_shot_info_dict(shot_info=data_origin)
-            if parsed_shot_info['local']:
+            if parsed_shot_info["local"]:
                 # Create group by implicitly creating a writable LocalStore
-                local_path = os_join(
-                    self.base_local_zarr_path,
-                    f"{parsed_shot_info['shot_id']}.zarr"
-                )
-                    
+                local_path = os_join(self.base_local_zarr_path, f"{parsed_shot_info['shot_id']}.zarr")
+
                 group = zarr.open_group(store=local_path, mode="r")
                 # Source: https://zarr.readthedocs.io/en/latest/user-guide/storage.html#implicit-store-creation
             else:
                 # Create group by implicitly creating a read-only FsspecStore
-                
-                remote_shot_path = posix_join(
-                    self.s3_mast_dataset_path,
-                    f"{parsed_shot_info['shot_id']}.zarr"
-                )
+
+                remote_shot_path = posix_join(self.s3_mast_dataset_path, f"{parsed_shot_info['shot_id']}.zarr")
 
                 store_path = f"{self.target_fsspec_protocol}:/{remote_shot_path}"
                 print(f"store_path: {store_path}")
                 group = zarr.open_group(
-                    store=store_path,
-                    mode="r",
-                    storage_options={"anon": True, "endpoint_url": self.s3_endpoint_url}
+                    store=store_path, mode="r", storage_options={"anon": True, "endpoint_url": self.s3_endpoint_url}
                 )
                 # Source: https://zarr.readthedocs.io/en/latest/user-guide/storage.html#implicit-store-creation
 
@@ -809,9 +738,7 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
-    def get_all_signals_in_group(
-            group: zarr.Group
-    ) -> list[str]:
+    def get_all_signals_in_group(group: zarr.Group) -> list[str]:
         """
         Get list of all signals in a given group.
 
@@ -828,16 +755,13 @@ class MASTStorageManager:
         """
 
         full_metadata_dict = group.metadata.to_dict()
-        all_metadata_keys = list(full_metadata_dict['consolidated_metadata']['metadata'].keys())
+        all_metadata_keys = list(full_metadata_dict["consolidated_metadata"]["metadata"].keys())
         found_signals = [kk.replace("/", "-") for kk in all_metadata_keys if "/" in kk]
 
         return found_signals
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_all_signals_in_store(
-            self,
-            store: ZarrStoreType
-    ) -> list[str]:
+    def get_all_signals_in_store(self, store: ZarrStoreType) -> list[str]:
         """
         Get list of all signals in a given group.
 
@@ -858,11 +782,7 @@ class MASTStorageManager:
         return found_signals
 
     # ------------------------------------------------------------------------------------------------------------------
-    def are_signals_in_group(
-            self,
-            group: zarr.Group,
-            signals: list[str]
-    ) -> dict[str, bool]:
+    def are_signals_in_group(self, group: zarr.Group, signals: list[str]) -> dict[str, bool]:
         """
         Evaluate if a given signal is in a target group.
 
@@ -884,11 +804,7 @@ class MASTStorageManager:
         return check_results
 
     # ------------------------------------------------------------------------------------------------------------------
-    def are_signals_in_store(
-            self,
-            store: ZarrStoreType,
-            signals: list[str]
-    ) -> dict[str, bool]:
+    def are_signals_in_store(self, store: ZarrStoreType, signals: list[str]) -> dict[str, bool]:
         """
         Evaluate if a given signal is in a target store.
 
@@ -904,10 +820,7 @@ class MASTStorageManager:
 
         """
 
-        return self.are_signals_in_group(
-            group=self.make_shot_group(data_origin=store),
-            signals=signals
-        )
+        return self.are_signals_in_group(group=self.make_shot_group(data_origin=store), signals=signals)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -933,10 +846,7 @@ def tests() -> None:
     local = True
     verbose = False
 
-    shot_info = ShotInfo(
-        shot_id=shot_id,
-        local=local
-    )
+    shot_info = ShotInfo(shot_id=shot_id, local=local)
 
     # Creation of MASTStorageManager instance for test
     store_manager = MASTStorageManager(
@@ -944,7 +854,7 @@ def tests() -> None:
         target_fsspec_protocol="s3",
         s3_endpoint_url="https://s3.echo.stfc.ac.uk",
         s3_mast_dataset_path="/mast/tokamark/v1",
-        base_local_zarr_path="/mast/tokamark/v1"
+        base_local_zarr_path="/mast/tokamark/v1",
     )
 
     TESTS_TO_RUN = {  # noqa - Ignore lowercase warning
@@ -955,14 +865,13 @@ def tests() -> None:
         "make_group_from_shot_info": False,
         "check_signal_in_store": True,
         "get_all_signals_in_store": True,
-        "check_signal_availability": False
+        "check_signal_availability": False,
     }
 
     # ..................................................................................................................
     # List all shot IDs for the entire dataset, using different pipelines
 
     if TESTS_TO_RUN["get_all_shot_ids"]:
-
         pipeline_tag = "ffspec"
         local_tag = "local" if local else "remote"  # NOSONAR - Ignore weak warning
         print(f"Getting available shot IDs ({pipeline_tag} pipeline, {local_tag} bucket)...\n")
@@ -977,7 +886,6 @@ def tests() -> None:
     # List all sources
 
     if TESTS_TO_RUN["get_all_sources"]:
-
         all_sources = store_manager.get_all_sources(
             shot_ids=shot_ids,
             local=local,
@@ -988,22 +896,14 @@ def tests() -> None:
     # List all signals
 
     if TESTS_TO_RUN["get_all_signals"]:
-
-        all_signals = store_manager.get_all_signals(
-            shot_ids=shot_ids,
-            local=local,
-            verbose=verbose
-        )
+        all_signals = store_manager.get_all_signals(shot_ids=shot_ids, local=local, verbose=verbose)
         print(f"all_signals[shot_ids[0]]: {all_signals[shot_ids[0]]}\n")
 
     # ..................................................................................................................
     # Make group for a given shot via existing store object
 
     if TESTS_TO_RUN["make_group_from_store"]:
-
-        store_ = store_manager.make_shot_store(
-            shot_info=shot_info
-        )
+        store_ = store_manager.make_shot_store(shot_info=shot_info)
         group_from_store = store_manager.make_shot_group(data_origin=store_)
 
         # Print group metadata:
@@ -1016,10 +916,7 @@ def tests() -> None:
     # Make group for a given shot directly from shot_info
 
     if TESTS_TO_RUN["make_group_from_shot_info"]:
-
-        group_from_shot_id = store_manager.make_shot_group(
-            data_origin=shot_info
-        )
+        group_from_shot_id = store_manager.make_shot_group(data_origin=shot_info)
 
         # Print group tree:
         print(f"group_from_shot_id.tree() (group from shot ID): {group_from_shot_id.tree()}\n")
@@ -1028,9 +925,7 @@ def tests() -> None:
     # Get all the signals available for a given store
 
     if TESTS_TO_RUN["get_all_signals_in_store"]:
-        store_ = store_manager.make_shot_store(
-            shot_info=shot_info
-        )
+        store_ = store_manager.make_shot_store(shot_info=shot_info)
 
         all_signals = store_manager.get_all_signals_in_store(store=store_)
         print("All signals in store:")
@@ -1040,9 +935,7 @@ def tests() -> None:
     # Check if signal is in store
 
     if TESTS_TO_RUN["check_signal_in_store"]:
-        store_ = store_manager.make_shot_store(
-            shot_info=shot_info
-        )
+        store_ = store_manager.make_shot_store(shot_info=shot_info)
 
         signals_ = ["abc", "summary-power_radiated"]
 
@@ -1054,7 +947,6 @@ def tests() -> None:
     # List all shots IDs for given signal availability
 
     if TESTS_TO_RUN["check_signal_availability"]:
-
         dict_target_signals = {
             "thomson_scattering": ["n_e"],
             "spectrometer_visible": ["filter_spectrometer_bes_voltage"],
@@ -1066,8 +958,7 @@ def tests() -> None:
         pprint(dict_target_signals)
 
         filtered_ids = store_manager.list_shots_by_signal_availability(
-            required_signals=dict_target_signals,
-            availability_data_file_path=signal_availability_file
+            required_signals=dict_target_signals, availability_data_file_path=signal_availability_file
         )
 
         print(f"\nfiltered_ids ({len(filtered_ids)} shots):")

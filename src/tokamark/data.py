@@ -15,18 +15,18 @@ from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
-        config_task: Mapping[str, Any],
-        shots_list: list[int],
-        local_flag: bool = True,
-        use_std_scaling: bool = True,
-        use_nan_filling: bool = True,
-        return_incomplete_shots: bool = True,
-        remove_outliers: bool = True,
-        outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
-        remove_bad_efit_rating: bool = True,
-        *,
-        store_manager_settings: Optional[StoreManagerParametersType] = None,
-        verbose: bool = False
+    config_task: Mapping[str, Any],
+    shots_list: list[int],
+    local_flag: bool = True,
+    use_std_scaling: bool = True,
+    use_nan_filling: bool = True,
+    return_incomplete_shots: bool = True,
+    remove_outliers: bool = True,
+    outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
+    remove_bad_efit_rating: bool = True,
+    *,
+    store_manager_settings: Optional[StoreManagerParametersType] = None,
+    verbose: bool = False,
 ) -> MastDataset:
     """
     Initialize and return MAST dataset.
@@ -77,9 +77,7 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
         + (config_task["sources_and_signals"].get("actuator_name") or [])
         + (config_task["sources_and_signals"].get("output_name") or [])
     )
-    source_signal_list = [
-        s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]
-    ]  # Unicity
+    source_signal_list = [s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]]  # Unicity
 
     # ..................................................................................................................
     # Create common transform map
@@ -101,7 +99,7 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
         outlier_metadata_file=outlier_metadata_file,
         remove_bad_efit_rating=remove_bad_efit_rating,
         store_manager_settings=store_manager_settings,
-        verbose=verbose
+        verbose=verbose,
     )
 
     return mast_dataset
@@ -109,15 +107,15 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
-        dataset: Optional[MastDataset],
-        task_metadata: Mapping[str, Any],
-        config_metadata: Mapping[str, Any],
-        custom_transform: Optional[Callable] = None,
-        test_mode: bool = False,
-        shuffle_windows: bool = True,
-        shuffle_buffer_size: int = 512,
-        *,
-        verbose: bool = False
+    dataset: Optional[MastDataset],
+    task_metadata: Mapping[str, Any],
+    config_metadata: Mapping[str, Any],
+    custom_transform: Optional[Callable] = None,
+    test_mode: bool = False,
+    shuffle_windows: bool = True,
+    shuffle_buffer_size: int = 512,
+    *,
+    verbose: bool = False,
 ) -> Optional[TokaMarkDataset]:
     """
     #
@@ -164,5 +162,5 @@ def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
         test_mode=test_mode,
         shuffle_windows=shuffle_windows,
         shuffle_buffer_size=shuffle_buffer_size,
-        verbose=verbose
+        verbose=verbose,
     )

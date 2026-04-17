@@ -13,9 +13,7 @@ import torch
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_device(
-        prefer_mps: bool = True
-) -> torch.device:
+def get_device(prefer_mps: bool = True) -> torch.device:
     """
     Return the best available torch device.
 
@@ -40,9 +38,7 @@ def get_device(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_config_from_yaml(
-        file_path: Union[LiteralString, str, bytes, Path]
-) -> dict[str, Any]:
+def get_config_from_yaml(file_path: Union[LiteralString, str, bytes, Path]) -> dict[str, Any]:
     """
     Get configuration dictionary from YAML file.
 
@@ -108,14 +104,10 @@ class AutoAppendingDataFrame:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            path: Union[Path, str],
-            buffer_size: int = 1
-    ) -> None:
+    def __init__(self, path: Union[Path, str], buffer_size: int = 1) -> None:
         """
         Initialize class attributes.
-        
+
         Parameters
         ----------
         path : Union[Path, str]
@@ -137,10 +129,7 @@ class AutoAppendingDataFrame:
         self.columns = None
 
     # ------------------------------------------------------------------------------------------------------------------
-    def append(
-            self,
-            df_rows: pd.DataFrame
-    ) -> None:
+    def append(self, df_rows: pd.DataFrame) -> None:
         """
         Append rows to buffer and commit if threshold reached.
 
@@ -184,9 +173,9 @@ class AutoAppendingDataFrame:
             # If file does not exist or is empty, write header once
             df_new_data.to_csv(
                 path_or_buf=self.path,
-                mode="a",                # Append
+                mode="a",  # Append
                 header=not file_exists,  # Write header only on first write
-                index=False
+                index=False,
             )
 
     # ------------------------------------------------------------------------------------------------------------------

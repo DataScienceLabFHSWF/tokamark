@@ -25,10 +25,7 @@ class ComposeTransforms(object):
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            transforms: list[Callable]
-    ) -> None:
+    def __init__(self, transforms: list[Callable]) -> None:
         """
         Initialize class attributes.
 
@@ -46,10 +43,7 @@ class ComposeTransforms(object):
         self.transforms = transforms
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            sample: Optional[Any]
-    ) -> Optional[Any]:
+    def __call__(self, sample: Optional[Any]) -> Optional[Any]:
         """
         Call method for the class instances to behave like a function.
 

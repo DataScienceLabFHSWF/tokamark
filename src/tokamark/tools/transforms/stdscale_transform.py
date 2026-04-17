@@ -21,11 +21,7 @@ class StdScalingTransform:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            mean: float,
-            std: float
-    ) -> None:
+    def __init__(self, mean: float, std: float) -> None:
         """
         Initialize class attributes.
 
@@ -46,10 +42,7 @@ class StdScalingTransform:
         self.std = std
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            dict_: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def __call__(self, dict_: Mapping[str, Any]) -> dict[str, Any]:
         """
         Call method for the class instances to behave like a function. It normalizes each sample individually: subtract
         mean, divide by STD.
@@ -70,9 +63,6 @@ class StdScalingTransform:
         if values is not None:
             values = (values - self.mean) / self.std
 
-        return {
-            "time": dict_["time"],
-            "values": values
-        }
+        return {"time": dict_["time"], "values": values}
 
     # ------------------------------------------------------------------------------------------------------------------

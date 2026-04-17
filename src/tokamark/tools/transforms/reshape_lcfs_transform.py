@@ -26,10 +26,7 @@ class ReshapeLcfsTransform:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            dict_: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def __call__(self, dict_: Mapping[str, Any]) -> dict[str, Any]:
         """
         Call method for the class instances to behave like a function.
 
@@ -60,9 +57,6 @@ class ReshapeLcfsTransform:
                 resized_vector = zoom(input=cleaned_vector, zoom=scale_factor, order=1)  # order=1 -> linear interp.
             new_profile.append(resized_vector)
 
-        return {
-            "time": time,
-            "values": np.stack(new_profile).T
-        }
+        return {"time": time, "values": np.stack(new_profile).T}
 
     # ------------------------------------------------------------------------------------------------------------------

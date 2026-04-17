@@ -26,10 +26,7 @@ class ClipXPointTransform:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            dict_: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def __call__(self, dict_: Mapping[str, Any]) -> dict[str, Any]:
         """
         Call method for the class instances to behave like a function.
 
@@ -51,9 +48,6 @@ class ClipXPointTransform:
         # Replace values > 2 or < -2 with NaN
         values = np.where((values > 2) | (values < -2), np.nan, values)
 
-        return {
-            "time": time,
-            "values": values
-        }
+        return {"time": time, "values": values}
 
     # ------------------------------------------------------------------------------------------------------------------

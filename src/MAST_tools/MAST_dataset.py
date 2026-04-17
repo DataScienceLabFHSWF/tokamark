@@ -41,10 +41,7 @@ class CachedDataset(Dataset):
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            base_dataset: Sequence
-    ) -> None:
+    def __init__(self, base_dataset: Sequence) -> None:
         """
         Initialize class attributes.
 
@@ -78,10 +75,7 @@ class CachedDataset(Dataset):
         return len(self.base_dataset)
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __getitem__(
-            self,
-            idx
-    ) -> Any:
+    def __getitem__(self, idx) -> Any:
         """
         Return samples by shot index.
 
@@ -158,7 +152,7 @@ class MastDataset(Dataset):
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = False,
         store_manager_settings: Optional[StoreManagerParametersType] = None,
-        verbose: bool = False
+        verbose: bool = False,
     ) -> None:
         """
         Initialize class attributes.
@@ -225,9 +219,7 @@ class MastDataset(Dataset):
         self.verbose = verbose
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __len__(
-            self
-    ) -> int:
+    def __len__(self) -> int:
         """
         Return the size of the dataset.
 
@@ -242,8 +234,7 @@ class MastDataset(Dataset):
 
     # ------------------------------------------------------------------------------------------------------------------
     def __getitem__(  # NOSONAR - Ignore cognitive complexity
-            self,
-            idx: int
+        self, idx: int
     ) -> Union[list, dict]:
         """
         Return samples by shot index.
@@ -262,11 +253,7 @@ class MastDataset(Dataset):
 
         store_manager = self.sig.store_manager
         store = store_manager.make_shot_store(
-            shot_info=ShotInfo(
-                shot_id=self.shots_list[idx],
-                local=self.local
-            ),
-            verbose=self.verbose
+            shot_info=ShotInfo(shot_id=self.shots_list[idx], local=self.local), verbose=self.verbose
         )
 
         shot = {}
@@ -293,52 +280,42 @@ class MastDataset(Dataset):
             else:
                 source_signals[source] = [signal]
 
-        # Iterate over each source to get source store 
+        # Iterate over each source to get source store
         # and then over each signal in source group
         for source in source_signals:
-            source_store = self.sig.get_source_profiles(
-                data_origin=store,
-                source_name=source
-            )
-            
+            source_store = self.sig.get_source_profiles(data_origin=store, source_name=source)
+
             load_signals = True
             mask_efit_rating = None
             if (source_store is not None) and (source == "equilibrium") and self.remove_bad_efit_rating:
                 if "ip_rating" in list(source_store.data_vars):
                     mask_efit_rating = (
-                            self.sig.get_signal_profile(
-                                data_origin=source_store,
-                                signal_name="ip_rating",
-                                verbose=self.verbose
-                            ) == 0
+                        self.sig.get_signal_profile(
+                            data_origin=source_store, signal_name="ip_rating", verbose=self.verbose
+                        )
+                        == 0
                     ).values
 
                 else:
                     if self.verbose:
                         print(f"ip_rating not available for shot {self.get_shot_id(idx)}.")
                     load_signals = False
-            
+
             for signal in source_signals[source]:
                 shot_vals = None
                 shot_time = None
-                        
-                if (source_store is not None) and load_signals:
 
+                if (source_store is not None) and load_signals:
                     signal_profile = self.sig.get_signal_profile(
-                        data_origin=source_store,
-                        signal_name=signal,
-                        verbose=self.verbose
+                        data_origin=source_store, signal_name=signal, verbose=self.verbose
                     )
 
                     if signal_profile is not None:
                         try:
                             shot_time, _ = self.sig.get_signal_times_and_time_type(
-                                signal_name=signal,
-                                data_origin=source_store,
-                                source_name=source,
-                                verbose=self.verbose
+                                signal_name=signal, data_origin=source_store, source_name=source, verbose=self.verbose
                             )
-                            
+
                         except Exception as e:
                             print(f"Error while getting time for shot {self.shots_list[idx]}: {e}.")
                             shot_time = None
@@ -390,10 +367,7 @@ class MastDataset(Dataset):
             return shot
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_shot_id(
-            self,
-            idx: int
-    ) -> int:
+    def get_shot_id(self, idx: int) -> int:
         """
         Return shot ID from shot index.
 
@@ -412,10 +386,7 @@ class MastDataset(Dataset):
         return self.shots_list[idx]
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_windows_for_shot(
-            self,
-            idx: int
-    ) -> list:
+    def get_windows_for_shot(self, idx: int) -> list:
         """
         Return the list of windows for the given shot index ([] if empty/missing).
 
@@ -465,10 +436,10 @@ def tests() -> None:
             ["summary", "power_nbi"],
             ["magnetics", "b_field_pol_probe_obr_field"],
             ["magnetics", "b_field_pol_probe_omv_voltage"],
-            ["magnetics", "b_field_tor_probe_omaha_channel"]
+            ["magnetics", "b_field_tor_probe_omaha_channel"],
         ],
         signal_level_transform_map=None,
-        shot_level_transform=None
+        shot_level_transform=None,
     )
 
     print(f"\ndummy_dataset.__len__: {dummy_dataset.__len__()}")

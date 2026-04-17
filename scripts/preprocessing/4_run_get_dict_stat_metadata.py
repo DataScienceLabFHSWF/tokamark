@@ -21,9 +21,7 @@ from preproc_paths import DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE, OUTPUT_DIR
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def to_python(
-        obj: Any
-) -> Any:
+def to_python(obj: Any) -> Any:
     """
     Turn a numpy-based object into a numpy-free object.
 
@@ -54,7 +52,6 @@ def to_python(
 
 # ======================================================================================================================
 if __name__ == "__main__":
-
     print(f"Number of available CPU cores: {cpu_count()}\n")
     mp.set_start_method(method="spawn", force=True)
 
@@ -67,30 +64,23 @@ if __name__ == "__main__":
         "--config_file_path",
         type=str,
         default="config_get_metadata.yaml",
-        help="Path to the YAML file with configuration to get metadata."
+        help="Path to the YAML file with configuration to get metadata.",
     )
     parser.add_argument(
         "--signals_mean_std_train_file_path",
         type=str,
         default=DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
-        help="Path to the `dict_signals_mean_std_train.yaml` file."
+        help="Path to the `dict_signals_mean_std_train.yaml` file.",
     )
     parser.add_argument(
         "--signals_stats_saving_file_path",
         type=str,
         default=DEFAULT_SIGNALS_STATS_FILE,
-        help="Path to the YAML file where signals statistics will be saved."
+        help="Path to the YAML file where signals statistics will be saved.",
     )
+    parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
-        "--demo_mode",
-        action="store_true",
-        help="Activate demo mode."
-    )
-    parser.add_argument(
-        "--demo_suffix",
-        type=str,
-        default="_DEMO",
-        help="Suffix used in demo mode when saving results."
+        "--demo_suffix", type=str, default="_DEMO", help="Suffix used in demo mode when saving results."
     )
 
     args, _ = parser.parse_known_args()
@@ -135,14 +125,14 @@ if __name__ == "__main__":
     # Create unstandardized train dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    preprocessing_train_dataset = initialize_MAST_dataset( 
+    preprocessing_train_dataset = initialize_MAST_dataset(
         config_task=config["task_configuration"],
         shots_list=train_shots_,
         local_flag=config["local"],
-        use_std_scaling=False,          # <- To get an unstandardized dataset
-        return_incomplete_shots=True,   # <- To include all available shots
-        remove_outliers=True,           # <- To mitigate effect of outliers in the calculation of signal statistics
-        store_manager_settings=config["store_manager_settings"]
+        use_std_scaling=False,  # <- To get an unstandardized dataset
+        return_incomplete_shots=True,  # <- To include all available shots
+        remove_outliers=True,  # <- To mitigate effect of outliers in the calculation of signal statistics
+        store_manager_settings=config["store_manager_settings"],
     )
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -159,7 +149,6 @@ if __name__ == "__main__":
         # print(i)
 
         for var, signal in sample.items():
-
             # Only compute once per variable
             if var in dict_metadata:
                 continue
@@ -171,7 +160,7 @@ if __name__ == "__main__":
             if len(time) == 0 or len(values) == 0:
                 print("Skipping var", var)
                 continue
-            
+
             # print("\nSaving var", var)
 
             # Compute median dt
@@ -180,10 +169,10 @@ if __name__ == "__main__":
             dict_metadata[var] = {
                 "dt": dt,  # <- Time granularity.
                 "values_shape": values.shape[:-1],  # <- Exclude time dimension
-                "mean": dict_mean_std[var]["mean"]["no_outliers_z6"], 
-                "std": dict_mean_std[var]["std"]["no_outliers_z6"]
+                "mean": dict_mean_std[var]["mean"]["no_outliers_z6"],
+                "std": dict_mean_std[var]["std"]["no_outliers_z6"],
             }
-        
+
         # Stop once all variables are filled
         if set(dict_metadata.keys()) == target_vars:
             print("Metadata dictionary `dict_metadata` fully filled. Stopping.")

@@ -26,10 +26,7 @@ class FillProfileWithZerosTransform:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            dict_: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def __call__(self, dict_: Mapping[str, Any]) -> dict[str, Any]:
         """
         Call method for the class instances to behave like a function.
 
@@ -45,7 +42,7 @@ class FillProfileWithZerosTransform:
             profile is missing) are filled with zeros.
 
         """
-                
+
         time = dict_["time"]
         values = dict_["values"].copy()
 
@@ -59,9 +56,6 @@ class FillProfileWithZerosTransform:
         # Replacing NaNs in profile components
         values[nan_ind] = 0
 
-        return {
-            "time": time,
-            "values": values
-        }
+        return {"time": time, "values": values}
 
     # ------------------------------------------------------------------------------------------------------------------
