@@ -10,8 +10,7 @@ with two main packages:
 2. **`tokamark`** - Benchmark tasks, datasets, and evaluation framework
 
 The code in this repository corresponds to the official implementation of the **TokaMark benchmark** introduced in the 
-paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132) (submitted
-to the 32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026).
+paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132).
 
 Companion resources:
 
@@ -30,8 +29,7 @@ settings:
 
 * <ins>**TokaMind:**</ins> A Python-based system implementing the multi-modal, token-based Transformer pipeline for scientific and 
 industrial signals, introduced in the paper [TokaMind: A Multi-Modal Transformer Foundation Model for Tokamak Plasma 
-Dynamics](https://arxiv.org/abs/2602.15084)  (submitted to the 32nd SIGKDD Conference on Knowledge Discovery and Data 
-Mining, 2026).
+Dynamics](https://arxiv.org/abs/2602.15084).
 
 ---
 
@@ -679,10 +677,8 @@ See [License file](LICENSE.md).
 ---
 ## Citing TokaMark
 
-TokaMark has been submitted to the *32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026*, and it is
-currently being reviewed. A preprint version of the manuscript is available [here](https://arxiv.org/abs/2602.10132).
-
-If you use TokaMark, please cite our work as:
+A preprint version of the TokaMark manuscript is available [here](https://arxiv.org/abs/2602.10132). If you use 
+TokaMark, please cite our work as:
 
     @article{rousseau2026tokamark,
       title={TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models},

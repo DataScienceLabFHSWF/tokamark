@@ -35,8 +35,7 @@ DEFAULT_BASE_FSSPEC_PROTOCOL = "simplecache"
 DEFAULT_TARGET_FSSPEC_PROTOCOL = "s3"
 DEFAULT_S3_ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
 DEFAULT_S3_MAST_DATASET_PATH = "/mast/tokamark/v1"
-# DEFAULT_BASE_LOCAL_ZARR_PATH = "/mast/tokamark/v1"  # <- Replace this default value for a user-defined installation dir.
-DEFAULT_BASE_LOCAL_ZARR_PATH = "/rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2"
+DEFAULT_BASE_LOCAL_ZARR_PATH = "/mast/tokamark/v1"  # <- Replace default value if different installation dir is used.
 
 DEFAULT_LOCAL_FLAG_VALUE = False
 

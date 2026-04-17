@@ -4,7 +4,6 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import numpy as np
-from scipy.ndimage import zoom
 from collections.abc import Mapping
 from typing import Any
 
