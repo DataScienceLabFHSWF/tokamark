@@ -342,7 +342,7 @@ python scripts/persistence.py --persistence_model persistence --demo_mode --demo
 
 ```python
 from scripts.persistence import run_persistence_pipeline
-from MAST_benchmark.tools.utils import get_config_from_yaml
+from tokamark.tools.utils import get_config_from_yaml
 
 # Load configuration
 config = get_config_from_yaml("config_files/config_persistence_model.yaml")
@@ -557,9 +557,9 @@ print(f"Number of available CPU cores: {cpu_count()}")
 
 The persistence module integrates with the broader TokaMark ecosystem:
 
-1. **Uses** `MAST_benchmark.tasks` for task definitions
-2. **Uses** `MAST_benchmark.data` for dataset initialization
-3. **Uses** `MAST_benchmark.evaluator` for metrics computation
+1. **Uses** `tokamark.tasks` for task definitions
+2. **Uses** `tokamark.data` for dataset initialization
+3. **Uses** `tokamark.evaluator` for metrics computation
 4. **Provides** baseline performance for comparison with ML models
 
 ---
@@ -637,7 +637,7 @@ These baselines are essential for validating that machine learning models provid
 - **Main Module**: `scripts/persistence.py`
 - **Configuration Files**: `scripts/config_files/config_persistence_model.yaml`, `scripts/config_files/config_mean_model.yaml`
 - **Related Modules**: 
-  - `src/MAST_benchmark/evaluator.py` - Metrics computation
-  - `src/MAST_benchmark/tasks.py` - Task definitions
-  - `src/MAST_benchmark/data.py` - Dataset initialization
+  - `src/tokamark/evaluator.py` - Metrics computation
+  - `src/tokamark/tasks.py` - Task definitions
+  - `src/tokamark/data.py` - Dataset initialization
 - **TokaMark Paper**: [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132)

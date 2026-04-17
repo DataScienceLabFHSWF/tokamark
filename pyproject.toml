@@ -36,9 +36,18 @@ dependencies = [
   "imageio",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pre-commit>=3.8",
+  "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 120
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["MAST_tools*", "MAST_benchmark*"]
+include = ["MAST_tools*", "tokamark*"]

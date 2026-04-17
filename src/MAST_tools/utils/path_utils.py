@@ -9,8 +9,8 @@ from pathlib import Path
 # ======================================================================================================================
 # Default directories
 
-PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent   # Dynamically find the repo root (no hardcoding!)
-PACKAGE_ROOT_DIR = Path(__file__).parent.parent                 # Dynamically find the repo root (no hardcoding!)
+PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent  # Dynamically find the repo root (no hardcoding!)
+PACKAGE_ROOT_DIR = Path(__file__).parent.parent  # Dynamically find the repo root (no hardcoding!)
 
 PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
 
@@ -24,7 +24,6 @@ DEFAULT_OUTLIER_METADATA_FILE = os.path.join(PACKAGE_METADATA_DIR, "dict_outlier
 
 # ======================================================================================================================
 if __name__ == "__main__":
-
     # One can print to verify when developing
 
     print()

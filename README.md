@@ -7,11 +7,10 @@ Tokamak) facility and providing benchmark tasks for machine learning models. The
 with two main packages:
 
 1. **`MAST_tools`** - Core data access and utilities
-2. **`MAST_benchmark`** - Benchmark tasks, datasets, and evaluation framework
+2. **`tokamark`** - Benchmark tasks, datasets, and evaluation framework
 
 The code in this repository corresponds to the official implementation of the **TokaMark benchmark** introduced in the 
-paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132) (submitted
-to the 32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026).
+paper [TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models](https://arxiv.org/abs/2602.10132).
 
 Companion resources:
 
@@ -30,8 +29,7 @@ settings:
 
 * <ins>**TokaMind:**</ins> A Python-based system implementing the multi-modal, token-based Transformer pipeline for scientific and 
 industrial signals, introduced in the paper [TokaMind: A Multi-Modal Transformer Foundation Model for Tokamak Plasma 
-Dynamics](https://arxiv.org/abs/2602.15084)  (submitted to the 32nd SIGKDD Conference on Knowledge Discovery and Data 
-Mining, 2026).
+Dynamics](https://arxiv.org/abs/2602.15084).
 
 ---
 
@@ -72,7 +70,7 @@ graph TB
         UTILS[Utilities<br/>data/plotting/signal]
     end
     
-    subgraph "MAST_benchmark Package"
+    subgraph "tokamark Package"
         TASKS[Task Definitions<br/>14 Benchmark Tasks]
         TM[TokaMarkDataset<br/>Windowed Dataset]
         TRANS[Transform Pipeline<br/>Preprocessing]
@@ -146,21 +144,21 @@ graph TB
 
 ---
 
-### 2. Benchmark Framework (`MAST_benchmark`)
+### 2. Benchmark Framework (`tokamark`)
 
-#### **Task System** (`src/MAST_benchmark/tasks.py`)
+#### **Task System** (`src/tokamark/tasks.py`)
 - **14 Benchmark Tasks** organized in 4 groups:
   - **Group 1**: Reconstruction (tasks 1-1, 1-2, 1-3)
   - **Group 2**: Magnetics Dynamics (tasks 2-1, 2-2, 2-3)
   - **Group 3**: Profiles Dynamics (tasks 3-1, 3-2, 3-3)
   - **Group 4**: MHD Activity (tasks 4-1 through 4-5)
-- **Configuration**: YAML files in `src/MAST_benchmark/tasks_configs/`
+- **Configuration**: YAML files in `src/tokamark/tasks_configs/`
 - **Key Functions**:
   - `get_task_config(task_name)`: Load task configuration
   - `get_signals_metadata(file_path)`: Load signal statistics
   - `get_task_metadata(config_task)`: Extract task metadata
 
-#### **TokaMarkDataset** (`src/MAST_benchmark/tools/TokaMark_dataset.py`)
+#### **TokaMarkDataset** (`src/tokamark/tools/TokaMark_dataset.py`)
 - **Purpose**: Iterable dataset for windowed time-series data
 - **Features**:
   - Sliding window generation
@@ -172,7 +170,7 @@ graph TB
   - `__iter__()`: Generate windowed samples
   - `_shuffle_buffer()`: Streaming shuffle implementation
 
-#### **Transform Pipeline** (`src/MAST_benchmark/tools/MAST_composite_transform.py`)
+#### **Transform Pipeline** (`src/tokamark/tools/MAST_composite_transform.py`)
 - **Purpose**: Composable data transformations
 - **Available Transforms**:
   - `StdScalingTransform`: Standardization using mean/std
@@ -183,7 +181,7 @@ graph TB
 - **Key Function**:
   - `build_common_signal_transform_map()`: Build transform map for signals
 
-#### **Evaluation System** (`src/MAST_benchmark/evaluator.py`)
+#### **Evaluation System** (`src/tokamark/evaluator.py`)
 - **Purpose**: Comprehensive metrics computation and aggregation
 - **Metrics Hierarchy**:
   1. **Window-level**: RMSE, MAE per window
@@ -202,10 +200,10 @@ graph TB
   - `signals_metrics.csv`: Per-signal summary
   - `groups_metrics.csv`: Per-group summary
 
-#### **Data Splitting** (`src/MAST_benchmark/data_split.py`)
+#### **Data Splitting** (`src/tokamark/data_split.py`)
 - **Purpose**: Manage train/validation/test splits
 - **Features**:
-  - Predefined splits in `src/MAST_benchmark/metadata/TokaMark_data_splits.csv`
+  - Predefined splits in `src/tokamark/metadata/TokaMark_data_splits.csv`
   - Subset selection support
   - Shuffle capability with seed control
 - **Key Function**: `get_train_test_val_shots()`: Generate shot lists for each split
@@ -383,7 +381,7 @@ tokamark/
 │   │       ├── general_utils.py                # Utilities
 │   │       └── path_utils.py                   # Path constants
 │   │
-│   └── MAST_benchmark/                         # Benchmark framework
+│   └── tokamark/                         # Benchmark framework
 │       ├── data.py                             # Dataset initialization
 │       ├── tasks.py                            # Task definitions
 │       ├── evaluator.py                        # Metrics computation
@@ -440,9 +438,9 @@ tokamark/
 
 ### 1. **Data Initialization**
 ```python
-from MAST_benchmark.data import initialize_MAST_dataset
-from MAST_benchmark.tasks import get_task_config
-from MAST_benchmark.data_split import get_train_test_val_shots
+from tokamark.data import initialize_MAST_dataset
+from tokamark.tasks import get_task_config
+from tokamark.data_split import get_train_test_val_shots
 
 # Load task configuration
 config = get_task_config("task_1-1")
@@ -462,8 +460,8 @@ dataset = initialize_MAST_dataset(
 
 ### 2. **Create Windowed Dataset**
 ```python
-from MAST_benchmark.data import initialize_TokaMark_dataset
-from MAST_benchmark.tasks import get_task_metadata, get_signals_metadata
+from tokamark.data import initialize_TokaMark_dataset
+from tokamark.tasks import get_task_metadata, get_signals_metadata
 
 # Get metadata
 task_metadata = get_task_metadata(config, verbose=False)
@@ -481,7 +479,7 @@ tokamark_ds = initialize_TokaMark_dataset(
 ### 3. **Training/Evaluation**
 ```python
 from torch.utils.data import DataLoader
-from MAST_benchmark.evaluator import WindowMetricsAccumulator
+from tokamark.evaluator import WindowMetricsAccumulator
 
 # Create data loader
 dataloader = DataLoader(
@@ -510,7 +508,7 @@ for batch in dataloader:
 
 ### 4. **Compute Metrics**
 ```python
-from MAST_benchmark.evaluator import compute_metrics, compute_summary_metrics
+from tokamark.evaluator import compute_metrics, compute_summary_metrics
 
 # Compute task-level metrics
 compute_metrics(
@@ -534,13 +532,13 @@ compute_summary_metrics(
 ## Potential Extension Points
 
 ### 1. **Adding New Tasks**
-1. Create YAML config in `src/MAST_benchmark/tasks_configs/`
+1. Create YAML config in `src/tokamark/tasks_configs/`
 2. Define input/actuator/output signals
 3. Specify window parameters
 4. Add task to `TASKS_CONFIGS_MAP` in `tasks.py`
 
 ### 2. **Custom Transforms**
-1. Create new transform class in `src/MAST_benchmark/tools/transforms/`
+1. Create new transform class in `src/tokamark/tools/transforms/`
 2. Implement `__init__()` and `__call__()` methods
 3. Add to transform map in `MAST_composite_transform.py`
 
@@ -612,7 +610,7 @@ compute_summary_metrics(
 ### Unit Tests
 - Located in `tests/` directory
 - Run with `python tests/run_tests.py`
-- Cover core functionality of `MAST_tools` and `MAST_benchmark`
+- Cover core functionality of `MAST_tools` and `tokamark`
 
 ### Notebooks
 - `notebooks/Example usage of MAST_tools.ipynb`, for interactive testing and demonstration of the `MAST_tools` package
@@ -668,12 +666,19 @@ See [License file](LICENSE.md).
 
 ---
 
+## Companion Resources
+
+| Resource                     | Link                                                                                                 |
+|------------------------------|------------------------------------------------------------------------------------------------------|
+| TokaMark paper               | [arXiv:2602.10132](https://arxiv.org/abs/2602.10132)                                                 |
+| TokaMark Baseline repository | [UKAEA-IBM-STFC-Fusion-FMs/tokamark](https://github.com/UKAEA-IBM-STFC-Fusion-FMs/tokamark_baseline) |
+
+
+---
 ## Citing TokaMark
 
-TokaMark has been submitted to the *32nd SIGKDD Conference on Knowledge Discovery and Data Mining, 2026*, and it is
-currently being reviewed. A preprint version of the manuscript is available [here](https://arxiv.org/abs/2602.10132).
-
-If you use TokaMark, please cite our work as:
+A preprint version of the TokaMark manuscript is available [here](https://arxiv.org/abs/2602.10132). If you use 
+TokaMark, please cite our work as:
 
     @article{rousseau2026tokamark,
       title={TokaMark: A Comprehensive Benchmark for MAST Tokamak Plasma Models},

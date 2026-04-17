@@ -9,8 +9,12 @@ import xarray as xr
 from typing import Union, Optional, Any
 
 from MAST_tools.utils.data_utils import (
-    ShotInfo, StoreManagerParameters,
-    BaseDataSourceType, ExtendedDataSourceType, XarrayDatasetType, StoreManagerParametersType
+    ShotInfo,
+    StoreManagerParameters,
+    BaseDataSourceType,
+    ExtendedDataSourceType,
+    XarrayDatasetType,
+    StoreManagerParametersType,
 )
 from MAST_tools.utils.store_utils import MASTStorageManager
 from MAST_tools.utils.general_utils import get_random_string
@@ -48,10 +52,7 @@ class MASTSignalManager:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(
-            self,
-            store_manager_settings: Optional[StoreManagerParametersType] = None
-    ) -> None:
+    def __init__(self, store_manager_settings: Optional[StoreManagerParametersType] = None) -> None:
         """
         Initialize class attributes.
 
@@ -82,10 +83,7 @@ class MASTSignalManager:
         self.store_manager = MASTStorageManager(**self.store_manager_settings)
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _set_store_manager(
-            self,
-            store_manager: MASTStorageManager
-    ) -> None:
+    def _set_store_manager(self, store_manager: MASTStorageManager) -> None:
         """
         Set the `store_manager` attribute.
 
@@ -104,10 +102,7 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_source_profiles(
-           self,
-           data_origin: BaseDataSourceType,
-           source_name: str,
-           verbose: bool = False
+        self, data_origin: BaseDataSourceType, source_name: str, verbose: bool = False
     ) -> XarrayDatasetType:
         """
         Get source profiles from a given data origin.
@@ -150,11 +145,11 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_signal_values(
-            self,
-            signal_name: str,
-            data_origin: ExtendedDataSourceType,
-            source_name: Optional[str] = None,
-            verbose: bool = False
+        self,
+        signal_name: str,
+        data_origin: ExtendedDataSourceType,
+        source_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Union[np.ndarray, None]:
         """
         Get signal values from a given data origin.
@@ -180,10 +175,7 @@ class MASTSignalManager:
         """
 
         signal_profile = self.get_signal_profile(
-            signal_name=signal_name,
-            data_origin=data_origin,
-            source_name=source_name,
-            verbose=verbose
+            signal_name=signal_name, data_origin=data_origin, source_name=source_name, verbose=verbose
         )
 
         if signal_profile is not None:
@@ -194,11 +186,11 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_signal_times_and_time_type(
-            self,
-            signal_name: str,
-            data_origin: ExtendedDataSourceType,
-            source_name: Optional[str] = None,
-            verbose: bool = False
+        self,
+        signal_name: str,
+        data_origin: ExtendedDataSourceType,
+        source_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Union[tuple[np.ndarray, str], tuple[None, None]]:
         """
         Get signal times and time type from a given data origin.
@@ -224,14 +216,10 @@ class MASTSignalManager:
         """
 
         signal_profile = self.get_signal_profile(
-            signal_name=signal_name,
-            data_origin=data_origin,
-            source_name=source_name,
-            verbose=verbose
+            signal_name=signal_name, data_origin=data_origin, source_name=source_name, verbose=verbose
         )
 
         if signal_profile is not None:
-
             try:
                 time_type_ = [str(kk) for kk in signal_profile.coords.keys() if str(kk).startswith("time")][0]
             except IndexError:
@@ -247,11 +235,11 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_signal_profile(  # NOSONAR - Ignore cognitive complexity
-            self,
-            signal_name: str,
-            data_origin: ExtendedDataSourceType,
-            source_name: Optional[str] = None,
-            verbose: bool = False
+        self,
+        signal_name: str,
+        data_origin: ExtendedDataSourceType,
+        source_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Optional[Any]:
         """
         Get signal profile from a given data origin.
@@ -316,11 +304,11 @@ class MASTSignalManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_channel_names(
-            self,
-            signal_name: str,
-            data_origin: ExtendedDataSourceType,
-            source_name: Optional[str] = None,
-            verbose: bool = False
+        self,
+        signal_name: str,
+        data_origin: ExtendedDataSourceType,
+        source_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Optional[np.ndarray]:
         """
         Get signal channel names.
@@ -347,10 +335,7 @@ class MASTSignalManager:
 
         try:
             signal_profile = self.get_signal_profile(
-                signal_name=signal_name,
-                data_origin=data_origin,
-                source_name=source_name,
-                verbose=verbose
+                signal_name=signal_name, data_origin=data_origin, source_name=source_name, verbose=verbose
             )
 
             non_time_coords = [coord for coord in signal_profile.coords if coord != "time"]
@@ -380,25 +365,20 @@ def tests() -> None:
 
     # ..................................................................................................................
 
-    shot_info = ShotInfo(
-        shot_id=30421,
-        local=False
-    )
+    shot_info = ShotInfo(shot_id=30421, local=False)
     source_name = "magnetics"
     signal_name = "flux_loop_flux"
 
-    TESTS_TO_RUN = {  # noqa
+    TESTS_TO_RUN = {  # noqa - Ignore lowercase warning
         "source_from_store": False,
         "signal_values_from_store": False,
         "signal_values_from_shot_info": False,
-        "signal_times_from_shot_info": True
+        "signal_times_from_shot_info": True,
     }
 
     base_local_zarr_path = "/mast/tokamark/v1"  # -> REMARK: Use correct local folder for local tests.
     signal_manager = MASTSignalManager(
-        store_manager_settings=StoreManagerParameters(
-            base_local_zarr_path=base_local_zarr_path
-        )
+        store_manager_settings=StoreManagerParameters(base_local_zarr_path=base_local_zarr_path)
     )
 
     # print(type(signal_manager.store_manager))
@@ -408,11 +388,7 @@ def tests() -> None:
     # ..................................................................................................................
     # Get signal values from store
     if TESTS_TO_RUN["source_from_store"]:
-
-        source_from_shot_info = signal_manager.get_source_profiles(
-            data_origin=shot_info,
-            source_name=source_name
-        )
+        source_from_shot_info = signal_manager.get_source_profiles(data_origin=shot_info, source_name=source_name)
 
         print(source_from_shot_info)
         print(type(source_from_shot_info))
@@ -423,13 +399,9 @@ def tests() -> None:
     # ..................................................................................................................
     # Get signal values from store
     if TESTS_TO_RUN["signal_values_from_store"]:
-
         store_from_shot_info = signal_manager.store_manager.make_shot_store(shot_info=shot_info)
         signal_values = signal_manager.get_signal_values(
-            signal_name=signal_name,
-            data_origin=store_from_shot_info,
-            source_name=source_name,
-            verbose=True
+            signal_name=signal_name, data_origin=store_from_shot_info, source_name=source_name, verbose=True
         )
 
         print(f"Signal values: {signal_values}\n")
@@ -439,11 +411,8 @@ def tests() -> None:
     # Get signal values from shot info
 
     if TESTS_TO_RUN["signal_values_from_shot_info"]:
-
         signal_values = signal_manager.get_signal_values(
-            signal_name=signal_name,
-            data_origin=shot_info,
-            source_name=source_name
+            signal_name=signal_name, data_origin=shot_info, source_name=source_name
         )
 
         print(f"Signal values: {signal_values}\n")
@@ -452,11 +421,8 @@ def tests() -> None:
     # Get signal times from shot info
 
     if TESTS_TO_RUN["signal_times_from_shot_info"]:
-
         signal_times, signal_type = signal_manager.get_signal_times_and_time_type(
-            signal_name=signal_name,
-            data_origin=shot_info,
-            source_name=source_name
+            signal_name=signal_name, data_origin=shot_info, source_name=source_name
         )
 
         print(f"Signal type: '{signal_type}'\n")
