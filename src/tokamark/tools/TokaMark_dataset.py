@@ -351,7 +351,8 @@ class TokaMarkDataset(IterableDataset):
             t = sample[var]["time"]
             v = sample[var]["values"]
 
-            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
+            # exclude timesteps where all value dimensions are NaN or the timestamp itself is non-finite
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1))) & np.isfinite(t)
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]
@@ -377,7 +378,8 @@ class TokaMarkDataset(IterableDataset):
                     return  # ← skip whole shot
                 continue
 
-            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
+            # exclude timesteps where all value dimensions are NaN or the timestamp itself is non-finite
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1))) & np.isfinite(t)
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]
@@ -388,7 +390,22 @@ class TokaMarkDataset(IterableDataset):
 
         global_end_time = float(np.max(t_end))
 
-        # --------------------------------------------------------------
+        # ..............................................................................................................
+        # Skip shot if global times are non-finite or the window range is too short for even one cut
+
+        if not (np.isfinite(global_start_time) and np.isfinite(global_end_time)):
+            if self.verbose:
+                print(f"Skipping shot {self.get_shot_id(idx=shot_idx)}: non-finite global times.")
+            return
+
+        t_cut_start = global_start_time + self.input_length
+        t_cut_stop = global_end_time - self.delta - self.output_length
+        if t_cut_start >= t_cut_stop:
+            if self.verbose:
+                print(f"Skipping shot {self.get_shot_id(idx=shot_idx)}: window range too short for any cut.")
+            return
+
+        # --------------------------------------------------------------------------------------------------------------
         # Pad sample for consistency
 
         sample = self._pad_sample_to_interval(sample=sample, t_start=global_start_time, t_end=global_end_time)
@@ -397,8 +414,8 @@ class TokaMarkDataset(IterableDataset):
         # Build windows
 
         t_cuts = np.arange(
-            start=global_start_time + self.input_length,
-            stop=global_end_time - self.delta - self.output_length,
+            start=t_cut_start,
+            stop=t_cut_stop,
             step=self.stride,
         )
 
