@@ -8,16 +8,12 @@ import pandas as pd
 import random
 from typing import Optional
 
-<<<<<<< HEAD:src/MAST_benchmark/data_split.py
-from MAST_benchmark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
-=======
-from tokamark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
->>>>>>> origin/main:src/tokamark/data_split.py
+from tokamark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(
-<<<<<<< HEAD:src/MAST_benchmark/data_split.py
+<<<<<<< HEAD:src/tokamark/data_split.py
         max_index: Optional[int] = None,
         max_index_for_train: Optional[int] = None,
         max_index_for_val: Optional[int] = None,
@@ -61,8 +57,8 @@ def get_train_test_val_shots(
         Optional. Default: 42.
     data_splits_file_path : str
         Pato to the data splits CSV file.
-<<<<<<< HEAD:src/MAST_benchmark/data_split.py
-        Optional. Default: `MAST_benchmark.tools.path.RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE`.
+<<<<<<< HEAD:src/tokamark/data_split.py
+        Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE`.
 =======
         Optional. Default: `tokamark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE`.
 >>>>>>> origin/main:src/tokamark/data_split.py

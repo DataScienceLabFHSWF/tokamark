@@ -320,7 +320,7 @@ class TokaMarkDataset(IterableDataset):
 
     # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(  # NOSONAR - Ignore cognitive complexity
-        self, shot_idx: int, filled_test_mode: bool = True
+        self, shot_idx: int, filled_test_mode: bool = False
     ) -> Generator:
         """
         Shot-processing generator.
@@ -454,24 +454,6 @@ class TokaMarkDataset(IterableDataset):
             # Filtering
 
             if self.test_mode:
-<<<<<<< HEAD:src/MAST_benchmark/tools/TokaMark_dataset.py
-                # Filled test_mode
-                # window_valid = (
-                #     not (
-                #         _all_vars_have_any_nans(obj["input"])
-                #         and _all_vars_have_any_nans(obj["actuator"])
-                #     )
-                #     and (not _any_vars_have_any_nans(obj["output"]))
-                # )
-                # Sparse test_mode
-                window_valid = (
-                    not (
-                        _all_vars_have_all_nans(obj["input"])
-                        and _all_vars_have_all_nans(obj["actuator"])
-                    )
-                    and (not _any_vars_have_all_nans(obj["output"]))
-                )
-=======
                 if filled_test_mode:
                     # Filled test_mode
                     window_valid = not (
@@ -483,7 +465,6 @@ class TokaMarkDataset(IterableDataset):
                         _all_vars_have_all_nans(obj["input"]) and _all_vars_have_all_nans(obj["actuator"])
                     ) and (not _any_vars_have_all_nans(obj["output"]))
 
->>>>>>> origin/main:src/tokamark/tools/TokaMark_dataset.py
                 if not window_valid:
                     if self.verbose:
                         print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid.")

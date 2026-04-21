@@ -114,7 +114,7 @@ def compute_windows_metrics(
             "feature_name": np.asarray([feature_name] * len(rmse_per_sample), dtype=object),
             "RMSE": np.asarray(rmse_per_sample, dtype=float),
             "MAE": np.asarray(mae_per_sample, dtype=float),
-<<<<<<< HEAD:src/MAST_benchmark/evaluator.py
+<<<<<<< HEAD:src/tokamark/evaluator.py
             "nan_fraction": np.asarray(nan_pct_per_sample, dtype=float)
 =======
 >>>>>>> origin/main:src/tokamark/evaluator.py

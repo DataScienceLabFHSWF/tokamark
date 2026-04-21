@@ -14,7 +14,7 @@ from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:src/MAST_benchmark/data.py
+<<<<<<< HEAD:src/tokamark/data.py
 def initialize_MAST_dataset(  # noqa (allow uppercase)
         config_task: Mapping[str, Any],
         shots_list: list[int],

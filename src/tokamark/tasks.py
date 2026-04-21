@@ -9,9 +9,9 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Any
 
-<<<<<<< HEAD:src/MAST_benchmark/tasks.py
-from MAST_benchmark.tools.utils import get_config_from_yaml
-from MAST_benchmark.tools.path import (
+<<<<<<< HEAD:src/tokamark/tasks.py
+from tokamark.tools.utils import get_config_from_yaml
+from tokamark.tools.path import (
     TASKS_CONFIGS_DIR,
     RANDOM_SPLIT_SIGNALS_STATS_FILE
 )
@@ -72,7 +72,7 @@ def get_task_config(task_name: str) -> dict[str, Any]:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:src/MAST_benchmark/tasks.py
+<<<<<<< HEAD:src/tokamark/tasks.py
 def get_signals_metadata(
         file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE
 ) -> dict[str, Any]:

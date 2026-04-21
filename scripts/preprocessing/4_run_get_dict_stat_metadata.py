@@ -13,14 +13,8 @@ from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
 from MAST_tools.utils.general_utils import warning_print
-<<<<<<< HEAD
-from MAST_benchmark.data import initialize_MAST_dataset
-from MAST_benchmark.data_split import get_train_test_val_shots
-=======
 from tokamark.data import initialize_MAST_dataset
 from tokamark.data_split import get_train_test_val_shots
-from tokamark.tools.path import DEFAULT_SIGNALS_STATS_FILE
->>>>>>> origin/main
 
 from preproc_paths import OUTPUT_DIR
 
@@ -30,13 +24,13 @@ splitting_mode = 'random'
 
 if splitting_mode == 'random':
     from preproc_paths import RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
-    from MAST_benchmark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
+    from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
     IN_SIGNALS_STATS_TRAIN_FILE = RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
     OUT_SIGNALS_STATS_FILE = RANDOM_SPLIT_SIGNALS_STATS_FILE
     
 if splitting_mode == 'temporal':
     from preproc_paths import TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
-    from MAST_benchmark.tools.path import TEMPORAL_SPLIT_SIGNALS_STATS_FILE
+    from tokamark.tools.path import TEMPORAL_SPLIT_SIGNALS_STATS_FILE
     IN_SIGNALS_STATS_TRAIN_FILE = TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
     OUT_SIGNALS_STATS_FILE = TEMPORAL_SPLIT_SIGNALS_STATS_FILE
 
@@ -84,35 +78,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file_path",
         type=str,
-<<<<<<< HEAD
-        default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
-        help="Path to the YAML file with configuration to get metadata."
-=======
         default="config_get_metadata.yaml",
         help="Path to the YAML file with configuration to get metadata.",
->>>>>>> origin/main
     )
     parser.add_argument(
         "--signals_mean_std_train_file_path",
         type=str,
-<<<<<<< HEAD
         default=IN_SIGNALS_STATS_TRAIN_FILE,
         help="Path to the `dict_signals_mean_std_train.yaml` file."
-=======
-        default=DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
-        help="Path to the `dict_signals_mean_std_train.yaml` file.",
->>>>>>> origin/main
     )
     parser.add_argument(
         "--signals_stats_saving_file_path",
         type=str,
-<<<<<<< HEAD
         default=OUT_SIGNALS_STATS_FILE,
         help="Path to the YAML file where signals statistics will be saved."
-=======
-        default=DEFAULT_SIGNALS_STATS_FILE,
-        help="Path to the YAML file where signals statistics will be saved.",
->>>>>>> origin/main
     )
     parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
