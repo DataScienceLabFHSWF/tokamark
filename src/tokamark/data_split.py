@@ -8,11 +8,16 @@ import pandas as pd
 import random
 from typing import Optional
 
+<<<<<<< HEAD:src/MAST_benchmark/data_split.py
 from MAST_benchmark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
+=======
+from tokamark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
+>>>>>>> origin/main:src/tokamark/data_split.py
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(
+<<<<<<< HEAD:src/MAST_benchmark/data_split.py
         max_index: Optional[int] = None,
         max_index_for_train: Optional[int] = None,
         max_index_for_val: Optional[int] = None,
@@ -20,6 +25,15 @@ def get_train_test_val_shots(
         shuffle: bool = False,
         seed: int = 42,
         data_splits_file_path: str = RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
+=======
+    max_index: Optional[int] = None,
+    max_index_for_train: Optional[int] = None,
+    max_index_for_val: Optional[int] = None,
+    max_index_for_test: Optional[int] = None,
+    shuffle: bool = False,
+    seed: int = 42,
+    data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE,
+>>>>>>> origin/main:src/tokamark/data_split.py
 ) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation. These lists can be subsets of the corresponding
@@ -47,7 +61,11 @@ def get_train_test_val_shots(
         Optional. Default: 42.
     data_splits_file_path : str
         Pato to the data splits CSV file.
+<<<<<<< HEAD:src/MAST_benchmark/data_split.py
         Optional. Default: `MAST_benchmark.tools.path.RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE`.
+=======
+        Optional. Default: `tokamark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE`.
+>>>>>>> origin/main:src/tokamark/data_split.py
 
     Returns
     -------
@@ -61,17 +79,17 @@ def get_train_test_val_shots(
 
     if shuffle:
         if not isinstance(seed, int):
-            raise ValueError(f"Seed must be an integer, got {type(seed).__name__}")  # noqa
+            raise ValueError(f"Seed must be integer, got {type(seed).__name__}")  # noqa - Ignore unreach code warning
 
         random.seed(seed)
         random.shuffle(train_set_full)
         random.shuffle(test_set_full)
         random.shuffle(val_set_full)
-        
+
     train_set = train_set_full
     test_set = test_set_full
     val_set = val_set_full
-    
+
     # If max_index is provided, override all other limits
     if (max_index is not None) and (max_index > 0):
         train_set = train_set_full[:max_index]
@@ -87,16 +105,14 @@ def get_train_test_val_shots(
 
     if (max_index_for_test is not None) and (max_index_for_test > 0):
         test_set = test_set_full[:max_index_for_test]
-        
+
     return train_set, test_set, val_set
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def read_data_split_csv(
-        csv_path: str
-) -> tuple[list, list, list]:
+def read_data_split_csv(csv_path: str) -> tuple[list, list, list]:
     """
-    Read the csv file containing the lists of shot IDs for training, testing, and validation.
+    Read the CSV file containing the lists of shot IDs for training, testing, and validation.
 
     Parameters
     ----------
@@ -115,10 +131,11 @@ def read_data_split_csv(
 
     df = pd.read_csv(csv_path)
 
-    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
-    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
-    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa (Ignore E712, "is" comparison fails)
+    shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
+    shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
+    shot_ids_for_val = df[df["val"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
 
     return shot_ids_for_train, shot_ids_for_test, shot_ids_for_val
+
 
 # ----------------------------------------------------------------------------------------------------------------------

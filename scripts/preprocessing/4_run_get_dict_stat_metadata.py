@@ -13,8 +13,14 @@ from multiprocessing import cpu_count
 import torch.multiprocessing as mp
 
 from MAST_tools.utils.general_utils import warning_print
+<<<<<<< HEAD
 from MAST_benchmark.data import initialize_MAST_dataset
 from MAST_benchmark.data_split import get_train_test_val_shots
+=======
+from tokamark.data import initialize_MAST_dataset
+from tokamark.data_split import get_train_test_val_shots
+from tokamark.tools.path import DEFAULT_SIGNALS_STATS_FILE
+>>>>>>> origin/main
 
 from preproc_paths import OUTPUT_DIR
 
@@ -36,9 +42,7 @@ if splitting_mode == 'temporal':
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def to_python(
-        obj: Any
-) -> Any:
+def to_python(obj: Any) -> Any:
     """
     Turn a numpy-based object into a numpy-free object.
 
@@ -69,7 +73,6 @@ def to_python(
 
 # ======================================================================================================================
 if __name__ == "__main__":
-
     print(f"Number of available CPU cores: {cpu_count()}\n")
     mp.set_start_method(method="spawn", force=True)
 
@@ -81,31 +84,39 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file_path",
         type=str,
+<<<<<<< HEAD
         default="/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/output/cnn-baseline/fairmast-data-preprocessing/scripts/preprocessing/config_get_metadata.yaml",
         help="Path to the YAML file with configuration to get metadata."
+=======
+        default="config_get_metadata.yaml",
+        help="Path to the YAML file with configuration to get metadata.",
+>>>>>>> origin/main
     )
     parser.add_argument(
         "--signals_mean_std_train_file_path",
         type=str,
+<<<<<<< HEAD
         default=IN_SIGNALS_STATS_TRAIN_FILE,
         help="Path to the `dict_signals_mean_std_train.yaml` file."
+=======
+        default=DEFAULT_SIGNALS_MEAN_STD_TRAIN_FILE,
+        help="Path to the `dict_signals_mean_std_train.yaml` file.",
+>>>>>>> origin/main
     )
     parser.add_argument(
         "--signals_stats_saving_file_path",
         type=str,
+<<<<<<< HEAD
         default=OUT_SIGNALS_STATS_FILE,
         help="Path to the YAML file where signals statistics will be saved."
+=======
+        default=DEFAULT_SIGNALS_STATS_FILE,
+        help="Path to the YAML file where signals statistics will be saved.",
+>>>>>>> origin/main
     )
+    parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
-        "--demo_mode",
-        action="store_true",
-        help="Activate demo mode."
-    )
-    parser.add_argument(
-        "--demo_suffix",
-        type=str,
-        default="_DEMO",
-        help="Suffix used in demo mode when saving results."
+        "--demo_suffix", type=str, default="_DEMO", help="Suffix used in demo mode when saving results."
     )
 
     args, _ = parser.parse_known_args()
@@ -150,14 +161,14 @@ if __name__ == "__main__":
     # Create unstandardized train dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    preprocessing_train_dataset = initialize_MAST_dataset( 
+    preprocessing_train_dataset = initialize_MAST_dataset(
         config_task=config["task_configuration"],
         shots_list=train_shots_[::-1],
         local_flag=config["local"],
-        use_std_scaling=False,          # <- To get an unstandardized dataset
-        return_incomplete_shots=True,   # <- To include all available shots
-        remove_outliers=True,           # <- To mitigate effect of outliers in the calculation of signal statistics
-        store_manager_settings=config["store_manager_settings"]
+        use_std_scaling=False,  # <- To get an unstandardized dataset
+        return_incomplete_shots=True,  # <- To include all available shots
+        remove_outliers=True,  # <- To mitigate effect of outliers in the calculation of signal statistics
+        store_manager_settings=config["store_manager_settings"],
     )
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -170,11 +181,10 @@ if __name__ == "__main__":
     first_sample = next(iter(preprocessing_train_dataset))
     target_vars = set(first_sample.keys())
 
-    for i, sample in enumerate(preprocessing_train_dataset):  # noqa (type check)
+    for i, sample in enumerate(preprocessing_train_dataset):  # noqa - Ignore type check warning
         # print(i)
 
         for var, signal in sample.items():
-
             # Only compute once per variable
             if var in dict_metadata:
                 continue
@@ -186,7 +196,7 @@ if __name__ == "__main__":
             if len(time) == 0 or len(values) == 0:
                 print("Skipping var", var)
                 continue
-            
+
             # print("\nSaving var", var)
 
             # Compute median dt
@@ -195,10 +205,10 @@ if __name__ == "__main__":
             dict_metadata[var] = {
                 "dt": dt,  # <- Time granularity.
                 "values_shape": values.shape[:-1],  # <- Exclude time dimension
-                "mean": dict_mean_std[var]["mean"]["no_outliers_z6"], 
-                "std": dict_mean_std[var]["std"]["no_outliers_z6"]
+                "mean": dict_mean_std[var]["mean"]["no_outliers_z6"],
+                "std": dict_mean_std[var]["std"]["no_outliers_z6"],
             }
-        
+
         # Stop once all variables are filled
         if set(dict_metadata.keys()) == target_vars:
             print("Metadata dictionary `dict_metadata` fully filled. Stopping.")

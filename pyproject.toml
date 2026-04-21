@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tokamark"
 version = "0.1.0"
-description = "Data preprocessing and benchmarking tools for FAIRMAST"
+description = "Data preprocessing and benchmarking tools for FAIR-MAST"
 readme = "README.md"
 requires-python = ">=3.10"
 license-files = ["LICENSE.md"]
@@ -36,9 +36,18 @@ dependencies = [
   "imageio",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pre-commit>=3.8",
+  "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 120
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["MAST_tools*", "MAST_benchmark*"]
+include = ["MAST_tools*", "tokamark*"]

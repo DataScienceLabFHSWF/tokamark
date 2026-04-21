@@ -7,13 +7,14 @@ from collections.abc import Callable, Mapping
 from typing import Optional, Any
 
 from MAST_tools.MAST_dataset import MastDataset
-from MAST_benchmark.tools.TokaMark_dataset import TokaMarkDataset
-from MAST_benchmark.tools.MAST_composite_transform import build_common_signal_transform_map
+from tokamark.tools.TokaMark_dataset import TokaMarkDataset
+from tokamark.tools.MAST_composite_transform import build_common_signal_transform_map
 from MAST_tools.utils.data_utils import StoreManagerParametersType
 from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+<<<<<<< HEAD:src/MAST_benchmark/data.py
 def initialize_MAST_dataset(  # noqa (allow uppercase)
         config_task: Mapping[str, Any],
         shots_list: list[int],
@@ -27,6 +28,21 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         *,
         store_manager_settings: Optional[StoreManagerParametersType] = None,
         verbose: bool = False
+=======
+def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
+    config_task: Mapping[str, Any],
+    shots_list: list[int],
+    local_flag: bool = True,
+    use_std_scaling: bool = True,
+    use_nan_filling: bool = True,
+    return_incomplete_shots: bool = True,
+    remove_outliers: bool = True,
+    outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
+    remove_bad_efit_rating: bool = True,
+    *,
+    store_manager_settings: Optional[StoreManagerParametersType] = None,
+    verbose: bool = False,
+>>>>>>> origin/main:src/tokamark/data.py
 ) -> MastDataset:
     """
     Initialize and return MAST dataset.
@@ -40,6 +56,9 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
     local_flag : bool
         If True, local mode is used.
         Optional. Default: True.
+    use_nan_filling : bool
+        If True, NaN filling is used.
+        Optional. Default: True.
     use_std_scaling : bool
         If True, standard scaling is used.
         Optional. Default: True.
@@ -48,6 +67,11 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         Optional. Default: True.
     remove_outliers : bool
         If True, outliers are removed.
+        Optional. Default: True.
+    outlier_metadata_file : str
+        Path to suitable YAML file with outlier metadata.
+    remove_bad_efit_rating : bool
+        If True, bad EFIT ratings are removed.
         Optional. Default: True.
     store_manager_settings : Optional[StoreManagerParametersType]
         Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
@@ -69,9 +93,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         + (config_task["sources_and_signals"].get("actuator_name") or [])
         + (config_task["sources_and_signals"].get("output_name") or [])
     )
-    source_signal_list = [
-        s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]
-    ]  # Unicity
+    source_signal_list = [s for i, s in enumerate(source_signal_list) if s not in source_signal_list[:i]]  # Unicity
 
     # ..................................................................................................................
     # Create common transform map
@@ -93,23 +115,23 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         outlier_metadata_file=outlier_metadata_file,
         remove_bad_efit_rating=remove_bad_efit_rating,
         store_manager_settings=store_manager_settings,
-        verbose=verbose
+        verbose=verbose,
     )
 
     return mast_dataset
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def initialize_TokaMark_dataset(  # noqa (allow uppercase)
-        dataset: Optional[MastDataset],
-        task_metadata: Mapping[str, Any],
-        config_metadata: Mapping[str, Any],
-        custom_transform: Optional[Callable] = None,
-        test_mode: bool = False,
-        shuffle_windows: bool = True,
-        shuffle_buffer_size: int = 512,
-        *,
-        verbose: bool = False
+def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
+    dataset: Optional[MastDataset],
+    task_metadata: Mapping[str, Any],
+    config_metadata: Mapping[str, Any],
+    custom_transform: Optional[Callable] = None,
+    test_mode: bool = False,
+    shuffle_windows: bool = True,
+    shuffle_buffer_size: int = 512,
+    *,
+    verbose: bool = False,
 ) -> Optional[TokaMarkDataset]:
     """
     #
@@ -156,5 +178,5 @@ def initialize_TokaMark_dataset(  # noqa (allow uppercase)
         test_mode=test_mode,
         shuffle_windows=shuffle_windows,
         shuffle_buffer_size=shuffle_buffer_size,
-        verbose=verbose
+        verbose=verbose,
     )

@@ -16,10 +16,9 @@ from MAST_tools.MAST_dataset import MastDataset
 # ======================================================================================================================
 # HELPERS
 
+
 # ----------------------------------------------------------------------------------------------------------------------
-def _all_vars_have_all_nans(
-        dict_obj: Mapping[str, Any]
-) -> bool:
+def _all_vars_have_all_nans(dict_obj: Mapping[str, Any]) -> bool:
     """
     Check if all variables in an input mapping have all Nan values.
 
@@ -35,12 +34,11 @@ def _all_vars_have_all_nans(
 
     """
 
-    return all(np.isnan(np.asarray(dict_obj[var]['values'])).all() for var in dict_obj.keys())
+    return all(np.isnan(np.asarray(dict_obj[var]["values"])).all() for var in dict_obj.keys())
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-def _all_vars_have_any_nans(
-        dict_obj: Mapping[str, Any]
-) -> bool:
+def _all_vars_have_any_nans(dict_obj: Mapping[str, Any]) -> bool:
     """
     Check if all variables in an input mapping have any Nan values.
 
@@ -56,14 +54,13 @@ def _all_vars_have_any_nans(
 
     """
 
-    return all(np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys())
+    return all(np.isnan(np.asarray(dict_obj[var]["values"])).any() for var in dict_obj.keys())
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-def _any_vars_have_all_nans(
-        dict_obj: Mapping[str, Any]
-) -> bool:
+def _any_vars_have_all_nans(dict_obj: Mapping[str, Any]) -> bool:
     """
-    Check if at least one variable in an input mapping have all Nan values.
+    Check if at least one variable in an input mapping has all Nan values.
 
     Parameters
     ----------
@@ -73,16 +70,15 @@ def _any_vars_have_all_nans(
     Returns
     -------
     bool
-        If True, at least one variable in input mapping have all NaN values.
+        If True, at least one variable in input mapping has all NaN values.
 
     """
 
-    return any(np.isnan(np.asarray(dict_obj[var]['values'])).all() for var in dict_obj.keys())
+    return any(np.isnan(np.asarray(dict_obj[var]["values"])).all() for var in dict_obj.keys())
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-def _any_vars_have_any_nans(
-        dict_obj: Mapping[str, Any]
-) -> bool:
+def _any_vars_have_any_nans(dict_obj: Mapping[str, Any]) -> bool:
     """
     Check if any variables in an input mapping have any Nan values.
 
@@ -98,13 +94,11 @@ def _any_vars_have_any_nans(
 
     """
 
-    return any(np.isnan(np.asarray(dict_obj[var]['values'])).any() for var in dict_obj.keys())
+    return any(np.isnan(np.asarray(dict_obj[var]["values"])).any() for var in dict_obj.keys())
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-def _shuffle_buffer(
-        iterator: Generator,
-        buffer_size: int = 512
-) -> Generator:
+def _shuffle_buffer(iterator: Generator, buffer_size: int = 512) -> Generator:
     """
     Streaming shuffle buffer.
 
@@ -303,11 +297,7 @@ class TokaMarkDataset(IterableDataset):
         yield from iterator
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _iterate_shots(
-            self,
-            start: int,
-            end: int
-    ) -> Generator:
+    def _iterate_shots(self, start: int, end: int) -> Generator:
         """
         Shot iterator.
 
@@ -330,8 +320,7 @@ class TokaMarkDataset(IterableDataset):
 
     # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(  # NOSONAR - Ignore cognitive complexity
-            self,
-            shot_idx: int
+        self, shot_idx: int, filled_test_mode: bool = True
     ) -> Generator:
         """
         Shot-processing generator.
@@ -340,6 +329,10 @@ class TokaMarkDataset(IterableDataset):
         ----------
         shot_idx : int
             Shot index.
+        filled_test_mode : bool
+            If True and `self.test_mode` is True, use filled test mode. If False and `self.test_mode` is True, use
+            sparse test mode. Ignored if `self.test_mode` is False.
+            Optional. Default: True.
 
         Returns
         -------
@@ -358,7 +351,8 @@ class TokaMarkDataset(IterableDataset):
             t = sample[var]["time"]
             v = sample[var]["values"]
 
-            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
+            # exclude timesteps where all value dimensions are NaN or the timestamp itself is non-finite
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1))) & np.isfinite(t)
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]
@@ -380,14 +374,12 @@ class TokaMarkDataset(IterableDataset):
             if t.size == 0 or v.size == 0:
                 if self.test_mode:
                     if self.verbose:
-                        print(
-                            f"Skipping shot {self.get_shot_id(idx=shot_idx)} "
-                            f"(empty output '{var}')"
-                        )
-                    return   # ← skip whole shot
+                        print(f"Skipping shot {self.get_shot_id(idx=shot_idx)} (empty output '{var}')")
+                    return  # ← skip whole shot
                 continue
 
-            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
+            # exclude timesteps where all value dimensions are NaN or the timestamp itself is non-finite
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1))) & np.isfinite(t)
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]
@@ -398,46 +390,55 @@ class TokaMarkDataset(IterableDataset):
 
         global_end_time = float(np.max(t_end))
 
-        # --------------------------------------------------------------
+        # ..............................................................................................................
+        # Skip shot if global times are non-finite or the window range is too short for even one cut
+
+        if not (np.isfinite(global_start_time) and np.isfinite(global_end_time)):
+            if self.verbose:
+                print(f"Skipping shot {self.get_shot_id(idx=shot_idx)}: non-finite global times.")
+            return
+
+        t_cut_start = global_start_time + self.input_length
+        t_cut_stop = global_end_time - self.delta - self.output_length
+        if t_cut_start >= t_cut_stop:
+            if self.verbose:
+                print(f"Skipping shot {self.get_shot_id(idx=shot_idx)}: window range too short for any cut.")
+            return
+
+        # --------------------------------------------------------------------------------------------------------------
         # Pad sample for consistency
 
-        sample = self._pad_sample_to_interval(
-            sample=sample,
-            t_start=global_start_time,
-            t_end=global_end_time
-        )
+        sample = self._pad_sample_to_interval(sample=sample, t_start=global_start_time, t_end=global_end_time)
 
         # ..............................................................................................................
         # Build windows
 
         t_cuts = np.arange(
-            start=global_start_time + self.input_length,
-            stop=global_end_time - self.delta - self.output_length,
-            step=self.stride)
+            start=t_cut_start,
+            stop=t_cut_stop,
+            step=self.stride,
+        )
 
         for idx_t, t_cut in enumerate(t_cuts):
-
-            t_cut = np.float32(t_cut)
-
             input_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
-                t_cut=t_cut,
-                type_window="input"
+                t_cut=t_cut,  # noqa - Ignore expected type warning
+                type_window="input",
             )
 
             actuator_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
-                t_cut=t_cut,
-                type_window="actuator"
+                t_cut=t_cut,  # noqa - Ignore expected type warning
+                type_window="actuator",
             )
 
             output_slice = self._build_window(
                 sample=sample,
                 global_start_time=global_start_time,
-                t_cut=t_cut,
-                type_window="output"
+                t_cut=t_cut,  # noqa - Ignore expected type warning
+                type_window="output",
             )
 
             obj = {
@@ -446,13 +447,14 @@ class TokaMarkDataset(IterableDataset):
                 "output": output_slice,
                 "t_cut": t_cut,
                 "shot_id": self.get_shot_id(idx=shot_idx),
-                "window_index": idx_t
+                "window_index": idx_t,
             }
 
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Filtering
 
             if self.test_mode:
+<<<<<<< HEAD:src/MAST_benchmark/tools/TokaMark_dataset.py
                 # Filled test_mode
                 # window_valid = (
                 #     not (
@@ -469,6 +471,19 @@ class TokaMarkDataset(IterableDataset):
                     )
                     and (not _any_vars_have_all_nans(obj["output"]))
                 )
+=======
+                if filled_test_mode:
+                    # Filled test_mode
+                    window_valid = not (
+                        _all_vars_have_any_nans(obj["input"]) and _all_vars_have_any_nans(obj["actuator"])
+                    ) and (not _any_vars_have_any_nans(obj["output"]))
+                else:
+                    # Sparse test_mode
+                    window_valid = not (
+                        _all_vars_have_all_nans(obj["input"]) and _all_vars_have_all_nans(obj["actuator"])
+                    ) and (not _any_vars_have_all_nans(obj["output"]))
+
+>>>>>>> origin/main:src/tokamark/tools/TokaMark_dataset.py
                 if not window_valid:
                     if self.verbose:
                         print(f"Window {obj['window_index']} of shot {obj['shot_id']} is not valid.")
@@ -478,19 +493,15 @@ class TokaMarkDataset(IterableDataset):
             if obj2 is None:
                 continue
 
-            yield {
-                "shot_id": obj["shot_id"],
-                "window_index": idx_t,
-                **obj2
-            }
+            yield {"shot_id": obj["shot_id"], "window_index": idx_t, **obj2}
 
     # ------------------------------------------------------------------------------------------------------------------
     def _build_window(  # NOSONAR - Ignore cognitive complexity
-            self,
-            sample: Mapping[str, Any],
-            global_start_time: float,
-            t_cut: Union[float, np.float16, np.float32, np.float64],
-            type_window: str
+        self,
+        sample: Mapping[str, Any],
+        global_start_time: float,
+        t_cut: Union[float, np.float16, np.float32, np.float64],
+        type_window: str,
     ) -> dict[str, np.ndarray]:
         """
         Window-builder method.
@@ -515,14 +526,9 @@ class TokaMarkDataset(IterableDataset):
 
         out = {}
 
-        keys = {
-            "input": self.input_keys,
-            "actuator": self.actuator_keys,
-            "output": self.output_keys
-        }
+        keys = {"input": self.input_keys, "actuator": self.actuator_keys, "output": self.output_keys}
 
         for key in keys[type_window]:
-
             md = self.task_metadata[type_window][key]
 
             dt = md["dt"]
@@ -532,11 +538,7 @@ class TokaMarkDataset(IterableDataset):
             ts_out = int(round(self.output_length / dt))
             ts_delta = int(round(self.delta / dt))
 
-            ts_len = {
-                "input": ts_in,
-                "actuator": ts_in + ts_delta + ts_out, 
-                "output": ts_out
-            }
+            ts_len = {"input": ts_in, "actuator": ts_in + ts_delta + ts_out, "output": ts_out}
 
             times = sample[key]["time"]
             values = sample[key]["values"]
@@ -546,7 +548,6 @@ class TokaMarkDataset(IterableDataset):
                 selected_values = np.full(shape_values + (ts_len[type_window],), np.nan)
 
             else:
-
                 # ......................................................................................................
                 # Index Logic
 
@@ -574,15 +575,12 @@ class TokaMarkDataset(IterableDataset):
                         global_start_idx = int(round((global_start_time - times[0]) / dt))
                         idx_in = np.arange(global_start_idx, cut_idx)
 
-                    idx_out = np.arange(
-                        cut_idx,
-                        cut_idx + ts_delta + ts_out
-                    )
+                    idx_out = np.arange(cut_idx, cut_idx + ts_delta + ts_out)
 
                     idx = np.concatenate([idx_in, idx_out])
 
                 # ......................................................................................................
-                
+
                 idx = np.clip(idx, 0, len(times) - 1)
                 selected_times = times[idx]
                 selected_values = values[..., idx]
@@ -597,12 +595,7 @@ class TokaMarkDataset(IterableDataset):
     # ------------------------------------------------------------------------------------------------------------------
     @staticmethod
     def _pad_time_series_to_interval(
-            times: np.ndarray,
-            values: np.ndarray,
-            dt: float,
-            t_start: float,
-            t_end: float,
-            shape_values: tuple
+        times: np.ndarray, values: np.ndarray, dt: float, t_start: float, t_end: float, shape_values: tuple
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Pad an input time series to a target interval.
@@ -628,10 +621,10 @@ class TokaMarkDataset(IterableDataset):
             (times, values) tuple.
 
         """
-        
+
         if not np.issubdtype(values.dtype, np.floating):
             values = values.astype(float)
-        
+
         # ..............................................................................................................
         # Left pad
 
@@ -663,12 +656,7 @@ class TokaMarkDataset(IterableDataset):
         return times, values
 
     # ------------------------------------------------------------------------------------------------------------------
-    def _pad_sample_to_interval(
-            self,
-            sample: Mapping[str, Any],
-            t_start: float,
-            t_end: float
-    ) -> dict[str, Any]:
+    def _pad_sample_to_interval(self, sample: Mapping[str, Any], t_start: float, t_end: float) -> dict[str, Any]:
         """
         Pad an input sample to a target interval.
 
@@ -697,16 +685,11 @@ class TokaMarkDataset(IterableDataset):
             if times.size == 0 or values.size == 0:
                 continue
 
-            dt = self.data_metadata[key]['dt']
-            shape_values = self.data_metadata[key]['shape_values']
+            dt = self.data_metadata[key]["dt"]
+            shape_values = self.data_metadata[key]["shape_values"]
 
             times, values = self._pad_time_series_to_interval(
-                times=times,
-                values=values,
-                dt=dt,
-                t_start=t_start,
-                t_end=t_end,
-                shape_values=shape_values
+                times=times, values=values, dt=dt, t_start=t_start, t_end=t_end, shape_values=shape_values
             )
 
             padded_sample[key]["time"] = times
@@ -715,10 +698,7 @@ class TokaMarkDataset(IterableDataset):
         return padded_sample
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_shot_id(
-            self,
-            idx: int
-    ) -> int:
+    def get_shot_id(self, idx: int) -> int:
         """
         Return shot ID from shot index.
 

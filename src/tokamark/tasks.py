@@ -9,11 +9,16 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Any
 
+<<<<<<< HEAD:src/MAST_benchmark/tasks.py
 from MAST_benchmark.tools.utils import get_config_from_yaml
 from MAST_benchmark.tools.path import (
     TASKS_CONFIGS_DIR,
     RANDOM_SPLIT_SIGNALS_STATS_FILE
 )
+=======
+from tokamark.tools.utils import get_config_from_yaml
+from tokamark.tools.path import TASKS_CONFIGS_DIR, DEFAULT_SIGNALS_STATS_FILE
+>>>>>>> origin/main:src/tokamark/tasks.py
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -22,7 +27,7 @@ GROUP_TASKS = {  # REMARK: Unused here, but imported elsewhere.
     1: ["task_1-1", "task_1-2", "task_1-3"],
     2: ["task_2-1", "task_2-2", "task_2-3"],
     3: ["task_3-1", "task_3-2", "task_3-3"],
-    4: ["task_4-1", "task_4-2", "task_4-3", "task_4-4", "task_4-5"]
+    4: ["task_4-1", "task_4-2", "task_4-3", "task_4-4", "task_4-5"],
 }
 
 TASKS_CONFIGS_MAP = {
@@ -39,14 +44,12 @@ TASKS_CONFIGS_MAP = {
     "task_4-2": "group_4_mhd_activity/task_4-2.yaml",
     "task_4-3": "group_4_mhd_activity/task_4-3.yaml",
     "task_4-4": "group_4_mhd_activity/task_4-4.yaml",
-    "task_4-5": "group_4_mhd_activity/task_4-5.yaml"
+    "task_4-5": "group_4_mhd_activity/task_4-5.yaml",
 }
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_task_config(
-        task_name: str
-) -> dict[str, Any]:
+def get_task_config(task_name: str) -> dict[str, Any]:
     """
     Get task configuration by task name.
 
@@ -69,9 +72,13 @@ def get_task_config(
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+<<<<<<< HEAD:src/MAST_benchmark/tasks.py
 def get_signals_metadata(
         file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE
 ) -> dict[str, Any]:
+=======
+def get_signals_metadata(file_path: str = DEFAULT_SIGNALS_STATS_FILE) -> dict[str, Any]:
+>>>>>>> origin/main:src/tokamark/tasks.py
     """
     Read signals metadata file and return content as a dictionary.
 
@@ -96,8 +103,7 @@ def get_signals_metadata(
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
-    config_task: Mapping[str, Any],
-    verbose: bool = False
+    config_task: Mapping[str, Any], verbose: bool = False
 ) -> dict[str, Any]:
     """
     Get task metadata for target configuration task.
@@ -116,7 +122,7 @@ def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
         Output dictionary with task metadata.
 
     """
-    
+
     # ..................................................................................................................
     # Import data metadata
     # ..................................................................................................................
@@ -128,21 +134,16 @@ def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
     # ..................................................................................................................
 
     # Input
-    input_keys = [
-        f"{source}-{signal}"
-        for source, signal in (config_task["task_window_segmenter"]["input_keys"] or [])
-    ]
+    input_keys = [f"{source}-{signal}" for source, signal in (config_task["task_window_segmenter"]["input_keys"] or [])]
 
     # Actuator
     actuator_keys = [
-        f"{source}-{signal}"
-        for source, signal in (config_task["task_window_segmenter"]["actuator_keys"] or [])
+        f"{source}-{signal}" for source, signal in (config_task["task_window_segmenter"]["actuator_keys"] or [])
     ]
 
     # Output
     output_keys = [
-        f"{source}-{signal}"
-        for source, signal in (config_task["task_window_segmenter"]["output_keys"] or [])
+        f"{source}-{signal}" for source, signal in (config_task["task_window_segmenter"]["output_keys"] or [])
     ]
 
     # ..................................................................................................................
@@ -161,7 +162,7 @@ def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
         "stride_in_secs": stride_in_secs,  # Time in seconds between two consecutive windows.
         "input": {},
         "actuator": {},
-        "output": {}
+        "output": {},
     }
 
     # ..................................................................................................................
@@ -201,10 +202,10 @@ def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
             for key, val in out[role].items():
                 print(f"\nSignal: {key}")
                 if val["dt"] is not None:
-                    print(f'  dt: {val["dt"]:.5f} s')
+                    print(f"  dt: {val['dt']:.5f} s")
                 else:
                     print("  dt: None")
-                print(f'  Values shape: {val["values_shape"]}')
+                print(f"  Values shape: {val['values_shape']}")
 
     return out
 

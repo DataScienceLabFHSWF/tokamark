@@ -4,15 +4,14 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import numpy as np
-from scipy.ndimage import zoom
 from collections.abc import Mapping
 from typing import Any
 
 
 # ======================================================================================================================
-class ClipXPointTransform:
+class FillProfileWithZerosTransform:
     """
-    Transform to clip non physical x points.
+    Transform to fill profile with zeros.
 
     Attributes
     ----------
@@ -20,16 +19,14 @@ class ClipXPointTransform:
 
     Methods
     -------
+
     __call__(dict_)
         Call method for the class instances to behave like a function.
 
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __call__(
-            self,
-            dict_: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def __call__(self, dict_: Mapping[str, Any]) -> dict[str, Any]:
         """
         Call method for the class instances to behave like a function.
 
@@ -41,19 +38,24 @@ class ClipXPointTransform:
         Returns
         -------
         dict[str, Any]
-            Torch dict with "time" and "key" keys, where non physical timestamps have been replaced with nans.
+            Torch dict with "time" and "key" keys where the NaNs of profiles (i.e., when one full channel in the
+            profile is missing) are filled with zeros.
 
         """
 
         time = dict_["time"]
-        values = dict_["values"]
+        values = dict_["values"].copy()
 
-        # Replace values > 2 or < -2 with NaN
-        values = np.where((values > 2) | (values < -2), np.nan, values)
+        # Checking for indexes with NaN values
+        nan_ind = np.isnan(values)
 
-        return {
-            "time": time,
-            "values": values
-        }
+        # Excluding columns comprised of NaNs only
+        nan_cols = np.isnan(values).all(axis=0)
+        nan_ind[:, nan_cols] = False
+
+        # Replacing NaNs in profile components
+        values[nan_ind] = 0
+
+        return {"time": time, "values": values}
 
     # ------------------------------------------------------------------------------------------------------------------

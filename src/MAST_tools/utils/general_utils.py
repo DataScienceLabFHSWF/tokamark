@@ -25,13 +25,11 @@ def get_random_string(n=4):
 
     """
 
-    return ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for _ in range(n))
+    return "".join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for _ in range(n))
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def _read_parquet_data(
-        path: str
-) -> pd.DataFrame:
+def _read_parquet_data(path: str) -> pd.DataFrame:
     """
     Read MAST data from a target file path using parquet pipeline.
 

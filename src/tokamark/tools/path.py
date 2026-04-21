@@ -10,8 +10,8 @@ from pathlib import Path
 # ======================================================================================================================
 # Default directories
 
-PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent   # Dynamically find the repo root (no hardcoding!)
-PACKAGE_ROOT_DIR = Path(__file__).parent.parent                 # Dynamically find the repo root (no hardcoding!)
+PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent  # Dynamically find the repo root (no hardcoding!)
+PACKAGE_ROOT_DIR = Path(__file__).parent.parent  # Dynamically find the repo root (no hardcoding!)
 
 TASKS_CONFIGS_DIR = os.path.join(PACKAGE_ROOT_DIR, "tasks_configs")
 PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
@@ -25,7 +25,6 @@ TEMPORAL_SPLIT_TOKAMARK_DATA_SPLITS_FILE = os.path.join(PACKAGE_METADATA_DIR, "T
 
 # ======================================================================================================================
 if __name__ == "__main__":
-
     # One can print to verify when developing
 
     print()
