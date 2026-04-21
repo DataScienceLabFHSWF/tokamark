@@ -14,7 +14,6 @@ from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:src/tokamark/data.py
 def initialize_MAST_dataset(  # noqa (allow uppercase)
         config_task: Mapping[str, Any],
         shots_list: list[int],
@@ -28,21 +27,6 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         *,
         store_manager_settings: Optional[StoreManagerParametersType] = None,
         verbose: bool = False
-=======
-def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
-    config_task: Mapping[str, Any],
-    shots_list: list[int],
-    local_flag: bool = True,
-    use_std_scaling: bool = True,
-    use_nan_filling: bool = True,
-    return_incomplete_shots: bool = True,
-    remove_outliers: bool = True,
-    outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
-    remove_bad_efit_rating: bool = True,
-    *,
-    store_manager_settings: Optional[StoreManagerParametersType] = None,
-    verbose: bool = False,
->>>>>>> origin/main:src/tokamark/data.py
 ) -> MastDataset:
     """
     Initialize and return MAST dataset.

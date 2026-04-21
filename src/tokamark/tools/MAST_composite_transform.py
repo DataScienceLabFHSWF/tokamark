@@ -6,7 +6,6 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import yaml
 from typing import Union
 
-<<<<<<< HEAD:src/tokamark/tools/MAST_composite_transform.py
 from tokamark.tools.transforms.compose_transform import ComposeTransforms
 from tokamark.tools.transforms.stdscale_transform import StdScalingTransform
 from tokamark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
@@ -14,15 +13,6 @@ from tokamark.tools.transforms.fill_profile_with_zeros_imputer_transform import 
 from tokamark.tools.transforms.stft_transform import STFTTransform
 from tokamark.tools.transforms.clip_non_physical_x_point_transform import ClipXPointTransform
 from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
-=======
-from tokamark.tools.transforms.compose_transform import ComposeTransforms
-from tokamark.tools.transforms.stdscale_transform import StdScalingTransform
-from tokamark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransform
-from tokamark.tools.transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
-from tokamark.tools.transforms.stft_transform import STFTTransform
-from tokamark.tools.transforms.clip_non_physical_x_point_transform import ClipXPointTransform
-from tokamark.tools.path import DEFAULT_SIGNALS_STATS_FILE
->>>>>>> origin/main:src/tokamark/tools/MAST_composite_transform.py
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -54,12 +44,8 @@ def build_common_signal_transform_map(
 
     # ..................................................................................................................
     def maybe_std(
-<<<<<<< HEAD:src/tokamark/tools/MAST_composite_transform.py
             var: str,
             stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE
-=======
-        var: str, stats_metadata_file_path: str = DEFAULT_SIGNALS_STATS_FILE
->>>>>>> origin/main:src/tokamark/tools/MAST_composite_transform.py
     ) -> Union[list, list[StdScalingTransform]]:
         """
         Return [StdScalingTransform] if enabled, else empty list.

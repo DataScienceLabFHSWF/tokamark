@@ -13,7 +13,6 @@ from tokamark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(
-<<<<<<< HEAD:src/tokamark/data_split.py
         max_index: Optional[int] = None,
         max_index_for_train: Optional[int] = None,
         max_index_for_val: Optional[int] = None,
@@ -21,15 +20,6 @@ def get_train_test_val_shots(
         shuffle: bool = False,
         seed: int = 42,
         data_splits_file_path: str = RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
-=======
-    max_index: Optional[int] = None,
-    max_index_for_train: Optional[int] = None,
-    max_index_for_val: Optional[int] = None,
-    max_index_for_test: Optional[int] = None,
-    shuffle: bool = False,
-    seed: int = 42,
-    data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE,
->>>>>>> origin/main:src/tokamark/data_split.py
 ) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation. These lists can be subsets of the corresponding
