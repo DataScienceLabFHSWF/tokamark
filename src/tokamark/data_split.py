@@ -46,12 +46,8 @@ def get_train_test_val_shots(
         For reproducibility of the rnd sequence.
         Optional. Default: 42.
     data_splits_file_path : str
-        Pato to the data splits CSV file.
-<<<<<<< HEAD:src/tokamark/data_split.py
+        Path to the data splits CSV file.
         Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE`.
-=======
-        Optional. Default: `tokamark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE`.
->>>>>>> origin/main:src/tokamark/data_split.py
 
     Returns
     -------
