@@ -40,8 +40,8 @@ magnetics-b_field_pol_probe_omv_voltage:
   values_shape:
   - 3
   - 256
-  mean: 6.24038824418188
-  std: 979.2854478452102
+  mean: 6.240388244181881
+  std: 979.28544784521
 pf_active-coil_voltage:
   dt: 0.00025
   values_shape:
@@ -101,8 +101,8 @@ equilibrium-psi:
   values_shape:
   - 65
   - 65
-  mean: -0.02704665524975422
-  std: 0.06492865464669517
+  mean: -0.02704797707091641
+  std: 0.06492857922672353
 equilibrium-elongation:
   dt: 0.005
   values_shape:
@@ -137,7 +137,7 @@ equilibrium-lcfs_z:
   dt: 0.005
   values_shape:
   - 170
-  mean: -0.02714395851693598
+  mean: -0.027143958516935983
   std: 0.6581566034382483
 equilibrium-x_point_r:
   dt: 0.005
@@ -205,6 +205,25 @@ equilibrium-bphi_rmag:
   - 1
   mean: -0.5409963718484537
   std: 0.06639281607054208
+equilibrium-j_tor:
+  dt: 0.005
+  values_shape:
+  - 65
+  - 65
+  mean: 72771.5254928767
+  std: 201516.2919432749
+equilibrium-dpressure_dpsi:
+  dt: 0.005
+  values_shape:
+  - 65
+  mean: 78966.34344039037
+  std: 102505.5926011769
+equilibrium-f_df_dpsi:
+  dt: 0.005
+  values_shape:
+  - 65
+  mean: 0.41230639662793356
+  std: 0.4199736693144972
 spectrometer_visible-filter_spectrometer_dalpha_voltage:
   dt: 2.0e-05
   values_shape:

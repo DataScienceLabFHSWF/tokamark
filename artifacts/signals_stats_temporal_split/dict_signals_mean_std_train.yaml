@@ -23,6 +23,11 @@ equilibrium-bvac_rmag:
     no_outliers_z6: -0.4696237348725056
   std:
     no_outliers_z6: 0.05937522500299792
+equilibrium-dpressure_dpsi:
+  mean:
+    no_outliers_z6: 78966.34344039037
+  std:
+    no_outliers_z6: 102505.5926011769
 equilibrium-elongation:
   mean:
     no_outliers_z6: 1.7641077913983472
@@ -33,6 +38,16 @@ equilibrium-elongation_axis:
     no_outliers_z6: 1.4525839941635645
   std:
     no_outliers_z6: 0.19303146665510118
+equilibrium-f_df_dpsi:
+  mean:
+    no_outliers_z6: 0.41230639662793356
+  std:
+    no_outliers_z6: 0.4199736693144972
+equilibrium-j_tor:
+  mean:
+    no_outliers_z6: 72771.5254928767
+  std:
+    no_outliers_z6: 201516.2919432749
 equilibrium-lcfs_r:
   mean:
     no_outliers_z6: 0.7428310660458126
@@ -40,7 +55,7 @@ equilibrium-lcfs_r:
     no_outliers_z6: 0.37727759539997724
 equilibrium-lcfs_z:
   mean:
-    no_outliers_z6: -0.02714395851693598
+    no_outliers_z6: -0.027143958516935983
   std:
     no_outliers_z6: 0.6581566034382483
 equilibrium-magnetic_axis_r:
@@ -60,9 +75,9 @@ equilibrium-minor_radius:
     no_outliers_z6: 0.05581070177885758
 equilibrium-psi:
   mean:
-    no_outliers_z6: -0.02704665524975422
+    no_outliers_z6: -0.02704797707091641
   std:
-    no_outliers_z6: 0.06492865464669517
+    no_outliers_z6: 0.06492857922672353
 equilibrium-q95:
   mean:
     no_outliers_z6: 7.699289283928446
@@ -115,9 +130,9 @@ magnetics-b_field_pol_probe_obv_field:
     no_outliers_z6: 0.034327690782872435
 magnetics-b_field_pol_probe_omv_voltage:
   mean:
-    no_outliers_z6: 6.24038824418188
+    no_outliers_z6: 6.240388244181881
   std:
-    no_outliers_z6: 979.2854478452102
+    no_outliers_z6: 979.28544784521
 magnetics-b_field_tor_probe_cc_field:
   mean:
     no_outliers_z6: 7.789901702308906e-08

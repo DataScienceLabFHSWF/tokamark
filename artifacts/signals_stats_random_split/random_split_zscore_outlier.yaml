@@ -50,8 +50,11 @@
 - equilibrium-beta_normal
 - equilibrium-beta_pol
 - equilibrium-bphi_rmag
+- equilibrium-dpressure_dpsi
+- equilibrium-f_df_dpsi
 17404:
 - equilibrium-bphi_rmag
+- equilibrium-dpressure_dpsi
 19450:
 - soft_x_rays-horizontal_cam_upper
 19453:

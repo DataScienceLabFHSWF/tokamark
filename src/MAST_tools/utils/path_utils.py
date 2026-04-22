@@ -13,7 +13,6 @@ PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.parent  # Dynamically fin
 PACKAGE_ROOT_DIR = Path(__file__).parent.parent  # Dynamically find the repo root (no hardcoding!)
 
 PACKAGE_METADATA_DIR = os.path.join(PACKAGE_ROOT_DIR, "metadata")
-os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml")
 
 # ======================================================================================================================
 # Default file paths

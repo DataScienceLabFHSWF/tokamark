@@ -1,4 +1,4 @@
-local: false
+local: true
 
 get_shots_settings:
   max_index:      # If empty, all the available shot IDs are used.
@@ -10,7 +10,7 @@ store_manager_settings:  # To override default values in `src.MAST_tools.store_u
   base_local_zarr_path: /rds/project/rds-mOlK9qn0PlQ/fairmast/upload-tmp/level2
 
 dataloader_settings:
-  batch_size: 256
+  batch_size: 512
   num_workers: 16
 
 task_name: get_metadata
@@ -52,6 +52,9 @@ task_configuration:
       - [equilibrium, beta_normal]
       - [equilibrium, bvac_rmag]
       - [equilibrium, bphi_rmag]
+      - [equilibrium, j_tor]
+      - [equilibrium, dpressure_dpsi]
+      - [equilibrium, f_df_dpsi]
       - [spectrometer_visible, filter_spectrometer_dalpha_voltage]
       - [soft_x_rays, horizontal_cam_lower]
       - [soft_x_rays, horizontal_cam_upper]
