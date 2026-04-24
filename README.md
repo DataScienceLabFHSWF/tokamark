@@ -39,7 +39,7 @@ Dynamics](https://arxiv.org/abs/2602.15084).
 2. Use conda to set up and activate a virtual environment with basic dependencies: 
    ```bash
    conda env create -f environment_basic.yml
-   conda activate tomamark-env
+   conda activate tokamark-env
    ```
 3. Run the command for the package-like installation of the project following [PEP 518](https://peps.python.org/pep-0518/)
    requirements (which makes use of the provided `pyproject.toml` file):
@@ -49,9 +49,18 @@ Dynamics](https://arxiv.org/abs/2602.15084).
 4. **[OPTIONAL]** For experiments using a local Zarr database, download and install 
 the dataset under `/mast/tokamark/v1`. 
 
-* **REMARK:** Installation of the local dataset under a different directory is possible, but requires setting 
-variable `DEFAULT_BASE_LOCAL_ZARR_PATH` in module `./src/MAST_tools/utils/store_utils.py` with the appropriate path. 
+    * **REMARK:** Installation of the local dataset under a different directory is possible, but requires setting 
+    variable `DEFAULT_BASE_LOCAL_ZARR_PATH` in module `./src/MAST_tools/utils/store_utils.py` with the appropriate path. 
 
+
+5. **[OPTIONAL]** For contributors, install dev dependencies and enable pre-commit hooks:
+    ```bash
+    pip install -e ".[dev]"
+    pre-commit install
+    pre-commit run --all-files   # Recommended once after setup
+    ```
+
+The pre-commit configuration runs `ruff check` and `ruff format`.
 ---
 
 ## High-Level Architecture

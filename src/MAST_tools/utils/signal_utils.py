@@ -29,7 +29,7 @@ class MASTSignalManager:
     ----------
     signal_manager_id : str
         User-defined signal manager ID.
-    store_manager_settings : Optional[StoreManagerParametersType]
+    store_manager_settings : StoreManagerParametersType | None
         Settings for the store manager instance.
     store_manager : MASTStorageManager
         Instance of the MASTStorageManager class.
@@ -52,15 +52,15 @@ class MASTSignalManager:
     """
 
     # ------------------------------------------------------------------------------------------------------------------
-    def __init__(self, store_manager_settings: Optional[StoreManagerParametersType] = None) -> None:
+    def __init__(self, store_manager_settings: StoreManagerParametersType | None = None) -> None:
         """
         Initialize class attributes.
 
         Parameters
         ----------
-        store_manager_settings : Optional[StoreManagerParametersType]
+        store_manager_settings : StoreManagerParametersType | None
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
-            types as defined in `MAST_tools.utils.data_utils..StoreManagerParameters`. Only valid (keyword, value) pairs
+            types as defined in `MAST_tools.utils.data_utils.StoreManagerParameters`. Only valid (keyword, value) pairs
             are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
             Optional. Default: None, which results in the default values for all the keywords as defined in
             `MAST_tools.store_utils.MASTStorageManager.__init__`.
@@ -148,7 +148,7 @@ class MASTSignalManager:
         self,
         signal_name: str,
         data_origin: ExtendedDataSourceType,
-        source_name: Optional[str] = None,
+        source_name: str | None = None,
         verbose: bool = False,
     ) -> Union[np.ndarray, None]:
         """
@@ -160,7 +160,7 @@ class MASTSignalManager:
             Name of the target signal.
         data_origin : ExtendedDataSourceType
             Origin of data for signal value retrieval, either Mapping, ZarrStoreType, or XarrayDatasetType.
-        source_name : Optional[str]
+        source_name : str | None
             Name of target source. If `data_origin` is a Zarr store, `source_name` must be provided.
             Optional. Default: None.
         verbose : bool
@@ -189,7 +189,7 @@ class MASTSignalManager:
         self,
         signal_name: str,
         data_origin: ExtendedDataSourceType,
-        source_name: Optional[str] = None,
+        source_name: str | None = None,
         verbose: bool = False,
     ) -> Union[tuple[np.ndarray, str], tuple[None, None]]:
         """
@@ -201,7 +201,7 @@ class MASTSignalManager:
             Name of the target signal.
         data_origin : ExtendedDataSourceType
             Origin of data for signal value retrieval, either Mapping, ZarrStoreType, or XarrayDatasetType.
-        source_name : Optional[str]
+        source_name : str | None
             Name of target source. If `data_origin` is a Zarr store, `source_name` must be provided.
             Optional. Default: None.
         verbose : bool
@@ -238,9 +238,9 @@ class MASTSignalManager:
         self,
         signal_name: str,
         data_origin: ExtendedDataSourceType,
-        source_name: Optional[str] = None,
+        source_name: str | None = None,
         verbose: bool = False,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Get signal profile from a given data origin.
 
@@ -250,7 +250,7 @@ class MASTSignalManager:
             Name of the target signal.
         data_origin : ExtendedDataSourceType
             Origin of data for signal value retrieval, either Mapping, ZarrStoreType, or XarrayDatasetType.
-        source_name : Optional[str]
+        source_name : str | None
             Name of target source. If `data_origin` is a Zarr store, `source_name` must be provided.
             Optional. Default: None.
         verbose : bool
@@ -259,7 +259,7 @@ class MASTSignalManager:
 
         Returns
         -------
-        Optional[Any]
+        Any | None
             Signal profile, or None if error.
 
         """
@@ -307,7 +307,7 @@ class MASTSignalManager:
         self,
         signal_name: str,
         data_origin: ExtendedDataSourceType,
-        source_name: Optional[str] = None,
+        source_name: str | None = None,
         verbose: bool = False,
     ) -> Optional[np.ndarray]:
         """
@@ -319,7 +319,7 @@ class MASTSignalManager:
             Name of the target signal.
         data_origin : ExtendedDataSourceType
             Origin of data for signal profile retrieval, either Mapping, ZarrStoreType, or XarrayDatasetType.
-        source_name : Optional[str]
+        source_name : str | None
             Name of target source. If `data_origin` is a Zarr store, `source_name` must be provided.
             Optional. Default: None.
         verbose : bool

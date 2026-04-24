@@ -117,7 +117,7 @@ class MastDataset(Dataset):
         List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
     signal_level_transform_map : Optional[Mapping[str, Callable]]
         Map of transforms to apply at signal level.
-    shot_level_transform : Optional[Callable]
+    shot_level_transform : Callable | None
         Transform to apply at shot level.
     return_incomplete_shots : bool
         Boolean flag to allow retrieval of incomplete shots.
@@ -146,7 +146,7 @@ class MastDataset(Dataset):
         shots_list: list[int],
         source_signal_list: list[list[str]],
         signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-        shot_level_transform: Optional[Callable] = None,
+        shot_level_transform: Callable | None = None,
         return_incomplete_shots: bool = False,
         remove_outliers: bool = False,
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
@@ -168,7 +168,7 @@ class MastDataset(Dataset):
         signal_level_transform_map : Optional[Mapping[str, Callable]]
             Map of transforms to apply at signal level.
             Optional. Default: None.
-        shot_level_transform : Optional[Callable]
+        shot_level_transform : Callable | None
             Transform to apply at shot level.
             Optional. Default: None.
         return_incomplete_shots : bool
