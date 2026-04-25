@@ -10,6 +10,7 @@ from MAST_tools.MAST_dataset import MastDataset
 from tokamark.tools.TokaMark_dataset import TokaMarkDataset
 from tokamark.tools.MAST_composite_transform import build_common_signal_transform_map
 from MAST_tools.utils.data_utils import StoreManagerParametersType
+from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
 from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 
@@ -19,6 +20,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
         shots_list: list[int],
         local_flag: bool = True,
         use_std_scaling: bool = True,
+        stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE,
         use_nan_filling: bool = False,
         return_incomplete_shots: bool = True,
         remove_outliers: bool = True,
@@ -85,6 +87,7 @@ def initialize_MAST_dataset(  # noqa (allow uppercase)
     signal_transform_map = build_common_signal_transform_map(
         source_signal_list=source_signal_list,
         use_std_scaling=use_std_scaling,
+        stats_metadata_file_path=stats_metadata_file_path,
         use_nan_filling=use_nan_filling,
     )
 

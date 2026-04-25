@@ -20,6 +20,7 @@ def build_common_signal_transform_map(
     source_signal_list: list[tuple],
     use_std_scaling: bool = True,
     use_nan_filling: bool = True,
+    stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE,
 ) -> dict[str, ComposeTransforms]:
     """
     Build the signal transform map for each variable.
@@ -45,7 +46,6 @@ def build_common_signal_transform_map(
     # ..................................................................................................................
     def maybe_std(
             var: str,
-            stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE
     ) -> Union[list, list[StdScalingTransform]]:
         """
         Return [StdScalingTransform] if enabled, else empty list.
