@@ -13,6 +13,7 @@ from multiprocessing import cpu_count
 import psutil
 from datetime import datetime
 
+import torch
 from torch import ones_like
 from torch import Tensor as TorchTensor
 from torch.utils.data import DataLoader
@@ -25,6 +26,18 @@ from tokamark.tasks import get_task_config, get_task_metadata, get_signals_metad
 from tokamark.data_split import get_train_test_val_shots
 from tokamark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
 from tokamark.evaluator import WindowMetricsAccumulator, compute_metrics, compute_summary_metrics
+
+from tokamark.tools.path import (
+    RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE, 
+    RANDOM_SPLIT_SIGNALS_STATS_FILE,
+    TEMPORAL_SPLIT_TOKAMARK_DATA_SPLITS_FILE, 
+    TEMPORAL_SPLIT_SIGNALS_STATS_FILE
+    )
+
+from MAST_tools.utils.path_utils import (
+    RANDOM_SPLIT_OUTLIER_METADATA_FILE,
+    TEMPORAL_SPLIT_OUTLIER_METADATA_FILE,
+    )
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -159,11 +172,25 @@ def MAST_collate_fn(  # noqa - Ignore lowercase warning
 
     # ..............................................................................................................
 
+# ----------------------------------------------------------------------------------------------------------------------
+def forward_fill_last_dim(x):
+    # x: (..., T)
+    mask = torch.isnan(x)
+
+    # indices of valid values
+    idx = torch.where(~mask, torch.arange(x.size(-1), device=x.device), 0)
+
+    # forward-fill indices using cumulative max
+    idx = idx.cummax(dim=-1).values
+
+    # gather values using filled indices
+    return torch.gather(x, dim=-1, index=idx)
 
 # ----------------------------------------------------------------------------------------------------------------------
 def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
     test_dataloader: DataLoader,
     feature_names: list[str],
+    signal_metadata_path: str, 
     accumulator: WindowMetricsAccumulator,
     model: str = "persistence",
 ):
@@ -214,15 +241,33 @@ def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
 
         y_pred = {}
         if model.startswith("persistence"):
-            for key in x_test:
-                last = x_test[key][..., -1].unsqueeze(-1)
-                if not contains_nans(data=last):
-                    y_pred[key] = last.expand_as(other=y_test[key])
+            # for key in x_test:
+            #     last = x_test[key][..., -1].unsqueeze(-1)
+            #     if not contains_nans(data=last):
+            #         y_pred[key] = last.expand_as(other=y_test[key])
+            #     else:
+            #         print('stop')
+            signal_metadata = get_signals_metadata(file_path=signal_metadata_path)
+
+            for key, x in x_test.items():
+                x_filled = forward_fill_last_dim(x)
+
+                last = x_filled[..., -1].unsqueeze(-1)
+
+                # 🔁 fallback: replace remaining NaNs with mean
+                if torch.isnan(last).any():
+                    print('Fallback cause only nans present')
+                    mean = signal_metadata[key]["mean"]
+                    last = torch.nan_to_num(last, nan=mean)
+
+                y_pred[key] = last.expand_as(y_test[key])
+
         elif model.startswith("mean"):
-            signal_metadata = get_signals_metadata()
+            signal_metadata = get_signals_metadata(file_path=signal_metadata_path)
             for key in y_test:
                 mean = signal_metadata[key]["mean"]
                 y_pred[key] = ones_like(input=y_test[key]) * mean
+
         else:
             warning_print(f"Persistence pipeline: model {model} is not known.")
 
@@ -253,7 +298,7 @@ def persistence_evaluation_loop(  # NOSONAR - Ignore cognitive complexity
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> None:
+def run_persistence_pipeline(task: str, split: str, pipeline_config: Mapping[str, Any]) -> None:
     """
 
     Run persistence pipeline.
@@ -270,6 +315,27 @@ def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> N
     None
 
     """
+
+    # ..................................................................................................................
+    # Configure proper split
+    # ..................................................................................................................
+
+    if split == 'random':
+        print('Random splitting')
+
+        DATA_SPLIT = RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
+        OUTLIER_FILE = RANDOM_SPLIT_OUTLIER_METADATA_FILE
+        SIGNAL_STATS = RANDOM_SPLIT_SIGNALS_STATS_FILE
+
+    elif split == 'temporal':
+        print('Temporal splitting')
+
+        DATA_SPLIT = TEMPORAL_SPLIT_TOKAMARK_DATA_SPLITS_FILE
+        OUTLIER_FILE = TEMPORAL_SPLIT_OUTLIER_METADATA_FILE
+        SIGNAL_STATS = TEMPORAL_SPLIT_SIGNALS_STATS_FILE
+    
+    else:
+        raise ValueError(f"Unknown split: {split}")
 
     # ..................................................................................................................
     # Load task configuration and modify it to keep auto-regressive data
@@ -348,7 +414,8 @@ def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> N
         # Initialize MAST datasets
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        _, test_shots_, _ = get_train_test_val_shots(**pipeline_config["get_shots_settings"])
+        _, test_shots_, _ = get_train_test_val_shots(**pipeline_config["get_shots_settings"],
+                                                     data_splits_file_path = DATA_SPLIT)
         print(f"Number of test shots: {len(test_shots_)}")
 
         test_mast_dataset = initialize_MAST_dataset(
@@ -357,6 +424,8 @@ def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> N
             local_flag=pipeline_config["local"],
             use_std_scaling=False,
             return_incomplete_shots=True,
+            remove_outliers=True,
+            outlier_metadata_file=OUTLIER_FILE,
             store_manager_settings=pipeline_config["store_manager_settings"],
         )
 
@@ -381,6 +450,7 @@ def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> N
         persistence_evaluation_loop(
             test_dataloader=test_dataloader,
             feature_names=chosen_signals,
+            signal_metadata_path=SIGNAL_STATS,
             accumulator=accumulator,
             model=pipeline_config["persistence_settings"]["model"],
         )
@@ -391,7 +461,7 @@ def run_persistence_pipeline(task: str, pipeline_config: Mapping[str, Any]) -> N
 
         compute_metrics(
             task=task,
-            output_dir=pipeline_config["persistence_settings"]["output_dir"],
+            output_dir=Path(pipeline_config["persistence_settings"]["output_dir"]) / split,
             window_metrics_accumulator=accumulator,
             save_windows_metrics=pipeline_config["persistence_settings"]["save_windows_metrics"],
             save_task_metrics=pipeline_config["persistence_settings"]["save_task_metrics"],
@@ -417,6 +487,12 @@ if __name__ == "__main__":
         default="persistence",
         help="Target model for the persistence pipeline.",
     )
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="random",
+        help="Splitting used."
+    )
     parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
         "--demo_suffix", type=str, default="_DEMO", help="Suffix used in demo mode when saving results."
@@ -429,7 +505,8 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
 
     # Load Persistence YAML config
-    config_filepath = CONFIG_FILES_DIR / f"config_{args.persistence_model}_model.yaml"
+    # config_filepath = CONFIG_FILES_DIR / f"config_{args.persistence_model}_model.yaml"
+    config_filepath = f"/home/ir-rous1/rds/rds-ukaea-ap002-mOlK9qn0PlQ/ir-rous1/sparse_temporal_temp/tokamark_baseline/tokamark/scripts/config_files/config_{args.persistence_model}_model.yaml"
     config = get_config_from_yaml(file_path=config_filepath)
 
     # REMARK: Demo mode could be enforced for testing purposes by uncommenting the following line.
@@ -452,14 +529,14 @@ if __name__ == "__main__":
     # Looping over auto-regressive tasks
     # ------------------------------------------------------------------------------------------------------------------
 
-    output_dir = config["persistence_settings"]["output_dir"]
+    output_dir = Path(config["persistence_settings"]["output_dir"]) / args.split
 
     print(f"Start time: {datetime.now()}\n")
 
     for task_ in config["persistence_settings"]["ar_tasks"]:
         print("---------------------------------------------")
         print(f"Running persistence pipeline for {task_}, model `{args.persistence_model}`...\n")
-        run_persistence_pipeline(task=task_, pipeline_config=config)
+        run_persistence_pipeline(task=task_, split=args.split, pipeline_config=config)
         print(f"\nFinished `{args.persistence_model}` pipeline for {task_} [{datetime.now()}].")
         print("=========================================================\n")
 
