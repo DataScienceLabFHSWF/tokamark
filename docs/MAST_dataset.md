@@ -755,16 +755,6 @@ MastDataset(
 
 ---
 
-## Related Documentation
-
-- [Architecture Overview](../ARCHITECTURE.md) - System architecture
-- [MASTSignalManager](signal_utils.md) - Signal retrieval interface
-- [MASTStorageManager](store_utils.md) - Storage access layer
-- [Transform Pipeline](transforms.md) - Data transformation system
-- [TokaMarkDataset](TokaMark_dataset.md) - Windowed dataset wrapper
-
----
-
 ## Summary
 
 The [`MAST_dataset.py`](../src/MAST_tools/MAST_dataset.py) module provides:

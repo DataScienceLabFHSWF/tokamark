@@ -107,16 +107,16 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
 
 # ----------------------------------------------------------------------------------------------------------------------
 def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
-    dataset: Optional[MastDataset],
+    dataset: MastDataset | None,
     task_metadata: Mapping[str, Any],
     config_metadata: Mapping[str, Any],
-    custom_transform: Optional[Callable] = None,
+    custom_transform: Callable | None = None,
     test_mode: bool = False,
     shuffle_windows: bool = True,
     shuffle_buffer_size: int = 512,
     *,
     verbose: bool = False,
-) -> Optional[TokaMarkDataset]:
+) -> TokaMarkDataset | None:
     """
     #
     Wrap a single baseline shot-level dataset with TokaMarkDataset.
@@ -124,13 +124,13 @@ def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
 
     Parameters
     ----------
-    dataset : Optional[MastDataset]
+    dataset : MastDataset | None
         Baseline shot-level dataset (e.g., MastDataset) for one split, or None.
     task_metadata : Mapping[str, Any]
         Metadata dictionary produced by the baseline pipeline (dt, shapes, etc.).
     config_metadata : Mapping[str, Any]
         Task configuration dictionary containing `task_window_segmenter` (keys, lengths, delta).
-    custom_transform : Optional[Any]
+    custom_transform : Callable | None
         Optional model-specific transform chain applied per window.
     test_mode : bool
         If True, activates test mode. This forces at least one input to be full, and all outputs to be full.
@@ -146,7 +146,7 @@ def initialize_TokaMark_dataset(  # noqa - Ignore lowercase warning
 
     Returns
     -------
-    Optional[TaskModelTransformWrapper]
+    TokaMarkDataset | None
         Wrapped dataset, or None if input dataset is None.
 
     """

@@ -38,13 +38,13 @@ def get_device(prefer_mps: bool = True) -> torch.device:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_config_from_yaml(file_path: Union[LiteralString, str, bytes, Path]) -> dict[str, Any]:
+def get_config_from_yaml(file_path: LiteralString | str | bytes | Path) -> dict[str, Any]:
     """
     Get configuration dictionary from YAML file.
 
     Parameters
     ----------
-    file_path : Union[LiteralString, str, bytes]
+    file_path : LiteralString | str | bytes | Path
         Target file path.
 
     Returns

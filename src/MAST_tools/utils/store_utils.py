@@ -11,7 +11,7 @@ import fsspec
 import s3fs
 import pandas as pd
 import warnings
-from typing import Union, Optional, Any
+from typing import Union, Any
 from collections.abc import Mapping
 import logging
 from pprint import pprint
@@ -55,7 +55,7 @@ class MASTStorageManager:
         Endpoint of the cloud S3 bucket used for remote data pulling.
     s3_mast_dataset_path : str
         Path for the target MAST dataset within the configured S3 bucket.
-    base_local_zarr_path : Optional[str]
+    base_local_zarr_path : str | None
         Local root path used for local data pulling in Zarr format.
     fs_local_fsspec : fsspec.implementations.local.LocalFileSystem
         A LocalFileSystem instance.
@@ -108,7 +108,7 @@ class MASTStorageManager:
         target_fsspec_protocol: str = DEFAULT_TARGET_FSSPEC_PROTOCOL,
         s3_endpoint_url: str = DEFAULT_S3_ENDPOINT_URL,
         s3_mast_dataset_path: str = DEFAULT_S3_MAST_DATASET_PATH,
-        base_local_zarr_path: Optional[str] = DEFAULT_BASE_LOCAL_ZARR_PATH,
+        base_local_zarr_path: str | None = DEFAULT_BASE_LOCAL_ZARR_PATH,
     ) -> None:
         """
         Initialize class attributes.
@@ -140,7 +140,7 @@ class MASTStorageManager:
         s3_mast_dataset_path : str
             Path for the target MAST dataset within the configured S3 bucket.
             Default: MAST_tools.utils.store_utils.DEFAULT_S3_MAST_DATASET_PATH.
-        base_local_zarr_path : Optional[str]
+        base_local_zarr_path : str | None
             Local root path used for local data pulling in Zarr format.
             Default: MAST_tools.utils.store_utils.BASE_LOCAL_ZARR_PATH.
 
@@ -549,13 +549,13 @@ class MASTStorageManager:
         return list(availability_data.loc[composite_condition]["shot_id"])
 
     # ------------------------------------------------------------------------------------------------------------------
-    def get_all_sources(self, shot_ids: Optional[list[int]] = None, local: bool = False) -> dict[int, list]:
+    def get_all_sources(self, shot_ids: list[int] | None = None, local: bool = False) -> dict[int, list]:
         """
         Return a dictionary with all available sources per shot ID.
 
         Parameters
         ----------
-        shot_ids : Optional[list[int]]
+        shot_ids : list[int] | None
             Target shot IDs to be checked in the MAST database. If None is provided, all available shots are checked.
             Optional. Default: None.
         local : bool
@@ -587,14 +587,14 @@ class MASTStorageManager:
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_all_signals(
-        self, shot_ids: Optional[list[int]] = None, local: bool = False, verbose: bool = False
+        self, shot_ids: list[int] | None = None, local: bool = False, verbose: bool = False
     ) -> dict[int, list[str]]:
         """
         Return a dictionary with all available signals per shot ID.
 
         Parameters
         ----------
-        shot_ids : Optional[list[ints]]
+        shot_ids : list[int] | None
             Target shot IDs to be checked in the MAST database. If None is provided, all shots are checked.
             Optional. Default: None.
         local : bool
@@ -877,7 +877,7 @@ def tests() -> None:
         t0 = time.time()
         all_shots_ids = store_manager.list_all_shots(local=local)
 
-        print(f"Number of shots: {len(all_shots_ids)}")
+        print(f"Number of shots: {len(list(all_shots_ids))}")
         print(f"Shot IDs: {list(all_shots_ids)}")
         print(f"Elapsed time: {round(time.time() - t0, 2)} s\n")
 
@@ -960,7 +960,7 @@ def tests() -> None:
             required_signals=dict_target_signals, availability_data_file_path=signal_availability_file
         )
 
-        print(f"\nfiltered_ids ({len(filtered_ids)} shots):")
+        print(f"\nfiltered_ids ({len(list(filtered_ids))} shots):")
         pprint(filtered_ids)
 
     # ..................................................................................................................

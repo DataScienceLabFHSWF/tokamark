@@ -5,7 +5,7 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 
 import random
 import numpy as np
-from typing import Optional, Any, Union
+from typing import Any, Union
 from collections.abc import Callable, Mapping, Generator
 
 from torch.utils.data import IterableDataset, get_worker_info
@@ -161,7 +161,7 @@ class TokaMarkDataset(IterableDataset):
         For forecasting, `delta` should be 0, and for reconstruction, `delta` should be `-input_length`.
     stride : float
         Distance between two consecutive windows.
-    custom_transform : Optional[Callable]
+    custom_transform : Callable | None
         Custom model-specific transform chain applied per window.
     test_mode : bool
         If True, activates test mode. This forces at least one input to be full, and all outputs to be full.
@@ -197,7 +197,7 @@ class TokaMarkDataset(IterableDataset):
         base_dataset: MastDataset,
         task_metadata: Mapping[str, Any],
         config_metadata: Mapping[str, Any],
-        custom_transform: Optional[Callable] = None,
+        custom_transform: Callable | None = None,
         test_mode: bool = False,
         shuffle_windows: bool = False,
         shuffle_buffer_size: int = 512,
@@ -214,7 +214,7 @@ class TokaMarkDataset(IterableDataset):
              Dictionary with task metadata.
         config_metadata : Mapping[str, Any]
             Dictionary with configuration metadata.
-        custom_transform : Optional[Callable]
+        custom_transform : Callable | None
             Custom model-specific transform chain applied per window.
             Optional. Default: None.
         test_mode : bool
@@ -414,7 +414,7 @@ class TokaMarkDataset(IterableDataset):
         # Build windows
 
         t_cuts = np.arange(
-            start=t_cut_start,
+            t_cut_start,
             stop=t_cut_stop,
             step=self.stride,
         )
