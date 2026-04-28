@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import random
 
-from tokamark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
+from tokamark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
