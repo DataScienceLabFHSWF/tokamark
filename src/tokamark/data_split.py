@@ -6,20 +6,19 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 import os
 import pandas as pd
 import random
-from typing import Optional
 
-from tokamark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
+from tokamark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_train_test_val_shots(
-        max_index: Optional[int] = None,
-        max_index_for_train: Optional[int] = None,
-        max_index_for_val: Optional[int] = None,
-        max_index_for_test: Optional[int] = None,
-        shuffle: bool = False,
-        seed: int = 42,
-        data_splits_file_path: str = RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
+    max_index: int | None = None,
+    max_index_for_train: int | None = None,
+    max_index_for_val: int | None = None,
+    max_index_for_test: int | None = None,
+    shuffle: bool = False,
+    seed: int = 42,
+    data_splits_file_path: str = RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE,
 ) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation. These lists can be subsets of the corresponding
@@ -27,16 +26,16 @@ def get_train_test_val_shots(
 
     Parameters
     ----------
-    max_index : Optional[int]
+    max_index : int | None
         If not None, all lists will have the same length given by max_index.
         Optional. Default: None.
-    max_index_for_train : Optional[int]
+    max_index_for_train : int | None
         Number of shot IDs for the training set. Overrides max_index.
         Optional. Default: None.
-    max_index_for_val : Optional[int]
+    max_index_for_val : int | None
         Number of shot IDs for the validation set. Overrides max_index.
         Optional. Default: None.
-    max_index_for_test : Optional[int]
+    max_index_for_test : int | None
         Number of shot IDs for the testing set. Overrides max_index.
         Optional. Default: None.
     shuffle : bool
