@@ -180,8 +180,7 @@ class MastDataset(Dataset):
             Optional. Default: False.
         outlier_metadata_file : str
             Source file for outlier metadata, only used when `remove_outliers` is True.
-            Optional: Default: RANDOM_SPLIT_OUTLIER_METADATA_FILE
-            , as defined in `MAST_tools.utils.path_utils.py`
+            Optional: Default: `MAST_tools.utils.path_utils.RANDOM_SPLIT_OUTLIER_METADATA_FILE`.
         store_manager_settings : Optional[StoreManagerParametersType]
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
             types as defined in `MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)

@@ -15,24 +15,13 @@ import torch.multiprocessing as mp
 from MAST_tools.utils.general_utils import warning_print
 from tokamark.data import initialize_MAST_dataset
 from tokamark.data_split import get_train_test_val_shots
+from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE, TEMPORAL_SPLIT_SIGNALS_STATS_FILE
 
-from preproc_paths import OUTPUT_DIR
-
-# ----------------------------------------------------------------------------------------------------------------------
-splitting_mode = 'random'
-# splitting_mode = 'temporal'
-
-if splitting_mode == 'random':
-    from preproc_paths import RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
-    from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
-    IN_SIGNALS_STATS_TRAIN_FILE = RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
-    OUT_SIGNALS_STATS_FILE = RANDOM_SPLIT_SIGNALS_STATS_FILE
-    
-if splitting_mode == 'temporal':
-    from preproc_paths import TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
-    from tokamark.tools.path import TEMPORAL_SPLIT_SIGNALS_STATS_FILE
-    IN_SIGNALS_STATS_TRAIN_FILE = TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
-    OUT_SIGNALS_STATS_FILE = TEMPORAL_SPLIT_SIGNALS_STATS_FILE
+from preproc_paths import (
+    OUTPUT_DIR,
+    RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE,
+    TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE,
+)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -82,16 +71,19 @@ if __name__ == "__main__":
         help="Path to the YAML file with configuration to get metadata.",
     )
     parser.add_argument(
+        "--splitting_mode", type=str, choices=["random", "temporal"], default="random", help="Splitting mode."
+    )
+    parser.add_argument(
         "--signals_mean_std_train_file_path",
         type=str,
-        default=IN_SIGNALS_STATS_TRAIN_FILE,
-        help="Path to the `dict_signals_mean_std_train.yaml` file."
+        required=False,
+        help="User-defined path to the `dict_signals_mean_std_train.yaml` file.",
     )
     parser.add_argument(
         "--signals_stats_saving_file_path",
         type=str,
-        default=OUT_SIGNALS_STATS_FILE,
-        help="Path to the YAML file where signals statistics will be saved."
+        required=False,
+        help="User-defined path to the YAML file where signals statistics will be saved.",
     )
     parser.add_argument("--demo_mode", action="store_true", help="Activate demo mode.")
     parser.add_argument(
@@ -103,6 +95,19 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # Experiment configuration
     # ------------------------------------------------------------------------------------------------------------------
+
+    # Split-dependent configurations
+    if args.splitting_mode == "random":
+        if args.signals_mean_std_train_file_path is None:
+            args.signals_mean_std_train_file_path = RANDOM_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
+        if args.signals_stats_saving_file_path is None:
+            args.signals_stats_saving_file_path = RANDOM_SPLIT_SIGNALS_STATS_FILE
+
+    elif args.splitting_mode == "temporal":
+        if args.signals_mean_std_train_file_path is None:
+            args.signals_mean_std_train_file_path = TEMPORAL_SPLIT_SIGNALS_MEAN_STD_TRAIN_FILE
+        if args.signals_stats_saving_file_path is None:
+            args.signals_stats_saving_file_path = TEMPORAL_SPLIT_SIGNALS_STATS_FILE
 
     # Load Task YAML config
     with open(args.config_file_path, "r") as f:
@@ -182,7 +187,7 @@ if __name__ == "__main__":
             dt = round(np.median(np.diff(time)), 6)
 
             dict_metadata[var] = {
-                "dt": dt,  # <- Time granularity.
+                "dt": dt,  # <- Time granularity
                 "values_shape": values.shape[:-1],  # <- Exclude time dimension
                 "mean": dict_mean_std[var]["mean"]["no_outliers_z6"],
                 "std": dict_mean_std[var]["std"]["no_outliers_z6"],

@@ -20,13 +20,11 @@ from tokamark.data_split import get_train_test_val_shots
 from tokamark.tasks import get_task_metadata, get_task_config
 from tokamark.data import initialize_MAST_dataset, initialize_TokaMark_dataset
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 
 CONFIG_FILES_DIR = Path("./config_files")
 BASE_CONFIG_TEST_PIPELINE_FILE = CONFIG_FILES_DIR / "config_test_pipeline.yaml"
 BASE_CONFIG_TEST_TASK_FILE = CONFIG_FILES_DIR / "config_test_task.yaml"
-
 
 # ------------------------------------------------------------------------------------------------------------------
 # Preliminaries
@@ -34,6 +32,8 @@ BASE_CONFIG_TEST_TASK_FILE = CONFIG_FILES_DIR / "config_test_task.yaml"
 start = time.perf_counter()
 
 device = get_device()
+
+
 # print(f"Using device: {device}\n")
 
 

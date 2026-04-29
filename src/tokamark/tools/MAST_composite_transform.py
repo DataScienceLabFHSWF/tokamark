@@ -35,6 +35,9 @@ def build_common_signal_transform_map(
     use_nan_filling: bool
         If True, use NaN filling.
         Optional. Default: True.
+    stats_metadata_file_path : str
+        Target path to the dict_stats_metadata YAML file.
+        Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_SIGNALS_STATS_FILE`.
 
     Returns
     -------
@@ -45,7 +48,7 @@ def build_common_signal_transform_map(
 
     # ..................................................................................................................
     def maybe_std(
-            var: str,
+        var: str,
     ) -> Union[list, list[StdScalingTransform]]:
         """
         Return [StdScalingTransform] if enabled, else empty list.
@@ -54,9 +57,6 @@ def build_common_signal_transform_map(
         ----------
         var : str
             Input variable.
-        stats_metadata_file_path : str
-            Target path to the dict_stats_metadata YAML file.
-            Optional. Default: RANDOM_SPLIT_SIGNALS_STATS_FILE.
 
         Returns
         -------

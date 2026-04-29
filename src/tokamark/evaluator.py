@@ -40,7 +40,6 @@ from torch import Tensor as TorchTensor
 
 from tokamark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 
 ID_COLUMNS = ["shot_id", "window_index", "feature_name"]
@@ -99,7 +98,7 @@ def compute_windows_metrics(
     # Errors (ignore NaNs in calculations)
     diff = y_target - y_pred
 
-    rmse_per_sample = np.sqrt(np.nanmean(diff ** 2, axis=1))
+    rmse_per_sample = np.sqrt(np.nanmean(diff**2, axis=1))
     mae_per_sample = np.nanmean(np.abs(diff), axis=1)
 
     # NaN percentage per sample
@@ -114,7 +113,7 @@ def compute_windows_metrics(
             "feature_name": np.asarray([feature_name] * len(rmse_per_sample), dtype=object),
             "RMSE": np.asarray(rmse_per_sample, dtype=float),
             "MAE": np.asarray(mae_per_sample, dtype=float),
-            "nan_fraction": np.asarray(nan_pct_per_sample, dtype=float)
+            "nan_fraction": np.asarray(nan_pct_per_sample, dtype=float),
         }
     )
 
