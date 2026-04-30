@@ -215,7 +215,6 @@ def run_persistence_pipeline(
        shots_list=test_shots,
        local_flag=pipeline_config["local"],
        use_std_scaling=True,
-       return_incomplete_shots=True
    )
    ```
 

@@ -104,9 +104,6 @@ class MastDataset(Dataset):
     """
     Dataset class for MAST data.
 
-    If `return_incomplete_shot` is True, `__getitem__` returns shots/windows even when some variables are missing
-    (time/values is `None`). This lets downstream windowing mark missing inputs per-sample with None.
-
     Attributes
     ----------
     local : bool
@@ -119,8 +116,6 @@ class MastDataset(Dataset):
         Map of transforms to apply at signal level.
     shot_level_transform : Callable | None
         Transform to apply at shot level.
-    return_incomplete_shots : bool
-        Boolean flag to allow retrieval of incomplete shots.
     sig : signal_utils.MASTSignalManager
         Instance of `signal_utils.MASTSignalManager`.
     verbose : bool
@@ -147,7 +142,6 @@ class MastDataset(Dataset):
         source_signal_list: list[list[str]],
         signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
         shot_level_transform: Callable | None = None,
-        return_incomplete_shots: bool = False,
         remove_outliers: bool = False,
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = False,
@@ -171,10 +165,6 @@ class MastDataset(Dataset):
         shot_level_transform : Callable | None
             Transform to apply at shot level.
             Optional. Default: None.
-        return_incomplete_shots : bool
-            If True, DO NOT drop shots with missing variables, and pass them through so that the windowing transform can
-            insert None for missing inputs per window.
-            Optional. Default: False.
         remove_outliers : bool
             If True, outliers are removed using information from the `outlier_metadata_file`.
             Optional. Default: False.
@@ -205,7 +195,6 @@ class MastDataset(Dataset):
         self.source_signal_list = source_signal_list
         self.signal_level_transform_map = signal_level_transform_map
         self.shot_level_transform = shot_level_transform
-        self.return_incomplete_shots = return_incomplete_shots
         self.remove_outliers = remove_outliers
         if self.remove_outliers:
             with open(outlier_metadata_file, "r") as f:
@@ -351,17 +340,9 @@ class MastDataset(Dataset):
 
         # Apply shot-level transforms to obtain a list of training objects (windows)
         if self.shot_level_transform:
-            if self.return_incomplete_shots:
-                # Pass through even if some variables are missing
-                item = self.shot_level_transform(shot)
-                return item if isinstance(item, list) else [item]
-            else:
-                # Legacy behavior: drop shots with any missing variable
-                if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
-                    item = self.shot_level_transform(shot)  # NOSONAR - Ignore merge advice
-                    return item if isinstance(item, list) else [item]
-                else:
-                    return []
+            # Pass through even if some variables are missing
+            item = self.shot_level_transform(shot)
+            return item if isinstance(item, list) else [item]
         else:
             # No shot-level transform → return the raw shot dict (may include None fields)
             return shot

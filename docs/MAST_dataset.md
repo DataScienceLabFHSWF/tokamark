@@ -107,7 +107,6 @@ class MastDataset(Dataset):
 | `source_signal_list` | `list[list[str]]` | Signals to load as `[[source, signal], ...]` |
 | `signal_level_transform_map` | `Optional[Mapping[str, Callable]]` | Per-signal transforms (e.g., standardization) |
 | `shot_level_transform` | `Optional[Callable]` | Transform applied to entire shot (e.g., windowing) |
-| `return_incomplete_shots` | `bool` | If `True`, return shots with missing signals |
 | `remove_outliers` | `bool` | If `True`, filter outlier signals |
 | `sig` | `MASTSignalManager` | Signal retrieval interface |
 | `verbose` | `bool` | Enable detailed logging |
@@ -122,7 +121,6 @@ def __init__(
     source_signal_list: list[list[str]],
     signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
     shot_level_transform: Optional[Callable] = None,
-    return_incomplete_shots: bool = False,
     remove_outliers: bool = False,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
     store_manager_settings: Optional[StoreManagerParametersType] = None,
@@ -149,10 +147,6 @@ def __init__(
 - **`shot_level_transform`**: Function applied to entire shot dictionary
   - Typically used for windowing or chunking
   - Can return single dict or list of dicts
-  
-- **`return_incomplete_shots`**: Controls handling of missing data
-  - `True`: Return shots even with missing signals (as empty arrays)
-  - `False`: Drop shots with any missing signals
   
 - **`remove_outliers`**: Enable outlier filtering
   - Uses metadata from `outlier_metadata_file`
@@ -262,17 +256,12 @@ for source in source_signals:
 4. **Shot-Level Transform** (lines 346-360):
 ```python
 if self.shot_level_transform:
-    if self.return_incomplete_shots:
-        # Pass through even with missing variables
-        item = self.shot_level_transform(shot)
-        return item if isinstance(item, list) else [item]
-    else:
-        # Drop shots with any missing variable
-        if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
-            item = self.shot_level_transform(shot)
-            return item if isinstance(item, list) else [item]
-        else:
-            return []  # Empty list for incomplete shots
+    # Pass through even if some variables are missing
+    item = self.shot_level_transform(shot)
+    return item if isinstance(item, list) else [item]
+else:
+    # No shot-level transform → return the raw shot dict (may include None fields)
+    return shot
 ```
 
 #### `get_shot_id(idx: int) -> int`
@@ -490,7 +479,6 @@ dataset = MastDataset(
         ["summary", "power_nbi"],
         ["thomson_scattering", "n_e"]
     ],
-    return_incomplete_shots=True,  # Don't drop incomplete shots
     remove_outliers=True           # Filter known outliers
 )
 
@@ -628,7 +616,6 @@ mast_dataset = initialize_MAST_dataset(
     shots_list=train_shots,
     local_flag=True,
     use_std_scaling=True,
-    return_incomplete_shots=True,
     remove_outliers=True
 )
 
@@ -690,7 +677,6 @@ dummy_dataset.__getitem__(0):
 **Solutions:**
 - Check that `shots_list` contains valid shot IDs
 - Verify signals exist in storage using `MASTStorageManager.list_shots_by_signal_availability()`
-- Set `return_incomplete_shots=True` to see which signals are missing
 - Check `verbose=True` for detailed loading information
 
 ### Issue 2: Slow Loading
@@ -741,7 +727,6 @@ MastDataset(
     source_signal_list: list[list[str]],
     signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
     shot_level_transform: Optional[Callable] = None,
-    return_incomplete_shots: bool = False,
     remove_outliers: bool = False,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
     store_manager_settings: Optional[StoreManagerParametersType] = None,

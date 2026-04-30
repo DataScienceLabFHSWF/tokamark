@@ -20,7 +20,6 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     local_flag: bool = True,
     use_std_scaling: bool = True,
     use_nan_filling: bool = True,
-    return_incomplete_shots: bool = True,
     remove_outliers: bool = True,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
     remove_bad_efit_rating: bool = True,
@@ -45,9 +44,6 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
         Optional. Default: True.
     use_std_scaling : bool
         If True, standard scaling is used.
-        Optional. Default: True.
-    return_incomplete_shots : bool
-        If True, incomplete shots are allowed.
         Optional. Default: True.
     remove_outliers : bool
         If True, outliers are removed.
@@ -94,7 +90,6 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
         shot_level_transform=None,
-        return_incomplete_shots=return_incomplete_shots,
         remove_outliers=remove_outliers,
         outlier_metadata_file=outlier_metadata_file,
         remove_bad_efit_rating=remove_bad_efit_rating,
