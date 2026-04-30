@@ -130,7 +130,6 @@ if __name__ == "__main__":
         shots_list=train_shots_,
         local_flag=config["local"],
         use_std_scaling=False,  # <- To get an unstandardized dataset
-        return_incomplete_shots=True,  # <- To include all available shots
         remove_outliers=True,  # <- To mitigate effect of outliers in the calculation of signal statistics
         store_manager_settings=config["store_manager_settings"],
     )

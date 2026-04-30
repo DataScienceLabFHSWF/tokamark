@@ -632,7 +632,6 @@ compute_summary_metrics(
 ## Error Handling
 
 ### Data Quality
-- **Incomplete Shots**: Optional handling via `return_incomplete_shots`
 - **Outlier Detection**: Configurable outlier removal
 - **NaN Handling**: Checks for missing values in windows
 - **Signal Availability**: Pre-filtering based on signal presence
