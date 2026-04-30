@@ -106,7 +106,6 @@ class MastDataset(Dataset):
 | `shots_list` | `list[int]` | List of shot IDs to load |
 | `source_signal_list` | `list[list[str]]` | Signals to load as `[[source, signal], ...]` |
 | `signal_level_transform_map` | `Optional[Mapping[str, Callable]]` | Per-signal transforms (e.g., standardization) |
-| `shot_level_transform` | `Optional[Callable]` | Transform applied to entire shot (e.g., windowing) |
 | `remove_outliers` | `bool` | If `True`, filter outlier signals |
 | `sig` | `MASTSignalManager` | Signal retrieval interface |
 | `verbose` | `bool` | Enable detailed logging |
@@ -120,7 +119,6 @@ def __init__(
     shots_list: list[int],
     source_signal_list: list[list[str]],
     signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-    shot_level_transform: Optional[Callable] = None,
     remove_outliers: bool = False,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
     store_manager_settings: Optional[StoreManagerParametersType] = None,
@@ -143,10 +141,6 @@ def __init__(
 - **`signal_level_transform_map`**: Dictionary mapping signal names to transform functions
   - Keys: `"source-signal"` format
   - Values: Callable transforms (e.g., `StdScalingTransform`)
-  
-- **`shot_level_transform`**: Function applied to entire shot dictionary
-  - Typically used for windowing or chunking
-  - Can return single dict or list of dicts
   
 - **`remove_outliers`**: Enable outlier filtering
   - Uses metadata from `outlier_metadata_file`
@@ -207,11 +201,8 @@ sequenceDiagram
         end
     end
     
-    alt Has shot_level_transform
-        MD->>MD: Apply shot_level_transform
-        MD-->>User: List of windows
-    else No transform
-        MD-->>User: Raw shot dict
+    MD-->>User: Raw shot dict
+    
     end
 ```
 
@@ -251,17 +242,6 @@ for source in source_signals:
             shot[f"{source}-{signal}"] = self.signal_level_transform_map[f"{source}-{signal}"](
                 {"time": shot_time, "values": shot_vals}
             )
-```
-
-4. **Shot-Level Transform** (lines 346-360):
-```python
-if self.shot_level_transform:
-    # Pass through even if some variables are missing
-    item = self.shot_level_transform(shot)
-    return item if isinstance(item, list) else [item]
-else:
-    # No shot-level transform → return the raw shot dict (may include None fields)
-    return shot
 ```
 
 #### `get_shot_id(idx: int) -> int`
@@ -402,7 +382,6 @@ dataset = MastDataset(
         ["magnetics", "b_field_pol_probe_obr_field"]
     ],
     signal_level_transform_map=None,
-    shot_level_transform=None
 )
 
 # Access shot data
@@ -433,7 +412,6 @@ dataset = MastDataset(
         ["magnetics", "b_field_pol_probe_obr_field"]
     ],
     signal_level_transform_map=transform_map,
-    shot_level_transform=windowing_transform
 )
 
 # Returns list of windows
@@ -726,7 +704,6 @@ MastDataset(
     shots_list: list[int],
     source_signal_list: list[list[str]],
     signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-    shot_level_transform: Optional[Callable] = None,
     remove_outliers: bool = False,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
     store_manager_settings: Optional[StoreManagerParametersType] = None,

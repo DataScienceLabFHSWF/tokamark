@@ -303,7 +303,6 @@ if __name__ == "__main__":
         local_flag=config["local"],
         use_std_scaling=False,  # <- To get unstandardized dataset
         use_nan_filling=False,
-        return_incomplete_shots=True,  # <- To include all available shots
         remove_outliers=True,  # <- To remove manually found outliers
         outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
         remove_bad_efit_rating=True,

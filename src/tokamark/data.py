@@ -89,7 +89,6 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
         shots_list=shots_list,
         source_signal_list=source_signal_list,
         signal_level_transform_map=signal_transform_map,
-        shot_level_transform=None,
         remove_outliers=remove_outliers,
         outlier_metadata_file=outlier_metadata_file,
         remove_bad_efit_rating=remove_bad_efit_rating,

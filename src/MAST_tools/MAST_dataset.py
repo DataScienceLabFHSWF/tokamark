@@ -114,8 +114,6 @@ class MastDataset(Dataset):
         List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
     signal_level_transform_map : Optional[Mapping[str, Callable]]
         Map of transforms to apply at signal level.
-    shot_level_transform : Callable | None
-        Transform to apply at shot level.
     sig : signal_utils.MASTSignalManager
         Instance of `signal_utils.MASTSignalManager`.
     verbose : bool
@@ -141,7 +139,6 @@ class MastDataset(Dataset):
         shots_list: list[int],
         source_signal_list: list[list[str]],
         signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-        shot_level_transform: Callable | None = None,
         remove_outliers: bool = False,
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = False,
@@ -161,9 +158,6 @@ class MastDataset(Dataset):
             List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
         signal_level_transform_map : Optional[Mapping[str, Callable]]
             Map of transforms to apply at signal level.
-            Optional. Default: None.
-        shot_level_transform : Callable | None
-            Transform to apply at shot level.
             Optional. Default: None.
         remove_outliers : bool
             If True, outliers are removed using information from the `outlier_metadata_file`.
@@ -194,7 +188,6 @@ class MastDataset(Dataset):
         self.shots_list = shots_list
         self.source_signal_list = source_signal_list
         self.signal_level_transform_map = signal_level_transform_map
-        self.shot_level_transform = shot_level_transform
         self.remove_outliers = remove_outliers
         if self.remove_outliers:
             with open(outlier_metadata_file, "r") as f:
@@ -338,14 +331,7 @@ class MastDataset(Dataset):
                     # Keep missing signals as {"time": np.array([]), "values": np.array([])}
                     shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
 
-        # Apply shot-level transforms to obtain a list of training objects (windows)
-        if self.shot_level_transform:
-            # Pass through even if some variables are missing
-            item = self.shot_level_transform(shot)
-            return item if isinstance(item, list) else [item]
-        else:
-            # No shot-level transform → return the raw shot dict (may include None fields)
-            return shot
+        return shot
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_shot_id(self, idx: int) -> int:
@@ -419,8 +405,6 @@ def tests() -> None:
             ["magnetics", "b_field_pol_probe_omv_voltage"],
             ["magnetics", "b_field_tor_probe_omaha_channel"],
         ],
-        signal_level_transform_map=None,
-        shot_level_transform=None,
     )
 
     print(f"\ndummy_dataset.__len__: {dummy_dataset.__len__()}")
