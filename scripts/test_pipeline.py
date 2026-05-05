@@ -260,7 +260,7 @@ if __name__ == "__main__":
     )
 
     train_dataloader = DataLoader(
-        dataset=train_model_dataset,
+        dataset=train_model_dataset,  # noqa - Ignore expected type warning
         collate_fn=model_collate_fn,
         # drop_last=True,
         **pipeline_config["dataloader_settings"],

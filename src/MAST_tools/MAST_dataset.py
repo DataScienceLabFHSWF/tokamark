@@ -7,7 +7,7 @@ import time
 import yaml
 import numpy as np
 from pprint import pprint
-from typing import Union, Optional, Sequence, Any
+from typing import Optional, Sequence, Any
 from collections.abc import Callable, Mapping
 from torch.utils.data import Dataset
 
@@ -110,7 +110,7 @@ class MastDataset(Dataset):
         Boolean flag to activate local mode. If True, use local MAST database, otherwise use remote S3 bucket.
     shots_list : list[int]
         List of shot IDs.
-    source_signal_list : list[list[str]]
+    source_signal_list : list[list[str] | tuple[str]]
         List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
     signal_level_transform_map : Optional[Mapping[str, Callable]]
         Map of transforms to apply at signal level.
@@ -137,12 +137,12 @@ class MastDataset(Dataset):
         self,
         local: bool,
         shots_list: list[int],
-        source_signal_list: list[list[str]],
+        source_signal_list: list[list[str] | tuple[str]],
         signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
         remove_outliers: bool = False,
         outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = False,
-        store_manager_settings: Optional[StoreManagerParametersType] = None,
+        store_manager_settings: StoreManagerParametersType | None = None,
         verbose: bool = False,
     ) -> None:
         """
@@ -154,7 +154,7 @@ class MastDataset(Dataset):
             If True, use local MAST database, otherwise use remote S3 bucket.
         shots_list : list[int]
             List of shot IDs to load data for.
-        source_signal_list : list[list[str]]
+        source_signal_list : list[list[str] | tuple[str]]
             List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
         signal_level_transform_map : Optional[Mapping[str, Callable]]
             Map of transforms to apply at signal level.
@@ -165,7 +165,7 @@ class MastDataset(Dataset):
         outlier_metadata_file : str
             Source file for outlier metadata, only used when `remove_outliers` is True.
             Optional: Default: DEFAULT_OUTLIER_METADATA_FILE, as defined in `MAST_tools.utils.path_utils.py`
-        store_manager_settings : Optional[StoreManagerParametersType]
+        store_manager_settings : StoreManagerParametersType | None
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
             types as defined in `MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)
             pairs are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
@@ -217,7 +217,7 @@ class MastDataset(Dataset):
     # ------------------------------------------------------------------------------------------------------------------
     def __getitem__(  # NOSONAR - Ignore cognitive complexity
         self, idx: int
-    ) -> Union[list, dict]:
+    ) -> dict:
         """
         Return samples by shot index.
 
@@ -228,8 +228,8 @@ class MastDataset(Dataset):
 
         Returns
         -------
-        Union[list, dict]
-            Either a list of chunks, or a given the raw shot dict.
+        dict
+            Dictionary containing a raw shot.
 
         """
 
@@ -262,8 +262,8 @@ class MastDataset(Dataset):
             else:
                 source_signals[source] = [signal]
 
-        # Iterate over each source to get source store
-        # and then over each signal in source group
+        # First, iterate over each source to get source store.
+        # Then, iterate over each signal in source group.
         for source in source_signals:
             source_store = self.sig.get_source_profiles(data_origin=store, source_name=source)
 
@@ -271,7 +271,7 @@ class MastDataset(Dataset):
             mask_efit_rating = None
             if (source_store is not None) and (source == "equilibrium") and self.remove_bad_efit_rating:
                 if "ip_rating" in list(source_store.data_vars):
-                    mask_efit_rating = (
+                    mask_efit_rating = (  # noqa - Ignore attribute warning
                         self.sig.get_signal_profile(
                             data_origin=source_store, signal_name="ip_rating", verbose=self.verbose
                         )
@@ -303,16 +303,17 @@ class MastDataset(Dataset):
                             shot_time = None
 
                         try:
+                            signal_profile_vals = signal_profile.values  # noqa - Ignore missing attribute warning
                             shot_vals = (
-                                np.expand_dims(signal_profile.values, axis=0)
-                                if signal_profile.values.ndim == 1
-                                else signal_profile.values
+                                np.expand_dims(signal_profile_vals, axis=0)
+                                if signal_profile_vals.ndim == 1
+                                else signal_profile_vals
                             )
 
                             if mask_efit_rating is not None:
                                 # Expand mask to match shot_vals dimensions
-                                expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)
-                                mask_expanded = mask_efit_rating.reshape(expand_shape)
+                                expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)  # noqa
+                                mask_expanded = mask_efit_rating.reshape(expand_shape)  # noqa - Ignore missing att
                                 # Apply mask
                                 shot_vals = np.where(mask_expanded, np.nan, shot_vals)
 
@@ -377,7 +378,7 @@ class MastDataset(Dataset):
         if isinstance(obj, list):
             return obj
         else:
-            # If here, 'obj' is the entire shot with no shot-level transform → treat as a single-window shot.
+            # If here, 'obj' is the entire shot → treat as a single-window shot.
             return [obj]
 
 

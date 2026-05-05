@@ -7,7 +7,7 @@ import yaml
 from pathlib import Path
 from filelock import FileLock
 import pandas as pd
-from typing import Any, Union, LiteralString
+from typing import Any, Union
 
 import torch
 
@@ -38,13 +38,13 @@ def get_device(prefer_mps: bool = True) -> torch.device:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_config_from_yaml(file_path: LiteralString | str | bytes | Path) -> dict[str, Any]:
+def get_config_from_yaml(file_path: str | Path) -> dict[str, Any]:
     """
     Get configuration dictionary from YAML file.
 
     Parameters
     ----------
-    file_path : LiteralString | str | bytes | Path
+    file_path : str | Path
         Target file path.
 
     Returns
@@ -60,7 +60,7 @@ def get_config_from_yaml(file_path: LiteralString | str | bytes | Path) -> dict[
     """
 
     # Load YAML config
-    with open(file_path, "r") as f:
+    with open(file_path, "r") as f:  # noqa - Ignore unexpected type
         config = yaml.safe_load(f)
 
     if not isinstance(config, dict):

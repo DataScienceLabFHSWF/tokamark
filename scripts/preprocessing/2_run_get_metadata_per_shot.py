@@ -303,7 +303,7 @@ if __name__ == "__main__":
         local_flag=config["local"],
         use_std_scaling=False,  # <- To get unstandardized dataset
         use_nan_filling=False,
-        remove_outliers=True,  # <- To remove manually found outliers
+        remove_outliers=True,  # <- To remove found outliers
         outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
         remove_bad_efit_rating=True,
         store_manager_settings=config["store_manager_settings"],

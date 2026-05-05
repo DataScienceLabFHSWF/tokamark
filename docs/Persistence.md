@@ -107,7 +107,7 @@ class PersistenceTransform:
 **Location**: Lines 116-173 in `scripts/persistence.py`
 
 ```python
-def MAST_collate_fn(batch: Sequence, verbose: bool = True) -> list[Any]:
+def MAST_collate_fn(batch: Sequence, verbose: bool = True) -> list | None:
     """
     Collate function that flattens batch and provides memory diagnostics.
     

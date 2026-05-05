@@ -68,6 +68,8 @@ class MASTStorageManager:
 
     Methods
     -------
+    _validate_base_local_zarr_path()
+        Check if local path for Zarr database is set, raising SystemError if not.
     _check_local_zarr_database()
         Run access checks for a potential local Zarr database.
     _is_digit(item)
@@ -169,6 +171,14 @@ class MASTStorageManager:
         self.store_manager_id = f"store_manager_{get_random_string(4)}"
 
     # ------------------------------------------------------------------------------------------------------------------
+    def _validate_base_local_zarr_path(self):
+        """Check if local path for Zarr database is set, raising SystemError if not."""
+        if self.base_local_zarr_path is None:
+            raise SystemError(
+                "No path for local Zarr database was set during the creation of the MASTStorageManager instance."
+            )
+
+    # ------------------------------------------------------------------------------------------------------------------
     def _check_local_zarr_database(self):
         """Run access checks for a potential local Zarr database."""
 
@@ -251,15 +261,22 @@ class MASTStorageManager:
         ZarrFSStoreType
             Instance of Zarr store.
 
+        Raises
+        ------
+        TypeError
+            If `data_origin` is not of type `BaseDataSourceType`.
+
         """
 
         self.check_data_origin(data_origin=data_origin)
         if isinstance(data_origin, dict):
             # data_origin is a dict with shot info
-            return self.make_shot_store(shot_info=data_origin)
-        else:
+            return self.make_shot_store(shot_info=data_origin)  # noqa - Ignore expected type warning
+        elif isinstance(data_origin, ZarrFSStoreType):
             # data_origin is a Zarr store
             return data_origin
+        else:
+            raise TypeError("Invalid type for `data_origin`: it must be of type BaseDataSourceType.")
 
     # ------------------------------------------------------------------------------------------------------------------
     def _parse_shot_info_dict(
@@ -464,7 +481,7 @@ class MASTStorageManager:
     def list_all_shots(
         self,
         local: bool = False,
-    ) -> list:
+    ) -> list[int]:
         """
         Get a list of available MAST shot IDs.
 
@@ -477,14 +494,15 @@ class MASTStorageManager:
 
         Returns
         -------
-        list
-            List of all available sources in the dataset.
+        list[int]
+            List of all available shots IDs in the dataset.
 
         """
 
         # FSSpec pipeline
         if local:
-            all_filenames = self._read_fsspec_listdir(path=self.base_local_zarr_path, local=True)
+            self._validate_base_local_zarr_path()
+            all_filenames = self._read_fsspec_listdir(path=str(self.base_local_zarr_path), local=True)
         else:
             all_filenames = [
                 item["Key"] for item in self._read_fsspec_listdir(path=self.s3_mast_dataset_path, local=False)
@@ -534,7 +552,7 @@ class MASTStorageManager:
             raise ValueError("Empty `required_signals` was provided.")
 
         try:
-            availability_data = pd.read_csv(availability_data_file_path)
+            availability_data = pd.read_csv(availability_data_file_path)  # noqa - Ignore missing parameter(s) warning
         except FileNotFoundError:
             raise FileNotFoundError(f"Invalid `availability_data_file_path` '{availability_data_file_path}'.")
 
@@ -546,7 +564,7 @@ class MASTStorageManager:
         for signal in source_signals_to_have[1:]:
             composite_condition &= availability_data[signal] == True  # noqa - "is" comparison misbehaves
 
-        return list(availability_data.loc[composite_condition]["shot_id"])
+        return list(availability_data.loc[composite_condition]["shot_id"])  # noqa - Ignore missing attribute warning
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_all_sources(self, shot_ids: list[int] | None = None, local: bool = False) -> dict[int, list]:
@@ -661,13 +679,12 @@ class MASTStorageManager:
 
         parsed_shot_info = self._parse_shot_info_dict(shot_info=shot_info)
         if parsed_shot_info["local"]:
-            zarr_file_path = os_join(self.base_local_zarr_path, f"{parsed_shot_info['shot_id']}.zarr")
-
+            self._validate_base_local_zarr_path()
+            zarr_file_path = os_join(str(self.base_local_zarr_path), f"{parsed_shot_info['shot_id']}.zarr")
             store = zarr.storage.LocalStore(root=zarr_file_path)
 
         else:
             zarr_file_path = posix_join(self.s3_mast_dataset_path, f"{parsed_shot_info['shot_id']}.zarr")
-
             store = zarr.storage.FsspecStore(fs=self.fs_remote_s3fs, read_only=True, path=zarr_file_path)
 
         if verbose:
@@ -700,17 +717,18 @@ class MASTStorageManager:
         self.check_data_origin(data_origin=data_origin)
         if isinstance(data_origin, ZarrStoreType):
             # Create group from store
-            store = data_origin
-            group = zarr.open_group(store=store, mode="r")
+            group = zarr.open_group(store=data_origin, mode="r")  # noqa - Ignore expected type warning
             if verbose:
-                print(f"Group for store with path {store.path} created.")
+                print(f"Group for store with path {group.path} created.")
         else:
             # Create group from shot info dictionary
 
-            parsed_shot_info = self._parse_shot_info_dict(shot_info=data_origin)
+            parsed_shot_info = self._parse_shot_info_dict(shot_info=data_origin)  # noqa - Ignore expected type warning
             if parsed_shot_info["local"]:
+                self._validate_base_local_zarr_path()
+
                 # Create group by implicitly creating a writable LocalStore
-                local_path = os_join(self.base_local_zarr_path, f"{parsed_shot_info['shot_id']}.zarr")
+                local_path = os_join(str(self.base_local_zarr_path), f"{parsed_shot_info['shot_id']}.zarr")
 
                 group = zarr.open_group(store=local_path, mode="r")
                 # Source: https://zarr.readthedocs.io/en/latest/user-guide/storage.html#implicit-store-creation

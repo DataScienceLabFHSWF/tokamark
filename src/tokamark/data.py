@@ -4,7 +4,7 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 from collections.abc import Callable, Mapping
-from typing import Optional, Any
+from typing import Any
 
 from MAST_tools.MAST_dataset import MastDataset
 from tokamark.tools.TokaMark_dataset import TokaMarkDataset
@@ -24,7 +24,7 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
     remove_bad_efit_rating: bool = True,
     *,
-    store_manager_settings: Optional[StoreManagerParametersType] = None,
+    store_manager_settings: StoreManagerParametersType | None = None,
     verbose: bool = False,
 ) -> MastDataset:
     """
@@ -53,7 +53,7 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     remove_bad_efit_rating : bool
         If True, bad EFIT ratings are removed.
         Optional. Default: True.
-    store_manager_settings : Optional[StoreManagerParametersType]
+    store_manager_settings : StoreManagerParametersType | None
         Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
         types as defined in `MAST_tools.utils.data_utils.StoreManagerParameters`. Only valid (keyword, value) pairs
         are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
