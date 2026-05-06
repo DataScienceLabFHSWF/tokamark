@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Any, Sequence, Literal
+from typing import Any, Sequence, cast
 import numpy as np
 from multiprocessing import cpu_count
 import psutil
@@ -119,7 +119,7 @@ class PersistenceTransform:
 # ----------------------------------------------------------------------------------------------------------------------
 def MAST_collate_fn(  # noqa - Ignore lowercase warning
     batch: Sequence, verbose: bool = True
-) -> list[Any]:
+) -> list | None:
     """
     MAST collate function.
 
@@ -133,8 +133,8 @@ def MAST_collate_fn(  # noqa - Ignore lowercase warning
 
     Returns
     -------
-    list[Any]
-        Flattened batch.
+    list | None
+        Flattened batch, or None if batch is empty.
 
     """
 
@@ -148,7 +148,6 @@ def MAST_collate_fn(  # noqa - Ignore lowercase warning
 
     # New (working) approach
     flattened_batch = [(item["shot_id"], item["window_index"], item["x"], item["y"]) for item in batch]
-
     flattened_batch = default_collate(batch=flattened_batch) if (len(flattened_batch) > 0) else None
 
     if verbose:
@@ -159,6 +158,7 @@ def MAST_collate_fn(  # noqa - Ignore lowercase warning
         if flattened_batch is None:
             print("batch is None")
         else:
+            flattened_batch = cast(list, flattened_batch)
             print(f"The batch contains: {len(batch)} shots and {len(flattened_batch[0])} samples")
 
             x = flattened_batch[2]
@@ -440,7 +440,9 @@ def run_persistence_pipeline(
         )
 
         test_dataloader = DataLoader(
-            dataset=test_dataset, collate_fn=MAST_collate_fn, **pipeline_config["dataloader_settings"]
+            dataset=test_dataset,  # noqa - Ignore expected type warning
+            collate_fn=MAST_collate_fn,
+            **pipeline_config["dataloader_settings"],
         )
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -7,7 +7,7 @@ import time
 import yaml
 import numpy as np
 from pprint import pprint
-from typing import Union, Optional, Sequence, Any
+from typing import Optional, Sequence, Any
 from collections.abc import Callable, Mapping
 from torch.utils.data import Dataset
 
@@ -104,23 +104,16 @@ class MastDataset(Dataset):
     """
     Dataset class for MAST data.
 
-    If `return_incomplete_shot` is True, `__getitem__` returns shots/windows even when some variables are missing
-    (time/values is `None`). This lets downstream windowing mark missing inputs per-sample with None.
-
     Attributes
     ----------
     local : bool
         Boolean flag to activate local mode. If True, use local MAST database, otherwise use remote S3 bucket.
     shots_list : list[int]
         List of shot IDs.
-    source_signal_list : list[list[str]]
+    source_signal_list : list[list[str] | tuple[str]]
         List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
     signal_level_transform_map : Optional[Mapping[str, Callable]]
         Map of transforms to apply at signal level.
-    shot_level_transform : Callable | None
-        Transform to apply at shot level.
-    return_incomplete_shots : bool
-        Boolean flag to allow retrieval of incomplete shots.
     sig : signal_utils.MASTSignalManager
         Instance of `signal_utils.MASTSignalManager`.
     verbose : bool
@@ -144,14 +137,12 @@ class MastDataset(Dataset):
         self,
         local: bool,
         shots_list: list[int],
-        source_signal_list: list[list[str]],
+        source_signal_list: list[list[str] | tuple[str]],
         signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-        shot_level_transform: Callable | None = None,
-        return_incomplete_shots: bool = False,
         remove_outliers: bool = False,
         outlier_metadata_file: str = RANDOM_SPLIT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = False,
-        store_manager_settings: Optional[StoreManagerParametersType] = None,
+        store_manager_settings: StoreManagerParametersType | None = None,
         verbose: bool = False,
     ) -> None:
         """
@@ -163,18 +154,11 @@ class MastDataset(Dataset):
             If True, use local MAST database, otherwise use remote S3 bucket.
         shots_list : list[int]
             List of shot IDs to load data for.
-        source_signal_list : list[list[str]]
+        source_signal_list : list[list[str] | tuple[str]]
             List of data names to load using the format [[<source>, <signal>], ..., [<source>, <signal>]].
         signal_level_transform_map : Optional[Mapping[str, Callable]]
             Map of transforms to apply at signal level.
             Optional. Default: None.
-        shot_level_transform : Callable | None
-            Transform to apply at shot level.
-            Optional. Default: None.
-        return_incomplete_shots : bool
-            If True, DO NOT drop shots with missing variables, and pass them through so that the windowing transform can
-            insert None for missing inputs per window.
-            Optional. Default: False.
         remove_outliers : bool
             If True, outliers are removed using information from the `outlier_metadata_file`.
             Optional. Default: False.
@@ -204,8 +188,6 @@ class MastDataset(Dataset):
         self.shots_list = shots_list
         self.source_signal_list = source_signal_list
         self.signal_level_transform_map = signal_level_transform_map
-        self.shot_level_transform = shot_level_transform
-        self.return_incomplete_shots = return_incomplete_shots
         self.remove_outliers = remove_outliers
         if self.remove_outliers:
             with open(outlier_metadata_file, "r") as f:
@@ -235,7 +217,7 @@ class MastDataset(Dataset):
     # ------------------------------------------------------------------------------------------------------------------
     def __getitem__(  # NOSONAR - Ignore cognitive complexity
         self, idx: int
-    ) -> Union[list, dict]:
+    ) -> dict:
         """
         Return samples by shot index.
 
@@ -246,8 +228,8 @@ class MastDataset(Dataset):
 
         Returns
         -------
-        Union[list, dict]
-            Either a list of chunks, or a given the raw shot dict.
+        dict
+            Dictionary containing a raw shot.
 
         """
 
@@ -280,8 +262,8 @@ class MastDataset(Dataset):
             else:
                 source_signals[source] = [signal]
 
-        # Iterate over each source to get source store
-        # and then over each signal in source group
+        # First, iterate over each source to get source store.
+        # Then, iterate over each signal in source group.
         for source in source_signals:
             source_store = self.sig.get_source_profiles(data_origin=store, source_name=source)
 
@@ -289,7 +271,7 @@ class MastDataset(Dataset):
             mask_efit_rating = None
             if (source_store is not None) and (source == "equilibrium") and self.remove_bad_efit_rating:
                 if "ip_rating" in list(source_store.data_vars):
-                    mask_efit_rating = (
+                    mask_efit_rating = (  # noqa - Ignore attribute warning
                         self.sig.get_signal_profile(
                             data_origin=source_store, signal_name="ip_rating", verbose=self.verbose
                         )
@@ -321,16 +303,17 @@ class MastDataset(Dataset):
                             shot_time = None
 
                         try:
+                            signal_profile_vals = signal_profile.values  # noqa - Ignore missing attribute warning
                             shot_vals = (
-                                np.expand_dims(signal_profile.values, axis=0)
-                                if signal_profile.values.ndim == 1
-                                else signal_profile.values
+                                np.expand_dims(signal_profile_vals, axis=0)
+                                if signal_profile_vals.ndim == 1
+                                else signal_profile_vals
                             )
 
                             if mask_efit_rating is not None:
                                 # Expand mask to match shot_vals dimensions
-                                expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)
-                                mask_expanded = mask_efit_rating.reshape(expand_shape)
+                                expand_shape = (1,) * (shot_vals.ndim - 1) + (mask_efit_rating.shape[0],)  # noqa
+                                mask_expanded = mask_efit_rating.reshape(expand_shape)  # noqa - Ignore missing att
                                 # Apply mask
                                 shot_vals = np.where(mask_expanded, np.nan, shot_vals)
 
@@ -349,22 +332,7 @@ class MastDataset(Dataset):
                     # Keep missing signals as {"time": np.array([]), "values": np.array([])}
                     shot[f"{source}-{signal}"] = {"time": np.array([]), "values": np.array([])}
 
-        # Apply shot-level transforms to obtain a list of training objects (windows)
-        if self.shot_level_transform:
-            if self.return_incomplete_shots:
-                # Pass through even if some variables are missing
-                item = self.shot_level_transform(shot)
-                return item if isinstance(item, list) else [item]
-            else:
-                # Legacy behavior: drop shots with any missing variable
-                if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
-                    item = self.shot_level_transform(shot)  # NOSONAR - Ignore merge advice
-                    return item if isinstance(item, list) else [item]
-                else:
-                    return []
-        else:
-            # No shot-level transform → return the raw shot dict (may include None fields)
-            return shot
+        return shot
 
     # ------------------------------------------------------------------------------------------------------------------
     def get_shot_id(self, idx: int) -> int:
@@ -410,7 +378,7 @@ class MastDataset(Dataset):
         if isinstance(obj, list):
             return obj
         else:
-            # If here, 'obj' is the entire shot with no shot-level transform → treat as a single-window shot.
+            # If here, 'obj' is the entire shot → treat as a single-window shot.
             return [obj]
 
 
@@ -438,8 +406,6 @@ def tests() -> None:
             ["magnetics", "b_field_pol_probe_omv_voltage"],
             ["magnetics", "b_field_tor_probe_omaha_channel"],
         ],
-        signal_level_transform_map=None,
-        shot_level_transform=None,
     )
 
     print(f"\ndummy_dataset.__len__: {dummy_dataset.__len__()}")

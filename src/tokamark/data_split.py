@@ -4,6 +4,7 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 """
 
 import os
+from typing import cast
 import pandas as pd
 import random
 
@@ -110,7 +111,8 @@ def read_data_split_csv(csv_path: str) -> tuple[list, list, list]:
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV not found at {csv_path}")
 
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path)  # noqa - Ignore missing parameter(s)
+    df = cast(pd.DataFrame, df)
 
     shot_ids_for_train = df[df["train"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails
     shot_ids_for_test = df[df["test"] == True]["shot_id"].tolist()  # noqa - Ignore E712, "is" comparison fails

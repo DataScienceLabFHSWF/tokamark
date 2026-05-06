@@ -242,7 +242,7 @@ class TokaMarkDataset(IterableDataset):
         self.shots_list = self.base.shots_list
         self.task_metadata = task_metadata
 
-        self.data_metadata = {
+        self.data_metadata: dict[Any, dict[str, Any]] = {
             key: {"dt": meta["dt"], "shape_values": tuple(meta["values_shape"])}
             for d in [task_metadata["input"], task_metadata["actuator"], task_metadata["output"]]
             for key, meta in d.items()
@@ -439,7 +439,7 @@ class TokaMarkDataset(IterableDataset):
                 type_window="output",
             )
 
-            obj = {
+            obj: dict[str, Any] = {
                 "input": input_slice,
                 "actuator": actuator_slice,
                 "output": output_slice,
@@ -613,7 +613,7 @@ class TokaMarkDataset(IterableDataset):
             left_times = times[0] - dt * np.arange(n_pad, 0, -1)
             times = np.concatenate([left_times, times])
 
-            pad_shape = shape_values + (n_pad,)
+            pad_shape = shape_values + (n_pad,)  # noqa - Ignore missing attribute warning
             left_pad = np.full(shape=pad_shape, fill_value=np.nan)
 
             values = np.concatenate([left_pad, values], axis=-1)
@@ -627,7 +627,7 @@ class TokaMarkDataset(IterableDataset):
             right_times = times[-1] + dt * np.arange(1, n_pad + 1)
             times = np.concatenate([times, right_times])
 
-            pad_shape = shape_values + (n_pad,)
+            pad_shape = shape_values + (n_pad,)  # noqa - Ignore missing attribute warning
             right_pad = np.full(pad_shape, np.nan)
 
             values = np.concatenate([values, right_pad], axis=-1)
@@ -664,7 +664,7 @@ class TokaMarkDataset(IterableDataset):
             if times.size == 0 or values.size == 0:
                 continue
 
-            dt = self.data_metadata[key]["dt"]
+            dt: float = self.data_metadata[key]["dt"]
             shape_values = self.data_metadata[key]["shape_values"]
 
             times, values = self._pad_time_series_to_interval(

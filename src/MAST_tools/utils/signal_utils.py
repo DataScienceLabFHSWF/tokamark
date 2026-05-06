@@ -103,7 +103,7 @@ class MASTSignalManager:
     # ------------------------------------------------------------------------------------------------------------------
     def get_source_profiles(
         self, data_origin: BaseDataSourceType, source_name: str, verbose: bool = False
-    ) -> XarrayDatasetType:
+    ) -> XarrayDatasetType | None:
         """
         Get source profiles from a given data origin.
 
@@ -119,9 +119,8 @@ class MASTSignalManager:
 
         Returns
         -------
-        XarrayDatasetType
+        XarrayDatasetType | None
             Source profiles from given data origin.
-
 
         """
 
@@ -179,7 +178,7 @@ class MASTSignalManager:
         )
 
         if signal_profile is not None:
-            return signal_profile.values
+            return signal_profile.values  # noqa - Ignore missing attribute warning
         else:
             # If here, an error occurred while creating the signal profile.
             return None
@@ -221,12 +220,13 @@ class MASTSignalManager:
 
         if signal_profile is not None:
             try:
-                time_type_ = [str(kk) for kk in signal_profile.coords.keys() if str(kk).startswith("time")][0]
+                coords_keys = signal_profile.coords.keys()  # noqa - Ignore missing attribute warning
+                time_type_ = [str(kk) for kk in coords_keys if str(kk).startswith("time")][0]
             except IndexError:
                 # If here, no time info was found, and so signal is not time-dependent.
                 return None, None
 
-            signal_times_ = signal_profile[time_type_].values
+            signal_times_ = signal_profile[time_type_].values  # noqa - Ignore missing attribute warning
 
             return signal_times_, time_type_
         else:
@@ -272,7 +272,7 @@ class MASTSignalManager:
             # From shot info or ZarrStoreType
 
             try:
-                self.store_manager.check_data_origin(data_origin)
+                self.store_manager.check_data_origin(data_origin=data_origin)  # noqa - Ignore expected type warning
             except Exception as e:
                 if verbose:
                     print(f"Exception: {e}")
@@ -338,10 +338,10 @@ class MASTSignalManager:
                 signal_name=signal_name, data_origin=data_origin, source_name=source_name, verbose=verbose
             )
 
-            non_time_coords = [coord for coord in signal_profile.coords if coord != "time"]
+            non_time_coords = [coord for coord in signal_profile.coords if coord != "time"]  # noqa - Ignore missing att
             if non_time_coords:
                 channel_coord = non_time_coords[0]
-                return signal_profile.coords[channel_coord].values
+                return signal_profile.coords[channel_coord].values  # noqa - Ignore missing atttribute warning
             else:
                 return None
         except Exception as e:
@@ -393,8 +393,9 @@ def tests() -> None:
         print(source_from_shot_info)
         print(type(source_from_shot_info))
 
-        print(source_from_shot_info[signal_name])
-        print(type(source_from_shot_info[signal_name]))
+        if source_from_shot_info is not None:
+            print(source_from_shot_info[signal_name])
+            print(type(source_from_shot_info[signal_name]))
 
     # ..................................................................................................................
     # Get signal values from store
@@ -405,7 +406,7 @@ def tests() -> None:
         )
 
         print(f"Signal values: {signal_values}\n")
-        print(f"Signal shape: {signal_values.shape}\n")
+        print(f"Signal shape: {signal_values.shape}\n")  # noqa - Ignore missing attribute warning
 
     # ..................................................................................................................
     # Get signal values from shot info

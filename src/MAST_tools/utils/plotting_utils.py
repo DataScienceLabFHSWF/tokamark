@@ -96,7 +96,7 @@ class MASTPlottingManager:
             profile.plot(ax=ax)
             if ax is None:
                 ax = plt.gca()
-            ax.grid(visible=True, alpha=0.5)
+            ax.grid(visible=True, alpha=0.5)  # noqa - Ignore missing attribute warning
         except Exception as e:
             print(f"Error: {e}")
 
@@ -453,7 +453,10 @@ def tests() -> None:
     # ..................................................................................................................
     # Plot 1d profiles
 
-    plotting_manager.plot_1d_profiles(profiles=source_profiles, fig_size=[8, 8])
+    if source_profiles is not None:
+        plotting_manager.plot_1d_profiles(profiles=source_profiles, fig_size=[8, 8])
+    else:
+        print("Warning: No source profiles found.")
 
     # ..................................................................................................................
     # Plot specific group
