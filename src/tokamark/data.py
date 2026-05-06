@@ -50,9 +50,6 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     stats_metadata_file_path : str
         Path to suitable YAML file with stats metadata.
         Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_SIGNALS_STATS_FILE`.
-    return_incomplete_shots : bool
-        If True, incomplete shots are allowed.
-        Optional. Default: True.
     remove_outliers : bool
         If True, outliers are removed.
         Optional. Default: True.

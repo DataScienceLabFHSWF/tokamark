@@ -425,7 +425,6 @@ def run_persistence_pipeline(
             shots_list=test_shots_,
             local_flag=pipeline_config["local"],
             use_std_scaling=False,
-            return_incomplete_shots=True,
             remove_outliers=True,
             outlier_metadata_file=OUTLIER_FILE,
             store_manager_settings=pipeline_config["store_manager_settings"],
