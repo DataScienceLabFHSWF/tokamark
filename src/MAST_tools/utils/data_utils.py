@@ -5,7 +5,7 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 
 from collections.abc import Mapping
 from typing import Union, Any, TypedDict, Optional
-from typing_extensions import NotRequired, Unpack
+from typing_extensions import NotRequired
 import zarr.storage
 from xarray.core.dataset import Dataset
 
@@ -49,8 +49,8 @@ class ShotInfo(TypedDict):
 # ======================================================================================================================
 # Data types
 
-ShotInfoType = Union[Mapping[str, Any], Unpack[ShotInfo]]
-StoreManagerParametersType = Union[Mapping[str, Any], Unpack[StoreManagerParameters]]
+ShotInfoType = Mapping[str, Any]
+StoreManagerParametersType = Mapping[str, Any]
 
 XarrayDatasetType = Dataset
 ZarrFSStoreType = zarr.storage.FsspecStore

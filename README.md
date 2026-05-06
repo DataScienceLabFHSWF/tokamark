@@ -61,6 +61,7 @@ the dataset under `/mast/tokamark/v1`.
     ```
 
 The pre-commit configuration runs `ruff check` and `ruff format`.
+
 ---
 
 ## High-Level Architecture
@@ -142,7 +143,6 @@ graph TB
 - **Features**:
   - Lazy loading of shot data
   - Signal-level transforms
-  - Shot-level transforms
   - Handles incomplete shots
   - Outlier removal support
 - **Key Methods**:
@@ -330,7 +330,7 @@ sequenceDiagram
 
 ### 2. **Transform Pipeline Pattern**
 - Composable transforms using `ComposeTransforms`
-- Signal-level and shot-level transforms
+- Signal-level transforms
 - Configurable via `build_common_signal_transform_map()`
 - Each transform is a callable class with `__call__()` method
 
@@ -600,8 +600,7 @@ compute_summary_metrics(
 4. **Storage Setup** → `MASTStorageManager` connects to S3 or local Zarr
 5. **Signal Retrieval** → `MASTSignalManager` fetches and processes signals
 6. **Transform Application** → Apply standardization, reshaping, etc.
-7. **Window Generation** → `TokaMarkDataset` creates sliding windows
-8. **Batch Creation** → PyTorch DataLoader collates batches
+7. **Batch Creation** → PyTorch DataLoader collates batches
 
 ### Evaluation Pipeline
 1. **Model Inference** → Generate predictions for test set
@@ -632,7 +631,6 @@ compute_summary_metrics(
 ## Error Handling
 
 ### Data Quality
-- **Incomplete Shots**: Optional handling via `return_incomplete_shots`
 - **Outlier Detection**: Configurable outlier removal
 - **NaN Handling**: Checks for missing values in windows
 - **Signal Availability**: Pre-filtering based on signal presence

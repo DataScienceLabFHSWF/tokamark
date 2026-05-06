@@ -1,6 +1,8 @@
 # MAST_dataset.py Module Documentation
 
-The [`MAST_dataset.py`](../src/MAST_tools/MAST_dataset.py) module provides PyTorch-compatible dataset classes for accessing and processing MAST (Mega Ampere Spherical Tokamak) fusion plasma data. It contains two main classes that work together to provide efficient data loading with caching capabilities.
+The [`MAST_dataset.py`](../src/MAST_tools/MAST_dataset.py) module provides PyTorch-compatible dataset classes for 
+accessing and processing MAST (Mega Ampere Spherical Tokamak) fusion plasma data. It contains two main classes that 
+work together to provide efficient data loading with caching capabilities.
 
 ---
 
@@ -35,7 +37,8 @@ graph TB
 ## Class 1: CachedDataset
 
 ### Purpose
-A lightweight wrapper that caches dataset items in memory to avoid redundant loading operations. Implements lazy caching - items are loaded once on first access and stored for subsequent requests.
+A lightweight wrapper that caches dataset items in memory to avoid redundant loading operations. Implements lazy 
+caching - items are loaded once on first access and stored for subsequent requests.
 
 ### Class Definition
 ```python
@@ -50,18 +53,35 @@ class CachedDataset(Dataset):
 
 ### Methods
 
-#### `__init__(base_dataset: Sequence)`
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> __init__(base_dataset: Sequence) </code></summary>
+
 Initializes the cache structure with the same length as the base dataset.
 
 ```python
 self.cache = [None] * len(base_dataset)
 self._is_cached = [False] * len(base_dataset)
 ```
+</details>
+<!--- ============================================================================= -->
 
-#### `__len__() -> int`
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> __len__() -> int </code></summary>
+
 Returns the size of the base dataset.
 
-#### `__getitem__(idx: int) -> Any`
+</details>
+<!--- ============================================================================= -->
+
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> __getitem__(idx: int) -> Any </code></summary>
+
 Retrieves an item by index, loading and caching it on first access:
 
 ```python
@@ -70,6 +90,10 @@ if not self._is_cached[idx]:
     self._is_cached[idx] = True
 return self.cache[idx]  # Return cached item
 ```
+
+</details>
+<!--- ============================================================================= -->
+
 
 ### Usage Pattern
 ```python
@@ -88,7 +112,7 @@ item = cached_dataset[0]  # No reload!
 ### Purpose
 The core PyTorch `Dataset` implementation for MAST data. Handles:
 - Loading shot data from Zarr storage (local or S3)
-- Applying signal-level and shot-level transforms
+- Applying signal-level transforms
 - Managing incomplete shots and outliers
 - Providing flexible data access patterns
 
@@ -106,8 +130,6 @@ class MastDataset(Dataset):
 | `shots_list` | `list[int]` | List of shot IDs to load |
 | `source_signal_list` | `list[list[str]]` | Signals to load as `[[source, signal], ...]` |
 | `signal_level_transform_map` | `Optional[Mapping[str, Callable]]` | Per-signal transforms (e.g., standardization) |
-| `shot_level_transform` | `Optional[Callable]` | Transform applied to entire shot (e.g., windowing) |
-| `return_incomplete_shots` | `bool` | If `True`, return shots with missing signals |
 | `remove_outliers` | `bool` | If `True`, filter outlier signals |
 | `sig` | `MASTSignalManager` | Signal retrieval interface |
 | `verbose` | `bool` | Enable detailed logging |
@@ -119,13 +141,11 @@ def __init__(
     self,
     local: bool,
     shots_list: list[int],
-    source_signal_list: list[list[str]],
+    source_signal_list: list[list[str], tuple[str]],
     signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-    shot_level_transform: Optional[Callable] = None,
-    return_incomplete_shots: bool = False,
     remove_outliers: bool = False,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
-    store_manager_settings: Optional[StoreManagerParametersType] = None,
+    store_manager_settings: StoreManagerParametersType | None = None,
     verbose: bool = False
 )
 ```
@@ -146,14 +166,6 @@ def __init__(
   - Keys: `"source-signal"` format
   - Values: Callable transforms (e.g., `StdScalingTransform`)
   
-- **`shot_level_transform`**: Function applied to entire shot dictionary
-  - Typically used for windowing or chunking
-  - Can return single dict or list of dicts
-  
-- **`return_incomplete_shots`**: Controls handling of missing data
-  - `True`: Return shots even with missing signals (as empty arrays)
-  - `False`: Drop shots with any missing signals
-  
 - **`remove_outliers`**: Enable outlier filtering
   - Uses metadata from `outlier_metadata_file`
   - Replaces outlier signals with empty arrays
@@ -167,19 +179,29 @@ def __init__(
   
 - **`verbose`**: Enable detailed logging output
 
+
 ### Core Methods
 
-#### `__len__() -> int`
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> __len__() -> int </code></summary>
+
 Returns the number of shots in the dataset.
 
 ```python
 return len(self.shots_list)
 ```
 
-#### `__getitem__(idx: int) -> Union[list, dict]`
-The main data loading method. Returns either:
-- A **dictionary** of signals (if no shot-level transform)
-- A **list of windows** (if shot-level transform applied)
+</details>
+<!--- ============================================================================= -->
+
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> __getitem__(idx: int) -> dict </code></summary>
+
+The main data loading method. Returns a **dictionary** of signals.
 
 **Data Loading Pipeline:**
 
@@ -213,12 +235,8 @@ sequenceDiagram
         end
     end
     
-    alt Has shot_level_transform
-        MD->>MD: Apply shot_level_transform
-        MD-->>User: List of windows
-    else No transform
-        MD-->>User: Raw shot dict
-    end
+    MD-->>User: Raw shot dict
+    
 ```
 
 **Key Implementation Details:**
@@ -259,23 +277,14 @@ for source in source_signals:
             )
 ```
 
-4. **Shot-Level Transform** (lines 346-360):
-```python
-if self.shot_level_transform:
-    if self.return_incomplete_shots:
-        # Pass through even with missing variables
-        item = self.shot_level_transform(shot)
-        return item if isinstance(item, list) else [item]
-    else:
-        # Drop shots with any missing variable
-        if all(subval is not None for subdict in shot.values() for subval in subdict.values()):
-            item = self.shot_level_transform(shot)
-            return item if isinstance(item, list) else [item]
-        else:
-            return []  # Empty list for incomplete shots
-```
+</details>
+<!--- ============================================================================= -->
 
-#### `get_shot_id(idx: int) -> int`
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> get_shot_id(idx: int) -> int </code></summary>
+
 Returns the shot ID for a given index.
 
 ```python
@@ -288,7 +297,14 @@ dataset = MastDataset(shots_list=[30421, 30422, 30423], ...)
 shot_id = dataset.get_shot_id(0)  # Returns 30421
 ```
 
-#### `get_windows_for_shot(idx: int) -> list`
+</details>
+<!--- ============================================================================= -->
+
+
+<!--- ============================================================================= -->
+<details>
+<summary><code> get_windows_for_shot(idx: int) -> list </code></summary>
+
 Returns the list of windows for a shot. Useful for understanding how many training samples a shot produces.
 
 ```python
@@ -304,6 +320,10 @@ else:
 windows = dataset.get_windows_for_shot(0)
 print(f"Shot produces {len(windows)} windows")
 ```
+
+</details>
+<!--- ============================================================================= -->
+
 
 ---
 
@@ -367,36 +387,6 @@ signal_level_transform_map = {
 }
 ```
 
-### Shot-Level Transforms
-Applied to the entire shot dictionary. Typically used for:
-- **Windowing**: Create sliding windows
-- **Resampling**: Adjust temporal resolution
-- **Feature extraction**: Compute derived features
-
-**Example Windowing Transform:**
-```python
-def windowing_transform(shot):
-    """Create sliding windows from shot data."""
-    windows = []
-    window_size = 100
-    stride = 50
-    
-    # Get reference time array
-    ref_signal = list(shot.keys())[0]
-    time = shot[ref_signal]["time"]
-    
-    for start_idx in range(0, len(time) - window_size, stride):
-        window = {}
-        for signal_key, signal_data in shot.items():
-            window[signal_key] = {
-                "time": signal_data["time"][start_idx:start_idx + window_size],
-                "values": signal_data["values"][:, start_idx:start_idx + window_size]
-            }
-        windows.append(window)
-    
-    return windows
-```
-
 ---
 
 ## Usage Examples
@@ -413,7 +403,6 @@ dataset = MastDataset(
         ["magnetics", "b_field_pol_probe_obr_field"]
     ],
     signal_level_transform_map=None,
-    shot_level_transform=None
 )
 
 # Access shot data
@@ -444,7 +433,6 @@ dataset = MastDataset(
         ["magnetics", "b_field_pol_probe_obr_field"]
     ],
     signal_level_transform_map=transform_map,
-    shot_level_transform=windowing_transform
 )
 
 # Returns list of windows
@@ -481,7 +469,7 @@ for batch in dataloader:
     pass
 ```
 
-### Handling Incomplete Shots
+### Handling Outliers and Incomplete Shots
 ```python
 dataset = MastDataset(
     local=True,
@@ -490,7 +478,6 @@ dataset = MastDataset(
         ["summary", "power_nbi"],
         ["thomson_scattering", "n_e"]
     ],
-    return_incomplete_shots=True,  # Don't drop incomplete shots
     remove_outliers=True           # Filter known outliers
 )
 
@@ -628,7 +615,6 @@ mast_dataset = initialize_MAST_dataset(
     shots_list=train_shots,
     local_flag=True,
     use_std_scaling=True,
-    return_incomplete_shots=True,
     remove_outliers=True
 )
 
@@ -690,7 +676,6 @@ dummy_dataset.__getitem__(0):
 **Solutions:**
 - Check that `shots_list` contains valid shot IDs
 - Verify signals exist in storage using `MASTStorageManager.list_shots_by_signal_availability()`
-- Set `return_incomplete_shots=True` to see which signals are missing
 - Check `verbose=True` for detailed loading information
 
 ### Issue 2: Slow Loading
@@ -709,7 +694,6 @@ dummy_dataset.__getitem__(0):
 **Solutions:**
 - Don't use `CachedDataset` for large datasets
 - Reduce batch size in DataLoader
-- Use shot-level transforms to create smaller windows
 - Load fewer signals per shot
 - Use gradient accumulation instead of large batches
 
@@ -738,17 +722,15 @@ CachedDataset(base_dataset: Sequence)
 MastDataset(
     local: bool,
     shots_list: list[int],
-    source_signal_list: list[list[str]],
+    source_signal_list: list[list[str], tuple[str]],
     signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
-    shot_level_transform: Optional[Callable] = None,
-    return_incomplete_shots: bool = False,
     remove_outliers: bool = False,
     outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
-    store_manager_settings: Optional[StoreManagerParametersType] = None,
+    store_manager_settings: StoreManagerParametersType | None = None,
     verbose: bool = False
 )
     __len__() -> int
-    __getitem__(idx: int) -> Union[list, dict]
+    __getitem__(idx: int) -> dict
     get_shot_id(idx: int) -> int
     get_windows_for_shot(idx: int) -> list
 ```
@@ -760,7 +742,7 @@ MastDataset(
 The [`MAST_dataset.py`](../src/MAST_tools/MAST_dataset.py) module provides:
 
 ✅ **Flexible Data Access**: Supports local and remote storage  
-✅ **Transform Pipeline**: Signal-level and shot-level transforms  
+✅ **Transform Pipeline**: Signal-level transforms  
 ✅ **Robust Handling**: Manages incomplete shots and outliers  
 ✅ **Memory Caching**: Optional in-memory caching via `CachedDataset`  
 ✅ **PyTorch Integration**: Full compatibility with DataLoader  

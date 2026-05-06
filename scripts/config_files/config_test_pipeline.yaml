@@ -14,7 +14,6 @@ dataloader_settings:
 
 mast_dataset_init_settings:
   use_std_scaling: true
-  return_incomplete_shots: true
   remove_outliers: true
 
 tokamark_dataset_init_settings:

@@ -34,7 +34,7 @@ import os.path
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from typing import Union, Any, Optional, Literal
+from typing import Union, Any, Optional, Literal, cast
 
 from torch import Tensor as TorchTensor
 
@@ -357,7 +357,8 @@ def _extract_task_summary_from_task_metrics(
         print(f"Warning: task {task} was yet evaluated, the corresponding files were not found.")
         return None, None
 
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path)  # noqa - Ignore missing parameter(s)
+    df = cast(pd.DataFrame, df)
     if "feature_name" not in df.columns:
         print(f"Warning: {file_path} has no feature_name column. Skipping task {task}.")
         return None, None
@@ -369,7 +370,7 @@ def _extract_task_summary_from_task_metrics(
         return None, None
 
     row = task_rows.iloc[0]
-    summary = {"task": task}
+    summary: dict[str, Any] = {"task": task}
     for col in TASK_SUMMARY_COLUMNS:
         summary[col] = row[col] if col in row.index else np.nan
 
@@ -413,7 +414,8 @@ def _extract_task_summary_from_shots_metrics(task: str, output_dir: Union[str, P
         print(f"Warning: task {task} was yet evaluated, the corresponding files were not found.")
         return None
 
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path)  # noqa - Ignore missing parameter(s)
+    df = cast(pd.DataFrame, df)
     if "shot_id" not in df.columns:
         print(f"Warning: data loaded from {file_path} has no shot_id column. Skipping task {task}.")
         return None
@@ -457,7 +459,8 @@ def _extract_task_summary_from_windows_metrics(
         print(f"Warning: task {task} was yet evaluated, the corresponding files were not found.")
         return None, None
 
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path)  # noqa - Ignore missing parameter(s)
+    df = cast(pd.DataFrame, df)
     df_signals, df_task_shots, _ = aggregate_windows_metrics(df=df)
     summary = {"task": task, **_build_task_summary_row_from_shots(df_task_shots=df_task_shots)}
     signal_rows = df_signals.reset_index().assign(task=task)
