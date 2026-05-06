@@ -22,7 +22,6 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     use_std_scaling: bool = True,
     stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE,
     use_nan_filling: bool = False,
-    return_incomplete_shots: bool = True,
     remove_outliers: bool = True,
     outlier_metadata_file: str = RANDOM_SPLIT_OUTLIER_METADATA_FILE,
     remove_bad_efit_rating: bool = True,
