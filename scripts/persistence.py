@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Any, Sequence, cast
+from typing import Any, Sequence, cast, Literal
 import numpy as np
 from multiprocessing import cpu_count
 import psutil

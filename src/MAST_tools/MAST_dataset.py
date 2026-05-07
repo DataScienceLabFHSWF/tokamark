@@ -165,7 +165,7 @@ class MastDataset(Dataset):
         outlier_metadata_file : str
             Source file for outlier metadata, only used when `remove_outliers` is True.
             Optional: Default: `MAST_tools.utils.path_utils.RANDOM_SPLIT_OUTLIER_METADATA_FILE`.
-        store_manager_settings : Optional[StoreManagerParametersType]
+        store_manager_settings : StoreManagerParametersType | None
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
             types as defined in `MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)
             pairs are used to update default values, e.g. {"target_fsspec_protocol": "s3"}.
