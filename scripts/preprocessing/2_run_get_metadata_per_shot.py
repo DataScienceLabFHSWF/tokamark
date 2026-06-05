@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, DataLoader
 
 from tokamark.tools.utils import get_config_from_yaml
 from MAST_tools.utils.general_utils import warning_print
-from MAST_tools.utils.path_utils import PACKAGE_METADATA_DIR
+from MAST_tools.utils.path_utils import MANUAL_DICT_OUTLIER_METADATA_FILE
 from MAST_tools.MAST_dataset import MastDataset
 from tokamark.data import initialize_MAST_dataset
 from tokamark.data_split import get_train_test_val_shots
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     # Create unstandardized dataset
     # ------------------------------------------------------------------------------------------------------------------
 
-    print("\nProcessing dataset...")
+    print("\nProcessing dataset... with local=", config["local"])
 
     unstandardized_all_dataset = initialize_MAST_dataset(
         config_task=config["task_configuration"],
@@ -303,8 +303,8 @@ if __name__ == "__main__":
         local_flag=config["local"],
         use_std_scaling=False,  # <- To get unstandardized dataset
         use_nan_filling=False,
-        remove_outliers=True,  # <- To remove found outliers
-        outlier_metadata_file=os.path.join(PACKAGE_METADATA_DIR, "dict_manual_outlier.yaml"),
+        remove_outliers=True,  # <- To remove manually found outliers
+        outlier_metadata_file=MANUAL_DICT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating=True,
         store_manager_settings=config["store_manager_settings"],
     )

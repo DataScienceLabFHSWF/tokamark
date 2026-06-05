@@ -320,7 +320,7 @@ class TokaMarkDataset(IterableDataset):
 
     # ------------------------------------------------------------------------------------------------------------------
     def _process_shot(  # NOSONAR - Ignore cognitive complexity
-        self, shot_idx: int, filled_test_mode: bool = True
+        self, shot_idx: int, filled_test_mode: bool = False
     ) -> Generator:
         """
         Shot-processing generator.
@@ -351,8 +351,7 @@ class TokaMarkDataset(IterableDataset):
             t = sample[var]["time"]
             v = sample[var]["values"]
 
-            # exclude timesteps where all value dimensions are NaN or the timestamp itself is non-finite
-            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1))) & np.isfinite(t)
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]
@@ -378,8 +377,7 @@ class TokaMarkDataset(IterableDataset):
                     return  # ← skip whole shot
                 continue
 
-            # exclude timesteps where all value dimensions are NaN or the timestamp itself is non-finite
-            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1))) & np.isfinite(t)
+            valid_mask = ~np.all(np.isnan(v), axis=tuple(range(v.ndim - 1)))
             if not np.any(valid_mask):
                 continue
             t_valid = t[valid_mask]

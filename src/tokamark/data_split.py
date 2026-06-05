@@ -8,7 +8,7 @@ from typing import cast
 import pandas as pd
 import random
 
-from tokamark.tools.path import DEFAULT_TOKAMARK_DATA_SPLITS_FILE
+from tokamark.tools.path import RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -19,7 +19,7 @@ def get_train_test_val_shots(
     max_index_for_test: int | None = None,
     shuffle: bool = False,
     seed: int = 42,
-    data_splits_file_path: str = DEFAULT_TOKAMARK_DATA_SPLITS_FILE,
+    data_splits_file_path: str = RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE,
 ) -> tuple[list, list, list]:
     """
     Generate lists of shot IDs for training, testing, and validation. These lists can be subsets of the corresponding
@@ -46,8 +46,8 @@ def get_train_test_val_shots(
         For reproducibility of the rnd sequence.
         Optional. Default: 42.
     data_splits_file_path : str
-        Pato to the data splits CSV file.
-        Optional. Default: `tokamark.tools.path.DEFAULT_TOKAMARK_DATA_SPLITS_FILE`.
+        Path to the data splits CSV file.
+        Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_TOKAMARK_DATA_SPLITS_FILE`.
 
     Returns
     -------

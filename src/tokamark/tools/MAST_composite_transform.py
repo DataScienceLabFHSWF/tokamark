@@ -12,7 +12,7 @@ from tokamark.tools.transforms.reshape_lcfs_transform import ReshapeLcfsTransfor
 from tokamark.tools.transforms.fill_profile_with_zeros_imputer_transform import FillProfileWithZerosTransform
 from tokamark.tools.transforms.stft_transform import STFTTransform
 from tokamark.tools.transforms.clip_non_physical_x_point_transform import ClipXPointTransform
-from tokamark.tools.path import DEFAULT_SIGNALS_STATS_FILE
+from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -20,6 +20,7 @@ def build_common_signal_transform_map(
     source_signal_list: list[tuple],
     use_std_scaling: bool = True,
     use_nan_filling: bool = True,
+    stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE,
 ) -> dict[str, ComposeTransforms]:
     """
     Build the signal transform map for each variable.
@@ -34,6 +35,9 @@ def build_common_signal_transform_map(
     use_nan_filling: bool
         If True, use NaN filling.
         Optional. Default: True.
+    stats_metadata_file_path : str
+        Target path to the dict_stats_metadata YAML file.
+        Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_SIGNALS_STATS_FILE`.
 
     Returns
     -------
@@ -44,7 +48,7 @@ def build_common_signal_transform_map(
 
     # ..................................................................................................................
     def maybe_std(
-        var: str, stats_metadata_file_path: str = DEFAULT_SIGNALS_STATS_FILE
+        var: str,
     ) -> Union[list, list[StdScalingTransform]]:
         """
         Return [StdScalingTransform] if enabled, else empty list.
@@ -53,9 +57,6 @@ def build_common_signal_transform_map(
         ----------
         var : str
             Input variable.
-        stats_metadata_file_path : str
-            Target path to the dict_stats_metadata YAML file.
-            Optional. Default: DEFAULT_SIGNALS_STATS_FILE.
 
         Returns
         -------

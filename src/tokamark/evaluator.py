@@ -40,13 +40,12 @@ from torch import Tensor as TorchTensor
 
 from tokamark.tasks import GROUP_TASKS, TASKS_CONFIGS_MAP, get_signals_metadata
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 
 ID_COLUMNS = ["shot_id", "window_index", "feature_name"]
-METRIC_COLUMNS = ["RMSE", "MAE"]
+METRIC_COLUMNS = ["RMSE", "MAE", "nan_fraction"]
 COLUMNS = ID_COLUMNS + METRIC_COLUMNS
-TASK_METRICS = ("NRMSE", "NMAE", "RMSE", "MAE")
+TASK_METRICS = ("NRMSE", "NMAE", "RMSE", "MAE", "nan_fraction")
 
 METRIC_MEAN_COLUMNS = tuple(f"{m}_mean" for m in TASK_METRICS)
 METRIC_STD_COLUMNS = tuple(f"{m}_std_pop" for m in TASK_METRICS)
@@ -96,8 +95,15 @@ def compute_windows_metrics(
 
     """
 
-    rmse_per_sample = np.sqrt(np.mean((y_target - y_pred) ** 2, axis=1))
-    mae_per_sample = np.mean(np.abs(y_target - y_pred), axis=1)
+    # Errors (ignore NaNs in calculations)
+    diff = y_target - y_pred
+
+    rmse_per_sample = np.sqrt(np.nanmean(diff**2, axis=1))
+    mae_per_sample = np.nanmean(np.abs(diff), axis=1)
+
+    # NaN percentage per sample
+    nan_mask = np.isnan(y_target)
+    nan_pct_per_sample = np.mean(nan_mask, axis=1)  # fraction of NaNs (0–1)
 
     # Build columns explicitly to preserve numeric dtypes (avoid mixed-type upcast).
     return pd.DataFrame(
@@ -107,6 +113,7 @@ def compute_windows_metrics(
             "feature_name": np.asarray([feature_name] * len(rmse_per_sample), dtype=object),
             "RMSE": np.asarray(rmse_per_sample, dtype=float),
             "MAE": np.asarray(mae_per_sample, dtype=float),
+            "nan_fraction": np.asarray(nan_pct_per_sample, dtype=float),
         }
     )
 

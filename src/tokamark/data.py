@@ -6,11 +6,12 @@ Python style reference: https://google.github.io/styleguide/pyguide.html
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from MAST_tools.MAST_dataset import MastDataset
 from tokamark.tools.TokaMark_dataset import TokaMarkDataset
 from tokamark.tools.MAST_composite_transform import build_common_signal_transform_map
+from tokamark.tools.path import RANDOM_SPLIT_SIGNALS_STATS_FILE
+from MAST_tools.MAST_dataset import MastDataset
 from MAST_tools.utils.data_utils import StoreManagerParametersType
-from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
+from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -19,9 +20,10 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     shots_list: list[int],
     local_flag: bool = True,
     use_std_scaling: bool = True,
-    use_nan_filling: bool = True,
+    stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE,
+    use_nan_filling: bool = False,
     remove_outliers: bool = True,
-    outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
+    outlier_metadata_file: str = RANDOM_SPLIT_OUTLIER_METADATA_FILE,
     remove_bad_efit_rating: bool = True,
     *,
     store_manager_settings: StoreManagerParametersType | None = None,
@@ -45,11 +47,15 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     use_std_scaling : bool
         If True, standard scaling is used.
         Optional. Default: True.
+    stats_metadata_file_path : str
+        Path to suitable YAML file with stats metadata.
+        Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_SIGNALS_STATS_FILE`.
     remove_outliers : bool
         If True, outliers are removed.
         Optional. Default: True.
     outlier_metadata_file : str
         Path to suitable YAML file with outlier metadata.
+        Optional. Default: `MAST_tools.utils.path_utils.RANDOM_SPLIT_OUTLIER_METADATA_FILE`.
     remove_bad_efit_rating : bool
         If True, bad EFIT ratings are removed.
         Optional. Default: True.
@@ -81,6 +87,7 @@ def initialize_MAST_dataset(  # noqa - Ignore lowercase warning
     signal_transform_map = build_common_signal_transform_map(
         source_signal_list=source_signal_list,
         use_std_scaling=use_std_scaling,
+        stats_metadata_file_path=stats_metadata_file_path,
         use_nan_filling=use_nan_filling,
     )
 

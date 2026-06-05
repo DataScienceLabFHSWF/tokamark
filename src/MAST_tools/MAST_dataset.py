@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping
 from torch.utils.data import Dataset
 
 from MAST_tools.utils import signal_utils
-from MAST_tools.utils.path_utils import DEFAULT_OUTLIER_METADATA_FILE
+from MAST_tools.utils.path_utils import RANDOM_SPLIT_OUTLIER_METADATA_FILE
 
 from MAST_tools.utils.data_utils import ShotInfo, StoreManagerParametersType
 
@@ -140,7 +140,7 @@ class MastDataset(Dataset):
         source_signal_list: list[list[str] | tuple[str]],
         signal_level_transform_map: Optional[Mapping[str, Callable]] = None,
         remove_outliers: bool = False,
-        outlier_metadata_file: str = DEFAULT_OUTLIER_METADATA_FILE,
+        outlier_metadata_file: str = RANDOM_SPLIT_OUTLIER_METADATA_FILE,
         remove_bad_efit_rating: bool = False,
         store_manager_settings: StoreManagerParametersType | None = None,
         verbose: bool = False,
@@ -164,7 +164,7 @@ class MastDataset(Dataset):
             Optional. Default: False.
         outlier_metadata_file : str
             Source file for outlier metadata, only used when `remove_outliers` is True.
-            Optional: Default: DEFAULT_OUTLIER_METADATA_FILE, as defined in `MAST_tools.utils.path_utils.py`
+            Optional: Default: `MAST_tools.utils.path_utils.RANDOM_SPLIT_OUTLIER_METADATA_FILE`.
         store_manager_settings : StoreManagerParametersType | None
             Settings for the store manager instance provided as a kwargs dictionary, with keywords and required value
             types as defined in `MAST_tools.data_models.StoreManagerParametersType`. Only valid (keyword, value)

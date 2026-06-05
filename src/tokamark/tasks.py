@@ -10,8 +10,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from tokamark.tools.utils import get_config_from_yaml
-from tokamark.tools.path import TASKS_CONFIGS_DIR, DEFAULT_SIGNALS_STATS_FILE
-
+from tokamark.tools.path import TASKS_CONFIGS_DIR, RANDOM_SPLIT_SIGNALS_STATS_FILE
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -64,7 +63,7 @@ def get_task_config(task_name: str) -> dict[str, Any]:
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def get_signals_metadata(file_path: str = DEFAULT_SIGNALS_STATS_FILE) -> dict[str, Any]:
+def get_signals_metadata(file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE) -> dict[str, Any]:
     """
     Read signals metadata file and return content as a dictionary.
 
@@ -72,7 +71,7 @@ def get_signals_metadata(file_path: str = DEFAULT_SIGNALS_STATS_FILE) -> dict[st
     ----------
     file_path : str
         Target file path for signals metadata.
-        Optional. Default: DEFAULT_SIGNALS_STATS_FILE.
+        Optional. Default: `tokamark.tools.path.RANDOM_SPLIT_SIGNALS_STATS_FILE`.
 
     Returns
     -------
