@@ -7,7 +7,7 @@ name = "tokamark"
 version = "0.1.0"
 description = "Data preprocessing and benchmarking tools for FAIR-MAST"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license-files = ["LICENSE.md"]
 
 dependencies = [
