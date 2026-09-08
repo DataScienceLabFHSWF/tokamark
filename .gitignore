@@ -7,6 +7,7 @@ scripts/pipelines/runs/
 scripts/pipelines/best_model.pth
 prediction_evolution_example_0.gif
 optuna_results.png
+*.csv*
 
 # Models test output
 scripts/pipelines/models/output_figures
