@@ -88,7 +88,9 @@ def get_signals_metadata(file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE) -> di
 
 # ----------------------------------------------------------------------------------------------------------------------
 def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
-    config_task: Mapping[str, Any], verbose: bool = False
+    config_task: Mapping[str, Any], 
+    verbose: bool = False,
+    stats_metadata_file_path: str = RANDOM_SPLIT_SIGNALS_STATS_FILE,
 ) -> dict[str, Any]:
     """
     Get task metadata for target configuration task.
@@ -100,6 +102,9 @@ def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
     verbose : bool
         If True, verbose mode is activated.
         Default: False.
+    stats_metadata_file_path : str
+        Path to the signal statistics file for the selected data split.
+        Default: RANDOM_SPLIT_SIGNALS_STATS_FILE.
 
     Returns
     -------
@@ -112,7 +117,7 @@ def get_task_metadata(  # NOSONAR - Ignore cognitive complexity
     # Import data metadata
     # ..................................................................................................................
 
-    dict_stats_metadata = get_signals_metadata()
+    dict_stats_metadata = get_signals_metadata(file_path=stats_metadata_file_path)
 
     # ..................................................................................................................
     # Import task-specific roles
